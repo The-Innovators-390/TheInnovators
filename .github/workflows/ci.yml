@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, setup-yml-script ]
+    branches: ["**"]
   pull_request:
-    branches: [ main, setup-yml-script ]
+    branches: ["**"]
 
 permissions:
   contents: read
@@ -26,18 +26,22 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: main/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+        working-directory: main
 
       - name: Lint (Expo)
         run: npm run lint
+        working-directory: main
 
       - name: Tests (Jest + Coverage)
         run: npm run test:ci
+        working-directory: main
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: ./coverage/lcov.info
+          files: ./main/coverage/lcov.info
           fail_ci_if_error: true
