@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, setup-yml-script ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, setup-yml-script ]
 
 permissions:
   contents: read
