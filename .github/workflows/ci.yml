@@ -68,5 +68,3 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
         with:
           projectBaseDir: main
-          args: >
-            -Dsonar.nodejs.executable=node
