@@ -3,8 +3,19 @@ skinparam DefaultFontName Arial
 skinparam DefaultFontSize 16
 skinparam DefaultFontStyle bold
 skinparam ArrowThickness 2.2
-title Domain Model - large scale view
+title Domain Model - Campus Navigation System for Condordia University - Version 1 (with annotations)
 hide empty members
+
+note as Scope
+    <size:18><b><u>Scope :</u></b></size>
+    This domain model covers main concepts/entities involved in a campus Navigation
+    system for Concordia University. It includes classes for campuses, buildings,
+    rooms, and points of interest (POIs) such as washrooms, elevators, stairs.
+    These classes englobe the necessary concepts that will be needed throughout the
+    future iterations/features of the system such as campuses and buildings for
+    feature 1 (Show my location on campus) and Points of Interest for feature 5 
+    (Find nearest POI).
+end note
 
 class "Terminal" as terminal {}
 
@@ -69,35 +80,38 @@ class "CoffeeShop" as CoffeeShop {
 }
 
 terminal "1" -- "1" CampusCatalog
-terminal "1"-- "1" Buildings
+terminal "1" -- "1" Buildings
 terminal "1" -- "1" Rooms
 terminal "1" -- "1" PointOfInterestCatalog
 
 note top of terminal
+    <size:18><b><u>Controller Design Pattern :</u></b></size>
     The terminal class will use a controller design pattern by which it
     will act as the interface of the system by receiving user inputs and
     will delegate the tasks to the appropriate catalog classes.
 end note
 
 note left of PointOfInterestCatalog
+    <size:18><b><u>Factory Design Pattern :</u></b></size>
     PointOfInterestCatalog will be using the factory design pattern
     to create different types of PointOfInterest objects within a 
     single method.
 end note
 
-note as CreatorInfoGRASP
-    Note : All the catalog classes (CampusCatalog, Buildings, Rooms, 
+note right of Rooms
+    <size:18><b><u>Creators and Information Experts :</u></b></size>
+    All the catalog classes (CampusCatalog, Buildings, Rooms, 
     PointOfInterestCatalog) take on the CREATOR and INFORMATION 
     EXPERT responsibilities from the GRASP by being the classes 
     responsible for the creation of their respective objects and 
     by finding objects based on some relevant attributes.
 end note
 
-CampusCatalog "1" -- "2" Campus
+CampusCatalog "1" *-- "2" Campus
 
-Buildings "1" -- "*" Building
+Buildings "1" *-- "*" Building
 
-Rooms "1" -- "*" Room
+Rooms "1" *-- "*" Room
 
 Campus "1" -- "*" Building
 
@@ -105,7 +119,8 @@ Building "1" -- "*" Room
 
 Building "1" -- "*" PointOfInterest
 
-PointOfInterestCatalog "1" -- "*" PointOfInterest
+PointOfInterestCatalog "1" *-- "*" PointOfInterest
+
 PointOfInterest <|-- Indoor
 Indoor <|-- Washroom
 Indoor <|-- Elevator
