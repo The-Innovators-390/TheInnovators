@@ -1,0 +1,236 @@
+@startuml Class Diagram
+skinparam DefaultFontName Arial
+skinparam DefaultFontSize 16
+skinparam DefaultFontStyle bold
+skinparam ArrowThickness 2.2
+title <u>Class Diagram - Concordia Campus Guide App - Version 2 (with annotations)</u>\n<i>Date : 2026-01-27 </i>\n<i>Authors : Malak Sefrioui and Yash Nathani</i>
+hide empty members
+
+note as Scope
+    <size:18><b><u>Scope :</u></b></size>
+    This class diagram represents the static structure of the Concordia Campus Guide App.
+    It includes classes for campuses, buildings, rooms, and points of interest (POIs)
+    such as washrooms, elevators, and stairs. The diagram illustrates the relationships
+    between these classes, highlighting associations and compositions that define how
+    different entities interact within the system.
+end note
+
+class "Terminal" as terminal {
+    + loadBaseMap()
+    + loadSGWCampus()
+    + loadLoyolaCampus()
+    + getCampusDetails(codename: String): Campus
+    + getBuildingsOnCampus(campusCodename: String): List<Building>
+    + getBuildingByCodename(codename: String): Building
+    + getPOIByTypeAndBuilding(type: String, buildingCodename: String): List<PointOfInterest>
+    + getPOIsInBuilding(buildingCodename: String): List<PointOfInterest>
+}
+
+class "CampusCatalog" as CampusCatalog {
+    - campuses: List<Campus>
+    + getCampusByCodename(codename: String): Campus
+    + addCampus(latitude: double, longitude: double, name: String, codename: String): void
+    + getBuildingsOnCampus(campusCodename: String): List<Building>
+    + getAllCampuses(): List<Campus>
+}
+class "Campus" as Campus {
+    - latitude: double
+    - longitude: double
+    - name: String
+    - codename : String
+    - buildings: List<Building>
+    + getLatitude(): double
+    + getLongitude(): double
+    + getName(): String
+    + getCodename(): String
+    + getBuildings(): List<Building>
+}
+
+class "BuildingCatalog" as Buildings {
+    - buildings: List<Building>
+    + getBuildingByCodename(codename: String): Building
+    + getPOIByTypeAndBuilding(type: String, buildingCodename: String): List<PointOfInterest>
+    + getPOIByBuilding(buildingCodename: String): List<PointOfInterest>
+    + addBuilding(latitude: double, longitude: double, name: String, address: String, numberOfFloors: int, codename: String): void
+    + getAllBuildings(): List<Building>
+}
+
+class "Building" as Building {
+    - latitude: double
+    - longitude: double
+    - name: String
+    - address: String
+    - numberOfFloors: int
+    - codename : String
+    - indoors: List<Indoor>
+    + getLatitude(): double
+    + getLongitude(): double
+    + getName(): String
+    + getAddress(): String
+    + getNumberOfFloors(): int
+    + getCodename(): String
+    + getIndoorsByType(type: String): List<Indoor>
+    + getAllIndoors(): List<Indoor>
+}
+
+class "PointOfInterestCatalog" as PointOfInterestCatalog {
+    - pois: List<PointOfInterest>
+    + addPOI(poi: PointOfInterest): void
+    + getAllPOIs(): List<PointOfInterest>
+}
+
+abstract class "PointOfInterest" as PointOfInterest {
+    - latitude: double
+    - longitude: double
+    + getLatitude(): double
+    + getLongitude(): double
+}
+abstract class "Indoor" as Indoor {
+    - latitude: double
+    - longitude: double
+    + getLatitude(): double
+    + getLongitude(): double
+}
+
+class "Washroom" as Washroom {
+    - latitude: double
+    - longitude: double
+    - isPublic: boolean
+    - isGenderNeutral: boolean
+    - isMale: boolean
+    - isFemale: boolean
+    - isAccessible: boolean
+    - floorNB: int
+    + getLatitude(): double
+    + getLongitude(): double
+}
+class "Elevator" as Elevator {
+    - latitude: double
+    - longitude: double
+    - isAccessible: boolean
+    + getLatitude(): double
+    + getLongitude(): double
+}
+class "Stairs" as Stairs {
+    - latitude: double
+    - longitude: double
+    + getLatitude(): double
+    + getLongitude(): double
+}
+
+class "WaterFountain" as WaterFountain {
+    - latitude: double
+    - longitude: double
+    - hasBottleFiller: boolean
+    - floorNB: int
+    + getLatitude(): double
+    + getLongitude(): double
+}
+
+class "Room" as Room {
+    - latitude: double
+    - longitude: double
+    - roomNumber: String
+    - capacity: int
+    - floorNB: int
+    + getRoomNumber(): String
+    + getCapacity(): int
+    + getFloorNB(): int
+    + getLatitude(): double
+    + getLongitude(): double
+}
+
+abstract class "Outdoor" as Outdoor {
+    - address: String
+    - name: String
+    - type : String
+    - latitude: double
+    - longitude: double
+    + getLatitude(): double
+    + getLongitude(): double
+    + getAddress(): String
+    + getName(): String
+    + getType(): String
+}
+
+class "Restaurant" as Restaurant {
+    - address: String
+    - name: String
+    - type : String
+    - latitude: double
+    - longitude: double
+    - cuisineType: String
+    + getLatitude(): double
+    + getLongitude(): double
+    + getAddress(): String
+    + getName(): String
+    + getType(): String
+    + getCuisineType(): String
+}
+class "CoffeeShop" as CoffeeShop {
+    - address: String
+    - name: String
+    - type : String
+    - latitude: double
+    - longitude: double
+    + getLatitude(): double
+    + getLongitude(): double
+    + getAddress(): String
+    + getName(): String
+    + getType(): String
+}
+
+
+class "ClassCatalog" as ClassCatalog {
+    - classes: List<Class>
+    + getAllClasses(): List<Class>
+    + addClass(courseCode: String, courseName: String, instructor: String, dayOfWeek: String, startTime: String, endTime: String): void
+    + getClassesByDay(dayOfWeek: String): List<Class>
+}
+
+class "Class" as Class {
+    - courseCode: String
+    - courseName: String
+    - instructor: String
+    - dayOfWeek: String
+    - startTime: String
+    - endTime: String
+    - heldIn: Room
+    + getCourseCode(): String
+    + getCourseName(): String
+    + getInstructor(): String
+    + getDayOfWeek(): String
+    + getStartTime(): String
+    + getEndTime(): String
+    + getHeldIn(): Room
+}
+
+ClassCatalog "1" --> "*" Class : contains
+Class "1" --> "1" Room : heldIn
+
+terminal "1" --> "1" ClassCatalog : contains
+terminal "1" --> "1" CampusCatalog
+terminal "1" --> "1" Buildings
+terminal "1" --> "1" PointOfInterestCatalog
+
+CampusCatalog "1" --> "2" Campus : contains
+
+Buildings "1" --> "*" Building : contains
+
+Campus "1" --> "*" Building : contains
+
+Building "1" --> "*" Indoor : contains
+
+PointOfInterestCatalog "1" --> "*" PointOfInterest : contains
+
+PointOfInterest <|-- Indoor
+Indoor <|-- Washroom
+Indoor <|-- Elevator
+Indoor <|-- Stairs
+Indoor <|-- WaterFountain
+Indoor <|-- Room
+PointOfInterest <|-- Outdoor
+Outdoor <|-- Restaurant
+Outdoor <|-- CoffeeShop
+
+@enduml

@@ -19,71 +19,99 @@ end note
 
 class "Terminal" as terminal {}
 
+class "ClassCatalog" as ClassCatalog {
+    - classes: List<Class>
+}
+
+class "Class" as Class {
+    - courseCode
+    - courseName
+    - instructor
+    - dayOfWeek
+    - startTime
+    - endTime
+}
+
+ClassCatalog "1" -- "*" Class : contains
+Class "1" -- "1" Room : heldIn
+
+note left of ClassCatalog
+    <size:18><b><u>Class Scheduling Feature :</u></b></size>
+    The ClassCatalog and Class classes have been added to the domain model
+    to support the feature "Navigate me to my next class".
+    The ClassCatalog will act as the schedule that contains all the classes
+    a student is enrolled in. By naming convention "ObjectCatalog", instead
+    of "Schedule", the name of the class remains consistent with the other
+    catalog classes in the domain model.
+end note
+
 class "CampusCatalog" as CampusCatalog {}
+
 class "Campus" as Campus {
-    - latitude: double
-    - longitude: double
-    - name: String
-    - codename : String
+    - latitude
+    - longitude
+    - name
+    - codename
 }
 
 class "BuildingCatalog" as Buildings {}
 class "Building" as Building {
-    - latitude: double
-    - longitude: double
-    - name: String
-    - address: String
-    - numberOfFloors: int
-    - codename : String
+    - latitude
+    - longitude
+    - name
+    - address
+    - numberOfFloors
+    - codename
 }
 class "Room" as Room {
-    - roomNumber: String
-    - capacity: int
-    - floorNB: int
+    - roomNumber
+    - capacity
+    - floorNB
 }
 class "PointOfInterestCatalog" as PointOfInterestCatalog {}
 
-abstract class "PointOfInterest" as PointOfInterest {}
+abstract class "PointOfInterest" as PointOfInterest {
+    - latitude
+    - longitude
+}
+
 abstract class "Indoor" as Indoor {
-    - latitude: double
-    - longitude: double
 }
 
 class "Washroom" as Washroom {
-    - isPublic: boolean
-    - isGenderNeutral: boolean
-    - isMale: boolean
-    - isFemale: boolean
-    - isAccessible: boolean
-    - floorNB: int
+    - isPublic
+    - isGenderNeutral
+    - isMale
+    - isFemale
+    - isAccessible
+    - floorNB
 }
 class "Elevator" as Elevator {
-    - isAccessible: boolean
+    - isAccessible
 }
 class "Stairs" as Stairs {
 }
 class "WaterFountain" as WaterFountain {
-    - hasBottleFiller: boolean
-    - floorNB: int
+    - hasBottleFiller
+    - floorNB
 }
 
 abstract class "Outdoor" as Outdoor {
-    - latitude: double
-    - longitude: double
-    - address: String
-    - name: String
-    - type : String
+    - address
+    - name
+    - type
 }
 
 class "Restaurant" as Restaurant {
-    - cuisineType: String
+    - cuisineType
 }
 class "CoffeeShop" as CoffeeShop {
 }
 
-terminal "1" -- "1" CampusCatalog
-terminal "1" -- "1" Buildings
-terminal "1" -- "1" PointOfInterestCatalog
+terminal "1" -- "1" CampusCatalog : contains
+terminal "1" -- "1" Buildings : contains
+terminal "1" -- "1" PointOfInterestCatalog : contains
+terminal "1" -- "1" ClassCatalog : contains
 
 note top of terminal
     <size:18><b><u>Controller Design Pattern :</u></b></size>
@@ -114,15 +142,15 @@ Creators .. Buildings
 Creators .. PointOfInterestCatalog
 Factory .. PointOfInterestCatalog
 
-CampusCatalog "1" *-- "2" Campus
+CampusCatalog "1" *-- "2" Campus : contains
 
-Buildings "1" *-- "*" Building
+Buildings "1" *-- "*" Building : contains
 
-Campus "1" -- "*" Building
+Campus "1" -- "*" Building : has
 
-Building "1" -- "*" Indoor
+Building "1" -- "*" Indoor : has
 
-PointOfInterestCatalog "1" *-- "*" PointOfInterest
+PointOfInterestCatalog "1" *-- "*" PointOfInterest : contains
 
 PointOfInterest <|-- Indoor
 Indoor <|-- Washroom
