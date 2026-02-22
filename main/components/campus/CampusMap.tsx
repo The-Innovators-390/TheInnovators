@@ -42,6 +42,7 @@ import BrandBar from "@/components/layout/BrandBar";
 import { styles } from "@/components/Styles/mapStyle";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useRouteNavigation } from "@/hooks/useRouteNavigation";
+import { useUserRole, isShuttleEligible } from "@/hooks/useUserRole";
 import RoutePlanner from "@/components/campus/RoutePlanner"; // diamond button only
 import RouteInput from "@/components/campus/RouteInput";
 import {
@@ -286,6 +287,12 @@ export default function CampusMap() {
   );
 
   // T-9.1: detect whether both endpoints are on different Concordia campuses
+  // T-9.2: resolve the signed-in user's role from Firestore users/{uid}
+  const { role: userRole } = useUserRole();
+  // true for students and staff; false for guests and visitors
+  const shuttleEligible = isShuttleEligible(userRole);
+
+  // T-9.1: detect whether both endpoints are on different Concordia campuses
   const shuttleDirection = useMemo<ShuttleDirection | null>(() => {
     const start = nav.routeStart;
     const dest = nav.routeDest;
@@ -371,8 +378,8 @@ export default function CampusMap() {
 
         for (const [mode, routes] of results) next[mode as TravelMode] = routes;
 
-        // T-9.6: compute shuttle route locally (no Google API call needed)
-        if (shuttleDirection) {
+        // T-9.6: compute shuttle route locally — only for eligible roles (T-9.2)
+        if (shuttleDirection && shuttleEligible) {
           const shuttleRoute = buildShuttleDirectionRoute(
             shuttleDirection,
             origin,
@@ -453,6 +460,7 @@ export default function CampusMap() {
     nav.routeDest?.latitude,
     nav.routeDest?.longitude,
     shuttleDirection,
+    shuttleEligible,
     directionRetryTick,
   ]);
 
@@ -972,8 +980,8 @@ export default function CampusMap() {
             { mode: "transit", routes: routesByMode.transit },
             { mode: "walking", routes: routesByMode.walking },
             { mode: "bicycling", routes: routesByMode.bicycling },
-            // T-9.1 / T-9.3: shuttle chip only appears for SGW ↔ Loyola routes
-            ...(shuttleDirection !== null
+            // T-9.1 / T-9.2 / T-9.3: shuttle chip only for SGW ↔ Loyola AND eligible roles
+            ...(shuttleDirection !== null && shuttleEligible
               ? [{ mode: "shuttle" as TravelMode, routes: routesByMode.shuttle }]
               : []),
           ]}
@@ -998,6 +1006,13 @@ export default function CampusMap() {
           onSelectRouteIndex={(index) => applySelection(selectedMode, index)}
           onClose={() => setTravelPopupVisible(false)}
           onGo={async (mode, index) => {
+            // T-9.2: safety guard — visitors must never start shuttle navigation
+            if (mode === "shuttle" && !shuttleEligible) {
+              alert(
+                "Concordia Shuttle Bus is available to students and staff only.",
+              );
+              return;
+            }
             // T-9.6 / T-9.7: shuttle uses pre-built steps, no Google API call
             if (mode === "shuttle" && shuttleDirection) {
               const origin = nav.routeStart
