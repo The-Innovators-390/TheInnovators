@@ -78,6 +78,21 @@ export function useRouteNavigation(params: {
     activeSteps.length,
   ]);
 
+  /**
+   * Starts navigation using pre-built steps (e.g. shuttle mode).
+   * Bypasses the Google Directions API entirely.
+   */
+  const startNavigationWithSteps = useCallback(
+    (steps: DirectionStep[], summary: ActiveRouteSummary) => {
+      setActiveSteps(steps);
+      setActiveStepIndex(0);
+      setActiveSummary(summary);
+      setIsNavigating(true);
+      onStarted?.();
+    },
+    [onStarted],
+  );
+
   const startNavigation = useCallback(
     async (mode: TravelMode, index: number) => {
       if (!origin || !destination) {
@@ -165,6 +180,7 @@ export function useRouteNavigation(params: {
 
     // actions
     startNavigation,
+    startNavigationWithSteps,
     exitNavigation,
     nextStep,
     prevStep,

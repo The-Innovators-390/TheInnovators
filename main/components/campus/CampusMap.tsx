@@ -60,6 +60,14 @@ import {
   type DirectionRoute,
   type TravelMode,
 } from "@/components/campus/helper_methods/googleDirections";
+import {
+  isCampusToCampusRoute,
+  getShuttleDirection,
+  buildShuttleDirectionRoute,
+  buildShuttleNavigationSteps,
+  buildShuttleInfo,
+  type ShuttleDirection,
+} from "@/components/campus/helper_methods/shuttleSchedule";
 import DirectionsLoadError from "../ui/DirectionLoadError";
 import { toDirectionsErrorMessage } from "@/components/campus/helper_methods/directionErrors";
 import { NavigationOverlay } from "@/components/campus/NavigationOverlay";
@@ -131,6 +139,9 @@ async function fetchAndSortRoutes(
   }
 }
 
+// Only the 4 Google-API modes are fetched in parallel; shuttle is computed locally.
+const GOOGLE_MODES: TravelMode[] = ["driving", "transit", "walking", "bicycling"];
+
 export default function CampusMap() {
   const [focusedCampus, setFocusedCampus] = useState<Campus>("SGW");
 
@@ -165,8 +176,6 @@ export default function CampusMap() {
     return 7; // zoomed in
   }, [region?.latitudeDelta]);
 
-  const MODES: TravelMode[] = ["driving", "transit", "walking", "bicycling"];
-
   const [routesByMode, setRoutesByMode] = useState<
     Record<TravelMode, DirectionRoute[]>
   >({
@@ -174,6 +183,7 @@ export default function CampusMap() {
     transit: [],
     walking: [],
     bicycling: [],
+    shuttle: [],
   });
 
   const [selectedMode, setSelectedMode] = useState<TravelMode>("driving");
@@ -275,6 +285,21 @@ export default function CampusMap() {
     [ALL_BUILDINGS, userLocation],
   );
 
+  // T-9.1: detect whether both endpoints are on different Concordia campuses
+  const shuttleDirection = useMemo<ShuttleDirection | null>(() => {
+    const start = nav.routeStart;
+    const dest = nav.routeDest;
+    if (!start || !dest) return null;
+    if (!isCampusToCampusRoute(start.campus, dest.campus)) return null;
+    return getShuttleDirection(start.campus, dest.campus);
+  }, [nav.routeStart, nav.routeDest]);
+
+  // T-9.5: pre-compute shuttle schedule info whenever the direction is known
+  const shuttleInfo = useMemo(
+    () => (shuttleDirection ? buildShuttleInfo(shuttleDirection) : undefined),
+    [shuttleDirection],
+  );
+
   // KEEP your existing suggestion memo (query-driven)
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -317,6 +342,7 @@ export default function CampusMap() {
       transit: [],
       walking: [],
       bicycling: [],
+      shuttle: [],
     });
     setSelectedRouteIndex(0);
 
@@ -328,7 +354,9 @@ export default function CampusMap() {
     async function loadAllModes() {
       try {
         const results = await Promise.all(
-          MODES.map((mode) => fetchAndSortRoutes(origin, destination, mode)),
+          GOOGLE_MODES.map((mode) =>
+            fetchAndSortRoutes(origin, destination, mode),
+          ),
         );
 
         if (cancelled) return;
@@ -338,13 +366,28 @@ export default function CampusMap() {
           transit: [],
           walking: [],
           bicycling: [],
+          shuttle: [],
         };
 
-        for (const [mode, routes] of results) next[mode] = routes;
+        for (const [mode, routes] of results) next[mode as TravelMode] = routes;
+
+        // T-9.6: compute shuttle route locally (no Google API call needed)
+        if (shuttleDirection) {
+          const shuttleRoute = buildShuttleDirectionRoute(
+            shuttleDirection,
+            origin,
+            destination,
+          );
+          next["shuttle"] = shuttleRoute ? [shuttleRoute] : [];
+        }
 
         setRoutesByMode(next);
 
-        const totalRoutes = MODES.reduce((sum, m) => sum + next[m].length, 0);
+        const allModes: TravelMode[] = [...GOOGLE_MODES, "shuttle"];
+        const totalRoutes = allModes.reduce(
+          (sum, m) => sum + next[m].length,
+          0,
+        );
         if (totalRoutes === 0) {
           setTravelPopupVisible(false);
           setAllRouteCoords([]);
@@ -358,7 +401,7 @@ export default function CampusMap() {
         const bestMode =
           next[selectedMode].length > 0
             ? selectedMode
-            : (MODES.find((m) => next[m].length > 0) ?? "driving");
+            : (allModes.find((m) => next[m].length > 0) ?? "driving");
 
         const fastest = pickFastestRoute(next[bestMode]);
         const fastestIndex = fastest
@@ -409,6 +452,7 @@ export default function CampusMap() {
     nav.routeStart?.longitude,
     nav.routeDest?.latitude,
     nav.routeDest?.longitude,
+    shuttleDirection,
     directionRetryTick,
   ]);
 
@@ -464,15 +508,12 @@ export default function CampusMap() {
     );
   };
 
-  const handleGetDirectionsFromPopup = async (destination: Building) => {
-    // 1) Enter route mode immediately (UX feels instant)
-    if (!nav.isRouteMode) nav.toggleRouteMode();
-
-    // 2) Set destination
-    nav.setRouteDest(destination);
-    setDestText(`${destination.code} - ${destination.name}`);
-
-    // 3) Try to auto-set start
+  /**
+   * T-12.1: Resolves the device's current GPS position and sets it as the
+   * route start point.  Reused by the RoutePlanner toggle, the building popup
+   * "Get Directions" flow, and the RouteInput "my location" icon button.
+   */
+  const setStartToCurrentLocation = useCallback(async () => {
     try {
       const loc = await getDeviceLocation();
 
@@ -493,9 +534,6 @@ export default function CampusMap() {
           : `${startBuilding.code} - ${startBuilding.name}`,
       );
     } catch (e: any) {
-      nav.setRouteStart(null);
-      setStartText("");
-
       if (e instanceof LocationError) {
         if (e.code === "PERMISSION_DENIED") {
           alert(
@@ -503,7 +541,6 @@ export default function CampusMap() {
           );
           return;
         }
-
         if (e.code === "SERVICES_OFF") {
           alert(
             "Location Services Off\n\nPlease enable location services to use your current location.",
@@ -511,11 +548,22 @@ export default function CampusMap() {
           return;
         }
       }
-
       alert(
         "Location Error\n\nUnable to get your current location. Try again.",
       );
     }
+  }, [ALL_BUILDINGS, focusedCampus, nav]);
+
+  const handleGetDirectionsFromPopup = async (destination: Building) => {
+    // 1) Enter route mode immediately (UX feels instant)
+    if (!nav.isRouteMode) nav.toggleRouteMode();
+
+    // 2) Set destination
+    nav.setRouteDest(destination);
+    setDestText(`${destination.code} - ${destination.name}`);
+
+    // 3) T-12.1: auto-set start from current location
+    await setStartToCurrentLocation();
 
     // 4) Close popup and clear normal search UI state
     setSelected(null);
@@ -826,6 +874,7 @@ export default function CampusMap() {
                     transit: [],
                     walking: [],
                     bicycling: [],
+                    shuttle: [],
                   });
                 }}
                 onClearDestination={() => {
@@ -842,8 +891,10 @@ export default function CampusMap() {
                     transit: [],
                     walking: [],
                     bicycling: [],
+                    shuttle: [],
                   });
                 }}
+                onUseMyLocation={setStartToCurrentLocation}
               />
             </View>
 
@@ -878,6 +929,8 @@ export default function CampusMap() {
                 nav.setActiveField("destination");
                 setQuery(destText); // keep your behavior (destination focused)
                 nav.setRouteError(null);
+                // T-12.1: auto-populate start with current location (fire-and-forget)
+                setStartToCurrentLocation();
                 return;
               }
 
@@ -919,19 +972,69 @@ export default function CampusMap() {
             { mode: "transit", routes: routesByMode.transit },
             { mode: "walking", routes: routesByMode.walking },
             { mode: "bicycling", routes: routesByMode.bicycling },
+            // T-9.1 / T-9.3: shuttle chip only appears for SGW ↔ Loyola routes
+            ...(shuttleDirection !== null
+              ? [{ mode: "shuttle" as TravelMode, routes: routesByMode.shuttle }]
+              : []),
           ]}
           selectedMode={selectedMode}
           selectedRouteIndex={selectedRouteIndex}
           onSelectMode={(mode) => {
-            // when switching mode, default to fastest = index 0 (since we sorted)
+            if (mode === "shuttle") {
+              // Allow selecting shuttle to view schedule even when no routes
+              setSelectedMode("shuttle");
+              setSelectedRouteIndex(0);
+              if (routesByMode.shuttle.length > 0) {
+                const decodedAll = routesByMode.shuttle.map((r) =>
+                  decodePolyline(r.polyline),
+                );
+                setAllRouteCoords(decodedAll);
+              }
+              return;
+            }
+            // Non-shuttle: default to fastest route (index 0)
             applySelection(mode, 0);
           }}
           onSelectRouteIndex={(index) => applySelection(selectedMode, index)}
           onClose={() => setTravelPopupVisible(false)}
           onGo={async (mode, index) => {
+            // T-9.6 / T-9.7: shuttle uses pre-built steps, no Google API call
+            if (mode === "shuttle" && shuttleDirection) {
+              const origin = nav.routeStart
+                ? {
+                    latitude: nav.routeStart.latitude,
+                    longitude: nav.routeStart.longitude,
+                  }
+                : null;
+              const destination = nav.routeDest
+                ? {
+                    latitude: nav.routeDest.latitude,
+                    longitude: nav.routeDest.longitude,
+                  }
+                : null;
+              if (origin && destination) {
+                const steps = buildShuttleNavigationSteps(
+                  shuttleDirection,
+                  origin,
+                  destination,
+                );
+                const shuttleRoute = routesByMode.shuttle[0];
+                routeNavigation.startNavigationWithSteps(steps, {
+                  mode: "shuttle",
+                  durationText: shuttleRoute?.durationText ?? "",
+                  durationSec: shuttleRoute?.durationSec ?? 0,
+                  distanceText: shuttleRoute?.distanceText ?? "",
+                  distanceMeters: shuttleRoute?.distanceMeters ?? 0,
+                  summary: "Concordia Shuttle",
+                });
+                setIsFollowingUser(true);
+              }
+              return;
+            }
             await routeNavigation.startNavigation(mode, index);
             setIsFollowingUser(true);
           }}
+          shuttleInfo={shuttleInfo}
         />
       )}
 
