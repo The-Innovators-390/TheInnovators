@@ -48,11 +48,7 @@ describe("RouteInput – additional coverage", () => {
 
   it("shows useMyLocation button when start is empty and onUseMyLocation is provided", () => {
     const { getByTestId } = render(
-      <RouteInput
-        {...baseProps}
-        startText=""
-        onUseMyLocation={jest.fn()}
-      />,
+      <RouteInput {...baseProps} startText="" onUseMyLocation={jest.fn()} />,
     );
 
     getByTestId("useMyLocation");

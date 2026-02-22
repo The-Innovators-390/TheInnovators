@@ -67,7 +67,12 @@ describe("startNavigationWithSteps", () => {
   it("calls onStarted callback when using startNavigationWithSteps", () => {
     const onStarted = jest.fn();
     const { result } = renderHook(() =>
-      useRouteNavigation({ origin, destination, userLocation: null, onStarted }),
+      useRouteNavigation({
+        origin,
+        destination,
+        userLocation: null,
+        onStarted,
+      }),
     );
 
     act(() => {
