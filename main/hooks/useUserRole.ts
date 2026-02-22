@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { getDoc } from "firebase/firestore";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebase";
 
@@ -37,8 +36,6 @@ export function useUserRole(): State {
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       // Clean up any existing Firestore listener when auth state changes
-
-      console.log("CURRENT UID:", user?.uid);
       unsubscribeDoc?.();
       unsubscribeDoc = null;
 
@@ -46,16 +43,6 @@ export function useUserRole(): State {
         setState({ role: "visitor", loading: false });
         return;
       }
-
-      (async () => {
-        try {
-          const testDoc = await getDoc(doc(db, "users", user.uid));
-          console.log("Manual getDoc exists:", testDoc.exists());
-          console.log("Manual getDoc data:", testDoc.data());
-        } catch (e) {
-          console.log("Manual getDoc ERROR:", e);
-        }
-      })();
 
       unsubscribeDoc = onSnapshot(
         doc(db, "users", user.uid),
