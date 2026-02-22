@@ -1,6 +1,11 @@
 import Constants from "expo-constants";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { initializeAuth, getAuth, type Persistence } from "firebase/auth";
+import {
+  initializeAuth,
+  getAuth,
+  type Auth,
+  type Persistence,
+} from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirestore } from "firebase/firestore";
 
@@ -36,7 +41,7 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 // Persist auth sessions to AsyncStorage so they survive Expo JS reloads and
 // full app restarts. Fall back to getAuth() if initializeAuth was already
 // called on this app instance (can happen with Fast Refresh).
-let auth;
+let auth: Auth;
 try {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),

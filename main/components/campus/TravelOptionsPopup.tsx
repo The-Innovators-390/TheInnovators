@@ -109,9 +109,10 @@ function shuttleStatusLabel(status: ShuttleStatus): string {
   }
 }
 
-function shuttleFromTo(
-  direction: ShuttleInfo["direction"],
-): { from: string; to: string } {
+function shuttleFromTo(direction: ShuttleInfo["direction"]): {
+  from: string;
+  to: string;
+} {
   return direction === "SGW_TO_LOY"
     ? { from: "SGW", to: "Loyola" }
     : { from: "Loyola", to: "SGW" };
@@ -302,7 +303,7 @@ export default function TravelOptionsPopup({
                     Shuttle schedule unavailable
                   </Text>
                   <Text style={[s.routeMeta, { marginTop: 6 }]}>
-                    Couldn't read schedule data. Please try again later.
+                    Couldn&apos;t read schedule data. Please try again later.
                   </Text>
                 </>
               ) : (
@@ -352,8 +353,8 @@ export default function TravelOptionsPopup({
                                 color="rgba(17,17,17,0.55)"
                               />
                               <Text style={s.shuttleLegText}>
-                                Concordia Shuttle — {from} → {to} · ~30 min ·
-                                ~8 km
+                                Concordia Shuttle — {from} → {to} · ~30 min · ~8
+                                km
                               </Text>
                             </View>
                             <View style={s.shuttleLegConnector} />

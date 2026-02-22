@@ -141,7 +141,12 @@ async function fetchAndSortRoutes(
 }
 
 // Only the 4 Google-API modes are fetched in parallel; shuttle is computed locally.
-const GOOGLE_MODES: TravelMode[] = ["driving", "transit", "walking", "bicycling"];
+const GOOGLE_MODES: TravelMode[] = [
+  "driving",
+  "transit",
+  "walking",
+  "bicycling",
+];
 
 export default function CampusMap() {
   const [focusedCampus, setFocusedCampus] = useState<Campus>("SGW");
@@ -738,7 +743,9 @@ export default function CampusMap() {
               longitude: nav.routeStart.longitude,
             }}
             anchor={{ x: 0.5, y: 76 / 80 }}
-            tracksViewChanges={Platform.OS === "android" ? startPinTracking : false}
+            tracksViewChanges={
+              Platform.OS === "android" ? startPinTracking : false
+            }
           >
             <BuildingPin
               code={nav.routeStart.code}
@@ -757,7 +764,9 @@ export default function CampusMap() {
               longitude: nav.routeDest.longitude,
             }}
             anchor={{ x: 0.5, y: 76 / 80 }}
-            tracksViewChanges={Platform.OS === "android" ? destPinTracking : false}
+            tracksViewChanges={
+              Platform.OS === "android" ? destPinTracking : false
+            }
           >
             <BuildingPin
               code={nav.routeDest.code}
@@ -982,7 +991,12 @@ export default function CampusMap() {
             { mode: "bicycling", routes: routesByMode.bicycling },
             // T-9.1 / T-9.2 / T-9.3: shuttle chip only for SGW ↔ Loyola AND eligible roles
             ...(shuttleDirection !== null && shuttleEligible
-              ? [{ mode: "shuttle" as TravelMode, routes: routesByMode.shuttle }]
+              ? [
+                  {
+                    mode: "shuttle" as TravelMode,
+                    routes: routesByMode.shuttle,
+                  },
+                ]
               : []),
           ]}
           selectedMode={selectedMode}

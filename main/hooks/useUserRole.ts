@@ -37,7 +37,7 @@ export function useUserRole(): State {
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       // Clean up any existing Firestore listener when auth state changes
-      
+
       console.log("CURRENT UID:", user?.uid);
       unsubscribeDoc?.();
       unsubscribeDoc = null;
@@ -48,19 +48,18 @@ export function useUserRole(): State {
       }
 
       (async () => {
-  try {
-    const testDoc = await getDoc(doc(db, "users", user.uid));
-    console.log("Manual getDoc exists:", testDoc.exists());
-    console.log("Manual getDoc data:", testDoc.data());
-  } catch (e) {
-    console.log("Manual getDoc ERROR:", e);
-  }
-})();
+        try {
+          const testDoc = await getDoc(doc(db, "users", user.uid));
+          console.log("Manual getDoc exists:", testDoc.exists());
+          console.log("Manual getDoc data:", testDoc.data());
+        } catch (e) {
+          console.log("Manual getDoc ERROR:", e);
+        }
+      })();
 
       unsubscribeDoc = onSnapshot(
         doc(db, "users", user.uid),
         (snap) => {
-          
           const raw = snap.data()?.role;
           const normalized =
             typeof raw === "string" ? raw.toLowerCase().trim() : "";
@@ -69,7 +68,6 @@ export function useUserRole(): State {
               ? (normalized as UserRole)
               : "visitor";
           setState({ role, loading: false });
-          
         },
         () => {
           // Firestore unreachable — default to visitor so the app never crashes
