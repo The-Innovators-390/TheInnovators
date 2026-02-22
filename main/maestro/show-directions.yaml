@@ -1,21 +1,55 @@
 appId: com.theinnovators.campusguide
 ---
 - launchApp
+- waitForAnimationToEnd
 
-# Assumption: start/end already selected and TravelOptionsPopup is visible
+# Welcome Screen - Guest
+- assertVisible:
+    id: "guest-sign-in-button"
+- tapOn:
+    id: "guest-sign-in-button"
 
-# Tap GO for walking, route #0
+# Ensure map loaded
+- assertVisible:
+    id: campusMap-root
+
+# Enter route mode
+- tapOn:
+    id: routeModeButton
+- waitForAnimationToEnd
+
+# Select starting location
+- tapOn:
+    id: routeStartInput
+- inputText: "Hall Building"
+- tapOn: "Henry F. Hall"
+- waitForAnimationToEnd
+
+# Select destination
+- tapOn:
+    id: routeDestInput
+- inputText: "Physical"
+- tapOn: "Physical Services Building"
+- waitForAnimationToEnd
+
+# Start navigation (walking, route index 0)
+- assertVisible:
+    id: go-walking-0
 - tapOn:
     id: go-walking-0
+- waitForAnimationToEnd
 
-# Assert directions show up 
+# Assert directions appear
 - assertVisible:
     id: directions-panel
 - assertVisible:
     id: directions-street
 
-# Exit navigation and assert directions disappear
+# Exit navigation
 - tapOn:
     id: exit-btn
+- waitForAnimationToEnd
+
+# Assert directions disappear
 - assertNotVisible:
     id: directions-panel
