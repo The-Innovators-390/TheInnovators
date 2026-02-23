@@ -6,19 +6,6 @@ skinparam ArrowThickness 2.2
 title <u>Domain Model Concordia Campus Guide App Version 3 (with annotations)</u>\n<i>Date : 2026-02-08 </i>\n<i>Authors : Malak Sefrioui and Yash Nathani</i>
 hide empty members
 
-note as Scope
-    <size:18><b><u>Scope :</u></b></size>
-    This domain model represents the key entities and their relationships within the Concordia Campus Guide App.
-    It includes classes for campuses, buildings, rooms, and points of interest (POIs) such as washrooms, elevators, 
-    and stairs. The model illustrates how concepts of the app interact with each other, providing a high-level 
-    overview of the system's structure and the data it manages.
-end note
-
-note as Convention
-    <size:18><b><u>JS/TS functional components as classes (TA guidance) :</u></b></size>
-    Functional components (e.g. CampusMap, ToggleButton) are shown as classes:
-end note
-
 ' ========== Domain types (data shapes) ==========
 enum "Campus" as Campus {
     SGW
@@ -86,24 +73,23 @@ class "DirectionsSearchBar" as DirectionsSearchBar {
     query
 }
 
-SearchComponent <|-- InfoSearchBar : extends when directionsMode is inactive
-SearchComponent <|-- DirectionsSearchBar : extends when directionsMode is active
+SearchComponent <|-- InfoSearchBar : extends when directionsMode is inactive >
+SearchComponent <|-- DirectionsSearchBar : extends when directionsMode is active >
 
-CampusMap "1" -- "1" SearchComponent : renders
+CampusMap "1" -- "1" SearchComponent : renders >
 
 class "NavigationComponent" as NavigationComponent {
     selectedMode
     selectedRoute
 }
 
-CampusMap "1" -- "1" NavigationComponent : renders if directionsMode is active
+CampusMap "1" -- "1" NavigationComponent : renders if directionsMode is active >
 
 enum "selectedMode" as selectedMode {
     walking
     transit
     driving
     biking
-    undefined
 }
 
 enum "directionsMode" as directionsMode {
@@ -111,15 +97,15 @@ enum "directionsMode" as directionsMode {
     inactive
 }
 
-class "RouteOptions" as RouteOptions {
+abstract class "RouteStrategy" as RouteOptions {
 }
 
-NavigationComponent "1" -- "1" RouteOptions : renders depending on selectedMode
+NavigationComponent "1" -- "1" RouteOptions : renders depending on selectedMode >
 
-RouteOptions <|-- WalkingRouteOptions
-RouteOptions <|-- TransitRouteOptions
-RouteOptions <|-- DrivingRouteOptions
-RouteOptions <|-- BikingRouteOptions
+RouteOptions <|.. WalkingRouteOptions
+RouteOptions <|.. TransitRouteOptions
+RouteOptions <|.. DrivingRouteOptions
+RouteOptions <|.. BikingRouteOptions
 
 class "DirectionsComponent" as DirectionsComponent {
     origin
@@ -127,24 +113,22 @@ class "DirectionsComponent" as DirectionsComponent {
     lineColor
     lineWidth
 }
-NavigationComponent "1" -- "1" DirectionsComponent : uses to show directions of selectedRoute
+NavigationComponent "1" -- "1" DirectionsComponent : uses to show directions of selectedRoute >
 
-class "WalkingRouteOptions" as WalkingRouteOptions {
+class "WalkingStrategy" as WalkingRouteOptions {
 }
 
-class "TransitRouteOptions" as TransitRouteOptions {
+class "TransitStrategy" as TransitRouteOptions {
 }
 
-class "DrivingRouteOptions" as DrivingRouteOptions {
+class "DrivingStrategy" as DrivingRouteOptions {
 }
 
-class "BikingRouteOptions" as BikingRouteOptions {
+class "BikingStrategy" as BikingRouteOptions {
 }
 
 class "DirectionsComponent" as DirectionsComponent {
 }
-
-class "Route"
 
 ' ========== Implemented: UI (functional components as classes) ==========
 class "CampusMap" as CampusMap {
@@ -156,7 +140,7 @@ class "CampusMap" as CampusMap {
 class "BuildingShapesLayer" as BuildingShapesLayer {
 }
 
-BuildingShapesLayer "1" -- "*" Building : renders on map
+BuildingShapesLayer "1" -- "*" Building : renders on map >
 
 class "ToggleButton" as ToggleButton {
     focusedCampus
@@ -254,9 +238,9 @@ class "Class" as Class {
 
 
 
-Class "1" -- "1" Room : heldIn
+Class "1" -- "1" Room : heldIn >
 
-Building "1" -- "*" Indoor : contains
+Building "1" -- "*" Indoor : contains >
 
 
 PointOfInterest <|-- Indoor
@@ -269,35 +253,33 @@ PointOfInterest <|-- Outdoor
 Outdoor <|-- Restaurant
 Outdoor <|-- CoffeeShop
 
-CampusMap "1" -- "1" BuildingShapesLayer : renders
-CampusMap "1" -- "1" ToggleButton : renders
-CampusMap "1" -- "1" BrandBar : renders
-CampusMap "1" -- "1" PointOfInterest : uses
-CampusMap "1" -- "1" BuildingsLoadError : uses for error handling
+CampusMap "1" -- "1" BuildingShapesLayer : renders >
+CampusMap "1" -- "1" ToggleButton : renders >
+CampusMap "1" -- "1" BrandBar : renders >
+CampusMap "1" -- "1" PointOfInterest : uses >
+CampusMap "1" -- "1" BuildingsLoadError : uses for error handling >
 
-CampusMap "1" -- "2" Region : has
-CampusMap "1" -- "0..1" Building : selected
-CampusMap "1" -- "*" Building : uses for rendering
+CampusMap "1" -- "2" Region : has >
+CampusMap "1" -- "0..1" Building : selected >
+CampusMap "1" -- "*" Building : uses for rendering >
 CampusMap "1" -- "1" LatLng : userLocation
 Building "1" -- "*" LatLng : polygon
 
-ConnectClass "1" -- "1" Class : uses
-ClassTab "1" -- "1" ConnectClass : renders
-ConnectClass "1" -- "1" BrandBar : renders
+ConnectClass "1" -- "1" Class : uses >
+ClassTab "1" -- "1" ConnectClass : renders >
+ConnectClass "1" -- "1" BrandBar : renders >
 
 Tabs <|-- Map
 Tabs <|-- Welcome
 Tabs <|-- ClassTab
 
-Map "1" -- "1" CampusMap : renders
-Welcome "1" -- "1" WelcomeScreen : renders
+Map "1" -- "1" CampusMap : renders >
+Welcome "1" -- "1" WelcomeScreen : renders >
 
-Welcome "1" -- "1" Map : navigates to
-ClassTab "1" -- "1" Welcome : navigates to
-Map "1" -- "1" ClassTab : navigates to
+Welcome "1" -- "1" Map : navigates to >
+ClassTab "1" -- "1" Welcome : navigates to >
+Map "1" -- "1" ClassTab : navigates to >
 
-CampusMap "1" -- "1" CurrentLocationButton : renders
-CampusMap "1" -- "1" LoyolaBuildings : uses for search
-CampusMap "1" -- "1" SGWBuildings : uses for search
+CampusMap "1" -- "1" CurrentLocationButton : renders >
 
 @enduml

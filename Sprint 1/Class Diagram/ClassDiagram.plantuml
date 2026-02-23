@@ -6,25 +6,11 @@ skinparam ArrowThickness 2.2
 title <u>Class Diagram - Concordia Campus Guide App - Version 3 (with annotations)</u>\n<i>Date : 2026-02-08 </i>\n<i>Authors : Malak Sefrioui and Yash Nathani</i>
 hide empty members
 
-note as Scope
-    <size:18><b><u>Scope :</u></b></size>
-    This class diagram represents the static structure of the Concordia Campus Guide App.
-    It includes classes for campuses, buildings, claases, rooms, and points of interest (POIs)
-    such as washrooms, elevators, and stairs. The diagram illustrates the relationships
-    between these classes, highlighting associations and compositions that define how
-    different entities interact within the system.
-end note
-
 ' ========== Domain types (data shapes) ==========
 enum "Campus" as Campus {
     SGW
     LOY
 }
-
-CampusMap "1" --> "1" CurrentLocationButton : renders
-CampusMap "1" --> "1" LoyolaBuildings : uses for search
-CampusMap "1" --> "1" SGWBuildings : uses for search
-
 abstract class "Tabs"{}
 
 class "MapTab" as Map {
@@ -43,20 +29,6 @@ class "ConnectClass" as ConnectClass {
     -Classes : Class[]
 }
 
-ConnectClass "1" --> "1" Class : uses
-ClassTab "1" --> "1" ConnectClass : renders
-ConnectClass "1" --> "1" BrandBar : renders
-
-Tabs <|-- Map
-Tabs <|-- Welcome
-Tabs <|-- ClassTab
-
-Map "1" --> "1" CampusMap : renders
-Welcome "1" --> "1" WelcomeScreen : renders
-
-Welcome "1" <--> "1" Map : navigates to
-ClassTab "1" <--> "1" Welcome : navigates to
-Map "1" <--> "1" ClassTab : navigates to
 
 enum "LocationStatus" as LocationStatus {
     idle
@@ -92,21 +64,64 @@ class "Building" as Building {
     - indoors: List<Indoor>
 }
 
-LoyolaBuildings "1" --> "*" Building : uses
-SGWBuildings "1" --> "*" Building : uses
-
 ' ========== Implemented: data and search ==========
-class "SGWBuildingsSearch" as SGWBuildings {
-    - SGW_BUILDINGS : Building[]
-    + searchSGWBuildings(query : string, limit? : number) : Building[]
-    + getSGWBuildingByCode(code : string) : Building | undefined
+class "SearchComponent" as SearchComponent {
+    query
 }
 
-class "LoyolaBuildingsSearch" as LoyolaBuildings {
-    - LOYOLA_BUILDINGS : Building[]
-    + normalizeText(text : string) : string
-    + searchLoyolaBuildings(searchQuery : string, resultLimit? : number) : Building[]
-    + getLoyolaBuildingByCode(code : string) : Building | undefined
+class "InfoSearchBar" as InfoSearchBar {
+    query
+}
+
+class "DirectionsSearchBar" as DirectionsSearchBar {
+    query
+}
+
+class "NavigationComponent" as NavigationComponent {
+    selectedMode
+    selectedRoute
+}
+
+abstract class "RouteStrategy" as RouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "WalkingStrategy" as WalkingRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "TransitStrategy" as TransitRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "DrivingStrategy" as DrivingRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "BikingStrategy" as BikingRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "DirectionsComponent" as DirectionsComponent {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+enum "selectedMode" as selectedMode {
+    walking
+    transit
+    driving
+    biking
+}
+
+enum "directionsMode" as directionsMode {
+    active
+    inactive
 }
 
 ' ========== Implemented: UI (functional components as classes) ==========
@@ -123,20 +138,12 @@ class "CampusMap" as CampusMap {
     + onPickBuilding(b : Building) : void
 }
 
-CampusMap "1" --> "2" Region : has
-CampusMap "1" --> "0..1" Building : selected
-CampusMap "1" --> "*" Building : uses for rendering
-CampusMap "1" --> "1" LatLng : userLocation
-Building "1" --> "*" LatLng : polygon
-
 class "BuildingShapesLayer" as BuildingShapesLayer {
     - buildings : Building[]
     - selectedBuildingId : string | null
     - userLocationBuildingId : string | null
     + onPickBuilding(b : Building) : void
 }
-
-BuildingShapesLayer "1" --> "*" Building : renders on map
 
 class "ToggleButton" as ToggleButton {
     - focusedCampus : Campus
@@ -168,12 +175,6 @@ class "BuildingsLoadError" as BuildingsLoadError {
     + accentColor? : string
     + testIDPrefix? : string
 }
-
-CampusMap "1" --> "1" BuildingShapesLayer : renders
-CampusMap "1" --> "1" ToggleButton : renders
-CampusMap "1" --> "1" BrandBar : renders
-CampusMap "1" --> "1" PointOfInterest : uses
-CampusMap "1" --> "1" BuildingsLoadError : uses for error handling
 
 
 abstract class "PointOfInterest" as PointOfInterest {
@@ -253,11 +254,45 @@ class "Class" as Class {
     - endTime: String
     - heldIn: Room
 }
+Tabs <|-- Map
+Tabs <|-- Welcome
+Tabs <|-- ClassTab
+
+
+ConnectClass "1" --> "1" Class : uses
+ClassTab "1" --> "1" ConnectClass : renders
+ConnectClass "1" --> "1" BrandBar : renders
+
+CampusMap "1" --> "1" CurrentLocationButton : renders
+CampusMap "1" --> "1" LoyolaBuildings : uses for search
+CampusMap "1" --> "1" SGWBuildings : uses for search
+Map "1" --> "1" CampusMap : renders
+Welcome "1" --> "1" WelcomeScreen : renders
+
+Welcome "1" <--> "1" Map : navigates to
+ClassTab "1" <--> "1" Welcome : navigates to
+Map "1" <--> "1" ClassTab : navigates to
+
+LoyolaBuildings "1" --> "*" Building : uses
+SGWBuildings "1" --> "*" Building : uses
+
+CampusMap "1" --> "2" Region : has
+CampusMap "1" --> "0..1" Building : selected
+CampusMap "1" --> "*" Building : uses for rendering
+CampusMap "1" --> "1" LatLng : userLocation
+Building "1" --> "*" LatLng : polygon
+
+BuildingShapesLayer "1" --> "*" Building : renders on map
+
+CampusMap "1" --> "1" BuildingShapesLayer : renders
+CampusMap "1" --> "1" ToggleButton : renders
+CampusMap "1" --> "1" BrandBar : renders
+CampusMap "1" --> "1" PointOfInterest : uses
+CampusMap "1" --> "1" BuildingsLoadError : uses for error handling
 
 Class "1" --> "1" Room : heldIn
 
 Building "1" --> "*" Indoor : contains
-
 
 PointOfInterest <|-- Indoor
 Indoor <|-- Washroom
@@ -269,7 +304,27 @@ PointOfInterest <|-- Outdoor
 Outdoor <|-- Restaurant
 Outdoor <|-- CoffeeShop
 
-
 CurrentLocationButton "1" ..> "1" LocationStatus : uses for permission status
+
+SearchComponent <|-- InfoSearchBar : extends when directionsMode is inactive
+SearchComponent <|-- DirectionsSearchBar : extends when directionsMode is active
+
+CampusMap "1" -- "1" SearchComponent : renders
+
+NavigationComponent "1" -- "1" RouteOptions : renders depending on selectedMode
+
+CampusMap "1" -- "1" NavigationComponent : renders if directionsMode is active
+
+RouteOptions <|.. WalkingRouteOptions
+RouteOptions <|.. TransitRouteOptions
+RouteOptions <|.. DrivingRouteOptions
+RouteOptions <|.. BikingRouteOptions
+
+NavigationComponent "1" -- "1" DirectionsComponent : uses for rendering directions
+
+NavigationComponent "1" ..> WalkingRouteOptions : uses when selectedMode is walking >
+NavigationComponent "1" ..> TransitRouteOptions : uses when selectedMode is transit >
+NavigationComponent "1" ..> DrivingRouteOptions : uses when selectedMode is driving >
+NavigationComponent "1" ..> BikingRouteOptions : uses when selectedMode is biking >
 
 @enduml

@@ -3,7 +3,7 @@ skinparam DefaultFontName Arial
 skinparam DefaultFontSize 16
 skinparam DefaultFontStyle bold
 skinparam ArrowThickness 2.2
-title <u>Domain Model Concordia Campus Guide App Version 3 (with annotations)</u>\n<i>Date : 2026-02-08 </i>\n<i>Authors : Malak Sefrioui and Yash Nathani</i>
+title <u>Domain Model Concordia Campus Guide App - Strategy Pattern</u>\n<i>Date : 2026-02-08 </i>\n<i>Authors : Malak Sefrioui</i>
 hide empty members
 
 ' ========== Domain types (data shapes) ==========
@@ -42,6 +42,12 @@ class "NavigationComponent" as NavigationComponent {
     selectedRoute
 }
 
+note left of NavigationComponent
+    Context Component of the Strategy Pattern. Uses selectedMode 
+    to determine which RouteStrategy to use for implementing the 
+    appropriate algorithms.
+end note
+
 CampusMap "1" -- "1" NavigationComponent : renders if directionsMode is active
 
 enum "selectedMode" as selectedMode {
@@ -57,15 +63,13 @@ enum "directionsMode" as directionsMode {
     inactive
 }
 
-class "RouteOptions" as RouteOptions {
-}
 
 NavigationComponent "1" -- "1" RouteOptions : renders depending on selectedMode
 
-RouteOptions <|-- WalkingRouteOptions
-RouteOptions <|-- TransitRouteOptions
-RouteOptions <|-- DrivingRouteOptions
-RouteOptions <|-- BikingRouteOptions
+RouteOptions <|.. WalkingRouteOptions
+RouteOptions <|.. TransitRouteOptions
+RouteOptions <|.. DrivingRouteOptions
+RouteOptions <|.. BikingRouteOptions
 
 class "DirectionsComponent" as DirectionsComponent {
     origin
@@ -75,19 +79,22 @@ class "DirectionsComponent" as DirectionsComponent {
 }
 NavigationComponent "1" -- "1" DirectionsComponent : uses to show directions of selectedRoute
 
-class "WalkingRouteOptions" as WalkingRouteOptions {
+class "WalkingStrategy" as WalkingRouteOptions {
 }
 
-class "TransitRouteOptions" as TransitRouteOptions {
+class "TransitStrategy" as TransitRouteOptions {
 }
 
-class "DrivingRouteOptions" as DrivingRouteOptions {
+class "DrivingStrategy" as DrivingRouteOptions {
 }
 
-class "BikingRouteOptions" as BikingRouteOptions {
+class "BikingStrategy" as BikingRouteOptions {
 }
 
 class "DirectionsComponent" as DirectionsComponent {
+}
+
+abstract class "RouteStrategy" as RouteOptions {
 }
 
 ' ========== Implemented: UI (functional components as classes) ==========

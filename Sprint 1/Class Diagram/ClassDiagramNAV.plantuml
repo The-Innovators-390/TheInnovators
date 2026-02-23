@@ -1,0 +1,85 @@
+@startuml Class Diagram NAV
+skinparam DefaultFontName Arial
+skinparam DefaultFontSize 16
+skinparam DefaultFontStyle bold
+skinparam ArrowThickness 2.2
+title <u>Class Diagram - Concordia Campus Guide App - Strategy Pattern</u>\n<i>Date : 2026-02-08 </i>\n<i>Authors : Malak Sefrioui</i>
+hide empty members
+
+' ========== Domain types (data shapes) ==========
+enum "Campus" as Campus {
+    SGW
+    LOY
+}
+
+class "NavigationComponent" as NavigationComponent {
+    selectedMode
+    selectedRoute
+}
+
+abstract class "RouteStrategy" as RouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "WalkingStrategy" as WalkingRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "TransitStrategy" as TransitRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "DrivingStrategy" as DrivingRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+class "BikingStrategy" as BikingRouteOptions {
+    + fetchDirections(origin : LatLng, destination : LatLng) : DirectionRoute []
+    + getBadges() : string[]
+}
+
+enum "selectedMode" as selectedMode {
+    walking
+    transit
+    driving
+    biking
+}
+
+enum "directionsMode" as directionsMode {
+    active
+    inactive
+}
+
+' ========== Implemented: UI (functional components as classes) ==========
+class "CampusMap" as CampusMap {
+    - focusedCampus : Campus
+    - query : string
+    - selected : Building | null
+    - userLocation : LatLng | null
+    - ALL_BUILDINGS : Building[]
+    + SGW_REGION : Region
+    + LOY_REGION : Region
+    + handleCampusChange(campus : Campus) : void
+    + handleLocationFound(location : LatLng) : void
+    + onPickBuilding(b : Building) : void
+}
+
+NavigationComponent "1" -- "1" RouteOptions : renders depending on selectedMode >
+
+CampusMap "1" -- "1" NavigationComponent : renders if directionsMode is active >
+
+RouteOptions <|.. WalkingRouteOptions
+RouteOptions <|.. TransitRouteOptions
+RouteOptions <|.. DrivingRouteOptions
+RouteOptions <|.. BikingRouteOptions
+
+NavigationComponent "1" ..> WalkingRouteOptions : uses when selectedMode is walking >
+NavigationComponent "1" ..> TransitRouteOptions : uses when selectedMode is transit >
+NavigationComponent "1" ..> DrivingRouteOptions : uses when selectedMode is driving >
+NavigationComponent "1" ..> BikingRouteOptions : uses when selectedMode is biking >
+
+@enduml
