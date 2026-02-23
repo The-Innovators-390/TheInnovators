@@ -82,6 +82,7 @@ export default function BuildingShapesLayer({
           <React.Fragment key={`${b.campus}-${b.id}`}>
             {b.polygon?.length ? (
               <Polygon
+                key={`${b.campus}-${b.id}-${fillColor}-${strokeColor}`}
                 coordinates={b.polygon}
                 tappable
                 onPress={() => onPickBuilding(b)}

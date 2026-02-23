@@ -18,6 +18,10 @@ import type {
   DirectionRoute,
   TravelMode,
 } from "@/components/campus/helper_methods/googleDirections";
+import type {
+  ShuttleInfo,
+  ShuttleStatus,
+} from "@/components/campus/helper_methods/shuttleSchedule";
 
 const ICON_SUBWAY = require("../../assets/icons/icon-subway.png");
 const ICON_BUS = require("../../assets/icons/icon-bus.png");
@@ -37,6 +41,8 @@ type Props = {
   onSelectRouteIndex: (index: number) => void;
   onClose: () => void;
   onGo: (mode: TravelMode, index: number) => void;
+  /** Present only when the route is SGW ↔ Loyola (campus-to-campus). */
+  shuttleInfo?: ShuttleInfo;
 };
 
 //formatting the transitDetails we extracted from the directions response to be more user friendly when displayed on the UI
@@ -87,7 +93,29 @@ function iconForMode(mode: TravelMode) {
       return "directions-transit";
     case "bicycling":
       return "directions-bike";
+    case "shuttle":
+      return "directions-bus";
   }
+}
+
+function shuttleStatusLabel(status: ShuttleStatus): string {
+  switch (status) {
+    case "operating":
+      return "Shuttle in service";
+    case "no-service-today":
+      return "No service today";
+    case "last-bus-departed":
+      return "No upcoming shuttles today";
+  }
+}
+
+function shuttleFromTo(direction: ShuttleInfo["direction"]): {
+  from: string;
+  to: string;
+} {
+  return direction === "SGW_TO_LOY"
+    ? { from: "SGW", to: "Loyola" }
+    : { from: "Loyola", to: "SGW" };
 }
 
 function metroLineColor(name: string): string {
@@ -143,6 +171,7 @@ export default function TravelOptionsPopup({
   onSelectRouteIndex,
   onClose,
   onGo,
+  shuttleInfo,
 }: Readonly<Props>) {
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
@@ -215,6 +244,23 @@ export default function TravelOptionsPopup({
           const fastest = m.routes[0];
           const active = m.mode === selectedMode;
 
+          // Shuttle chip shows "Next: HH:MM" or "No service" instead of duration
+          let chipLabel: string;
+          if (m.mode === "shuttle") {
+            if (
+              shuttleInfo?.status === "operating" &&
+              shuttleInfo.nextDepartures.length > 0
+            ) {
+              chipLabel = shuttleInfo.nextDepartures[0];
+            } else if (shuttleInfo) {
+              chipLabel = "No service";
+            } else {
+              chipLabel = "--";
+            }
+          } else {
+            chipLabel = formatDuration(fastest?.durationText);
+          }
+
           return (
             <Pressable
               key={m.mode}
@@ -235,7 +281,7 @@ export default function TravelOptionsPopup({
                 testID={`mode-${m.mode}-time`}
                 ellipsizeMode="tail"
               >
-                {formatDuration(fastest?.durationText)}
+                {chipLabel}
               </Text>
             </Pressable>
           );
@@ -246,72 +292,183 @@ export default function TravelOptionsPopup({
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        {routes.map((r, idx) => {
-          const active = idx === selectedRouteIndex;
-          const buses = selectedMode === "transit" ? getBusDetails(r) : [];
-          const metros = selectedMode === "transit" ? getMetroDetails(r) : [];
+        {/* ── Shuttle mode: special schedule card ── */}
+        {selectedMode === "shuttle" ? (
+          <View style={s.routeCard} testID="route-shuttle-card">
+            <View style={{ flex: 1 }}>
+              {/* T-9.7: no shuttleInfo = schedule failed to load */}
+              {!shuttleInfo ? (
+                <>
+                  <Text style={s.shuttleStatusText}>
+                    Shuttle schedule unavailable
+                  </Text>
+                  <Text style={[s.routeMeta, { marginTop: 6 }]}>
+                    Couldn&apos;t read schedule data. Please try again later.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  {/* T-9.5: operating status */}
+                  <Text style={s.shuttleStatusText}>
+                    {shuttleStatusLabel(shuttleInfo.status)}
+                  </Text>
 
-          return (
-            <Pressable
-              key={`${selectedMode}-${idx}`}
-              onPress={() => onSelectRouteIndex(idx)}
-              style={[s.routeCard, active && s.routeCardActive]}
-              testID={`route-${selectedMode}-${idx}`}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={s.routeBig}>{r.durationText}</Text>
-                <Text style={s.routeMeta}>{r.distanceText}</Text>
-                {!!r.summary && <Text style={s.routeSummary}>{r.summary}</Text>}
+                  {shuttleInfo.status === "operating" ? (
+                    <>
+                      {/* T-9.5: next departures */}
+                      <Text style={[s.routeMeta, { marginTop: 8 }]}>
+                        Next departures
+                      </Text>
+                      <Text
+                        style={s.shuttleDepartures}
+                        testID="shuttle-departures"
+                      >
+                        {shuttleInfo.nextDepartures.join("  ·  ")}
+                      </Text>
 
-                {/*Rendering the bus and metro chips in the summary*/}
-                {selectedMode === "transit" &&
-                  (r.transitLines?.length ?? 0) > 0 && (
-                    <View style={s.transitRow}>
-                      {buses.slice(0, 4).map((bus) => (
-                        <LineChip
-                          key={`bus-${bus}`}
-                          label={bus}
-                          iconSource={ICON_BUS}
-                          backgroundColor="rgba(0, 98, 255, 0.12)"
-                          textColor="#111"
-                        />
-                      ))}
-
-                      {buses.length > 4 && (
-                        <Text style={s.moreText}>+{buses.length - 4}</Text>
-                      )}
-
-                      {metros.slice(0, 2).map((metro) => {
-                        const bg = metroLineColor(metro);
-                        const fg = metroTextColor(bg);
-
-                        return (
-                          <LineChip
-                            key={`metro-${metro}`}
-                            label={metro}
-                            iconSource={ICON_SUBWAY}
-                            backgroundColor={bg}
-                            textColor={fg}
-                          />
+                      {/* T-9.6: multi-leg route preview */}
+                      {(() => {
+                        const { from, to } = shuttleFromTo(
+                          shuttleInfo.direction,
                         );
-                      })}
-                    </View>
+                        const nextDep = shuttleInfo.nextDepartures[0];
+                        return (
+                          <View style={s.shuttleLegs}>
+                            <View style={s.shuttleLeg}>
+                              <MaterialIcons
+                                name="directions-walk"
+                                size={16}
+                                color="rgba(17,17,17,0.55)"
+                              />
+                              <Text style={s.shuttleLegText}>
+                                Walk to {from} shuttle stop
+                                {nextDep ? ` · departs ${nextDep}` : ""}
+                              </Text>
+                            </View>
+                            <View style={s.shuttleLegConnector} />
+                            <View style={s.shuttleLeg}>
+                              <MaterialIcons
+                                name="directions-bus"
+                                size={16}
+                                color="rgba(17,17,17,0.55)"
+                              />
+                              <Text style={s.shuttleLegText}>
+                                Concordia Shuttle — {from} → {to} · ~30 min · ~8
+                                km
+                              </Text>
+                            </View>
+                            <View style={s.shuttleLegConnector} />
+                            <View style={s.shuttleLeg}>
+                              <MaterialIcons
+                                name="directions-walk"
+                                size={16}
+                                color="rgba(17,17,17,0.55)"
+                              />
+                              <Text style={s.shuttleLegText}>
+                                Walk to destination at {to} campus
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    /* T-9.7: clear messaging when not operating */
+                    <Text style={[s.routeMeta, { marginTop: 6 }]}>
+                      {shuttleInfo.status === "no-service-today"
+                        ? "Service runs Monday – Friday."
+                        : "No more shuttles today. Check back tomorrow."}
+                    </Text>
                   )}
-              </View>
+                </>
+              )}
+            </View>
 
-              <Pressable
-                onPress={(e: any) => {
-                  e?.stopPropagation?.();
-                  onGo?.(selectedMode, idx);
-                }}
-                style={s.goBtn}
-                testID={`go-${selectedMode}-${idx}`}
-              >
-                <Text style={s.goText}>GO</Text>
-              </Pressable>
+            <Pressable
+              onPress={(e: any) => {
+                e?.stopPropagation?.();
+                onGo?.("shuttle", 0);
+              }}
+              style={[
+                s.goBtn,
+                shuttleInfo?.status !== "operating" && s.goBtnDisabled,
+              ]}
+              disabled={shuttleInfo?.status !== "operating"}
+              testID="go-shuttle-0"
+            >
+              <Text style={s.goText}>GO</Text>
             </Pressable>
-          );
-        })}
+          </View>
+        ) : (
+          /* ── Standard Google-routes list ── */
+          routes.map((r, idx) => {
+            const active = idx === selectedRouteIndex;
+            const buses = selectedMode === "transit" ? getBusDetails(r) : [];
+            const metros = selectedMode === "transit" ? getMetroDetails(r) : [];
+
+            return (
+              <Pressable
+                key={`${selectedMode}-${idx}`}
+                onPress={() => onSelectRouteIndex(idx)}
+                style={[s.routeCard, active && s.routeCardActive]}
+                testID={`route-${selectedMode}-${idx}`}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.routeBig}>{r.durationText}</Text>
+                  <Text style={s.routeMeta}>{r.distanceText}</Text>
+                  {!!r.summary && (
+                    <Text style={s.routeSummary}>{r.summary}</Text>
+                  )}
+
+                  {selectedMode === "transit" &&
+                    (r.transitLines?.length ?? 0) > 0 && (
+                      <View style={s.transitRow}>
+                        {buses.slice(0, 4).map((bus) => (
+                          <LineChip
+                            key={`bus-${bus}`}
+                            label={bus}
+                            iconSource={ICON_BUS}
+                            backgroundColor="rgba(0, 98, 255, 0.12)"
+                            textColor="#111"
+                          />
+                        ))}
+
+                        {buses.length > 4 && (
+                          <Text style={s.moreText}>+{buses.length - 4}</Text>
+                        )}
+
+                        {metros.slice(0, 2).map((metro) => {
+                          const bg = metroLineColor(metro);
+                          const fg = metroTextColor(bg);
+
+                          return (
+                            <LineChip
+                              key={`metro-${metro}`}
+                              label={metro}
+                              iconSource={ICON_SUBWAY}
+                              backgroundColor={bg}
+                              textColor={fg}
+                            />
+                          );
+                        })}
+                      </View>
+                    )}
+                </View>
+
+                <Pressable
+                  onPress={(e: any) => {
+                    e?.stopPropagation?.();
+                    onGo?.(selectedMode, idx);
+                  }}
+                  style={s.goBtn}
+                  testID={`go-${selectedMode}-${idx}`}
+                >
+                  <Text style={s.goText}>GO</Text>
+                </Pressable>
+              </Pressable>
+            );
+          })
+        )}
       </BottomSheetScrollView>
     </BottomSheet>
   );
@@ -539,9 +696,48 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 14,
   },
+  goBtnDisabled: {
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
   goText: {
     color: "white",
     fontWeight: "900",
     fontSize: 16,
+  },
+
+  // ── Shuttle card ──────────────────────────────────────────────────────────
+  shuttleStatusText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111",
+  },
+  shuttleDepartures: {
+    marginTop: 4,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
+    letterSpacing: 0.3,
+  },
+  shuttleLegs: {
+    marginTop: 12,
+    gap: 2,
+  },
+  shuttleLeg: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  shuttleLegText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(17,17,17,0.7)",
+    flex: 1,
+  },
+  shuttleLegConnector: {
+    width: 1,
+    height: 10,
+    backgroundColor: "rgba(17,17,17,0.2)",
+    marginLeft: 7, // visually aligns under the centre of a 16px icon
+    marginVertical: 1,
   },
 });

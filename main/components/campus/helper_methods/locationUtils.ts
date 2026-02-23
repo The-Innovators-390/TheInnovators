@@ -31,8 +31,8 @@ export async function getDeviceLocation(): Promise<LatLng> {
   await ensureLocationReady();
   await requestForegroundPermission();
 
-  // Try last-known first (fast)
-  const last = await Location.getLastKnownPositionAsync();
+  // Try last-known first (fast), but reject stale Android cache (max 60 s old)
+  const last = await Location.getLastKnownPositionAsync({ maxAge: 60000 });
   if (last?.coords?.latitude && last?.coords?.longitude) {
     return {
       latitude: last.coords.latitude,

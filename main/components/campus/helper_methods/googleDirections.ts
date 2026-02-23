@@ -1,6 +1,11 @@
 import Constants from "expo-constants";
 
-export type TravelMode = "driving" | "walking" | "transit" | "bicycling";
+export type TravelMode =
+  | "driving"
+  | "walking"
+  | "transit"
+  | "bicycling"
+  | "shuttle";
 
 export type LatLng = { latitude: number; longitude: number };
 

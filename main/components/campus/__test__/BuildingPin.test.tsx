@@ -16,9 +16,10 @@ describe("BuildingPin", () => {
     const views = UNSAFE_getAllByType(View);
     const flat = StyleSheet.flatten(views[0].props.style);
 
+    // Component adds PAD=4 on each side for Android Marker bitmap clipping
     expect(flat).toMatchObject({
-      width: 44,
-      height: 44 * 1.5, // height = size * 1.5
+      width: 44 + 4 * 2,
+      height: 44 * 1.5 + 4 * 2,
     });
   });
 
@@ -32,9 +33,10 @@ describe("BuildingPin", () => {
     const views = UNSAFE_getAllByType(View);
     const flat = StyleSheet.flatten(views[0].props.style);
 
+    // Component adds PAD=4 on each side for Android Marker bitmap clipping
     expect(flat).toMatchObject({
-      width: 60,
-      height: 60 * 1.5, // size * 1.5
+      width: 60 + 4 * 2,
+      height: 60 * 1.5 + 4 * 2,
     });
   });
 

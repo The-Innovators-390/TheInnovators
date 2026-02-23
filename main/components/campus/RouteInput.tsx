@@ -16,6 +16,8 @@ type Props = {
   disabled?: boolean;
   onClearStart: () => void;
   onClearDestination: () => void;
+  /** T-12.1: tap to detect GPS and fill the start field */
+  onUseMyLocation?: () => void;
 };
 
 export default function RouteInput({
@@ -31,6 +33,7 @@ export default function RouteInput({
   disabled,
   onClearStart,
   onClearDestination,
+  onUseMyLocation,
 }: Readonly<Props>) {
   // If a building is selected, show its label; otherwise show whatever user typed.
   let startValue = startText;
@@ -73,7 +76,7 @@ export default function RouteInput({
               autoCapitalize="none"
             />
 
-            {startValue.length > 0 && (
+            {startValue.length > 0 ? (
               <Pressable
                 onPress={(e?: any) => {
                   e?.stopPropagation?.();
@@ -85,6 +88,24 @@ export default function RouteInput({
               >
                 <Text style={s.clearIcon}>✕</Text>
               </Pressable>
+            ) : (
+              onUseMyLocation && (
+                <Pressable
+                  onPress={(e?: any) => {
+                    e?.stopPropagation?.();
+                    onUseMyLocation();
+                  }}
+                  hitSlop={8}
+                  style={s.clearButton}
+                  testID="useMyLocation"
+                >
+                  <MaterialIcons
+                    name="my-location"
+                    size={16}
+                    color="rgba(17,17,17,0.55)"
+                  />
+                </Pressable>
+              )
             )}
           </View>
         </Pressable>

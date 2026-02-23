@@ -36,23 +36,45 @@ export default function BuildingPin({
   const displayText = label ?? code;
   const pinHeight = size * 1.5;
 
+  // Transparent buffer on every side so Android's Marker bitmap capture never
+  // clips the outermost pixels of the pin graphic (right edge + bottom tip).
+  const PAD = 4;
+
   return (
+    // The outer View declares the total bitmap dimensions for Android's Marker.
+    // Using absolute positioning for children guarantees the container is sized
+    // by its own style, not inferred from content measurement.
     <View
-      style={[
-        styles.wrap,
-        {
-          width: size,
-          height: pinHeight,
-        },
-      ]}
+      collapsable={false}
+      style={{
+        width: size + PAD * 2,
+        height: pinHeight + PAD * 2,
+      }}
     >
       <Image
         source={src}
-        style={[styles.pin, { width: size, height: pinHeight }]}
+        style={{
+          position: "absolute",
+          top: PAD,
+          left: PAD,
+          width: size,
+          height: pinHeight,
+        }}
         resizeMode="contain"
+        fadeDuration={0}
       />
 
-      <View style={styles.textOverlay} pointerEvents="none">
+      <View
+        style={{
+          position: "absolute",
+          top: PAD + Math.round(pinHeight * 0.13),
+          left: PAD,
+          width: size,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        pointerEvents="none"
+      >
         <Text
           style={[
             styles.code,
@@ -73,23 +95,6 @@ export default function BuildingPin({
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pin: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
-  },
-  textOverlay: {
-    position: "absolute",
-    top: "13%", // ⬅️ centers text in the circular head
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   code: {
     color: "white",
     fontWeight: "900",

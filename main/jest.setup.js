@@ -2,6 +2,16 @@
 /* global jest */
 import "@testing-library/jest-native/extend-expect";
 
+// Mock useUserRole globally so any component that imports it (e.g. CampusMap)
+// doesn't attempt to load firebase/auth ESM in Jest.
+jest.mock("@/hooks/useUserRole", () => ({
+  useUserRole: () => ({ role: "visitor", loading: false }),
+  isShuttleEligible: (role) => role === "student" || role === "staff",
+}));
+
+// alert() is not defined in React Native's Jest environment.
+global.alert = jest.fn();
+
 // Fix: "No safe area value available"
 import mockSafeAreaContext from "react-native-safe-area-context/jest/mock";
 jest.mock("react-native-safe-area-context", () => mockSafeAreaContext);
