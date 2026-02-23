@@ -18,25 +18,45 @@ appId: com.theinnovators.campusguide
     id: routeModeButton
 - waitForAnimationToEnd
 
-# Select starting location
+# Select starting location (Henry F. Hall)
 - tapOn:
-    id: routeStartInput
-- inputText: "Hall Building"
-- tapOn: "Henry F. Hall"
+    id: "routeStartRow"
+- inputText: "Henry"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-H"
 - waitForAnimationToEnd
 
-# Select destination
+# Select destination (Physical Services Building)
 - tapOn:
-    id: routeDestInput
+    id: "routeDestRow"
 - inputText: "Physical"
-- tapOn: "Physical Services Building"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-LOY-LOY-PS"
+    timeout: 10000
+- tapOn:
+    id: "routeSuggestion-LOY-LOY-PS"
 - waitForAnimationToEnd
 
-# Start navigation (walking, route index 0)
-- assertVisible:
-    id: go-walking-0
+# Wait for route preview / travel popup
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 20000
+
+# Start navigation (driving, route index 0)
+- extendedWaitUntil:
+    timeout: 30000
+    visible:
+      id: "go-driving-0"
 - tapOn:
-    id: go-walking-0
+    id: "go-driving-0"
 - waitForAnimationToEnd
 
 # Assert directions appear
@@ -45,10 +65,24 @@ appId: com.theinnovators.campusguide
 - assertVisible:
     id: directions-street
 
-# Exit navigation
-- tapOn:
-    id: exit-btn
-- waitForAnimationToEnd
+# Exit (works for both directions-only and live navigation)
+- runFlow:
+    when:
+      visible:
+        id: "exit-btn-live"
+    commands:
+      - tapOn:
+          id: "exit-btn-live"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "exit-btn-directions"
+    commands:
+      - tapOn:
+          id: "exit-btn-directions"
+      - waitForAnimationToEnd
 
 # Assert directions disappear
 - assertNotVisible:

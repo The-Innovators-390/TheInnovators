@@ -19,6 +19,7 @@ export function StartLiveBanner({ visible, bottomOffset, onExit }: Props) {
         <Text style={styles.text}>Go to start to begin live navigation</Text>
 
         <Pressable
+          testID="exit-btn-directions"
           onPress={onExit}
           style={({ pressed }) => [
             styles.exitBtn,

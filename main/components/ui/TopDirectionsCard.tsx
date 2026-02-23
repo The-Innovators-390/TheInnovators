@@ -18,7 +18,11 @@ export function TopDirectionsCard({
   if (!visible) return null;
 
   return (
-    <View testID="directions-panel" pointerEvents="box-none" style={styles.wrap}>
+    <View
+      testID="directions-panel"
+      pointerEvents="box-none"
+      style={styles.wrap}
+    >
       <Pressable
         testID="directions-card"
         accessibilityLabel="Directions"
@@ -30,7 +34,11 @@ export function TopDirectionsCard({
           <Text testID="directions-distance" style={styles.distance}>
             {distanceText}
           </Text>
-          <Text testID="directions-street" style={styles.street} numberOfLines={1}>
+          <Text
+            testID="directions-street"
+            style={styles.street}
+            numberOfLines={1}
+          >
             {streetText}
           </Text>
         </View>
