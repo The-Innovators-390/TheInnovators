@@ -16,43 +16,110 @@ appId: com.theinnovators.campusguide
     id: "campusToggle"
 
 # Switch to route mode
+- assertVisible:
+    id: "routeModeButton"
 - tapOn:
     id: "routeModeButton"
+- waitForAnimationToEnd
 
 # Select a starting point
-- tapOn: Enter your starting location
+- assertVisible:
+    id: "routePanel"
+- tapOn:
+    id: "routeStartRow"
 - waitForAnimationToEnd
+- eraseText
 - inputText: "Hall Building"
-- tapOn: "H - Henry F. Hall Building (SGW)"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-H"
+    timeout: 5000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-H"
 - waitForAnimationToEnd
 
 # Select a destination
-- tapOn: Enter your destination
+- tapOn:
+    id: "routeDestRow"
 - waitForAnimationToEnd
+- eraseText
 - inputText: "Physical"
-- tapOn: "PS - Physical Services Building (LOY)"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-LOY-LOY-PS"
+- tapOn:
+    id: "routeSuggestion-LOY-LOY-PS"
 - waitForAnimationToEnd
 
-# Verify that the modes are displayed
-# "driving" | "walking" | "transit" | "bicycling
+- assertVisible:
+    id: "travelPopup-handle"
+
+# Wait for directions UI (modes)
 - assertVisible:
     id: "mode-driving"
+- assertVisible:
+    id: "mode-walking"
+- assertVisible:
+    id: "mode-transit"
+- assertVisible:
+    id: "mode-bicycling"
+
+# Optional: wait a bit longer for routes to populate (network)
+- waitForAnimationToEnd
+
+# Screenshots by mode
+- assertVisible:
+    id: "route-driving-0-duration"
+- copyTextFrom:
+    id: "route-driving-0-duration"
+    text: drivingDuration
+- copyTextFrom:
+    id: "route-driving-0-distance"
+    text: drivingDistance
 - takeScreenshot: "after-selecting-driving-mode"
-- assertVisible:
-    id: "mode-walking"
+
 - tapOn:
     id: "mode-walking"
 - waitForAnimationToEnd
+- assertVisible:
+    id: "route-walking-0-duration"
+- copyTextFrom:
+    id: "route-walking-0-duration"
+    text: walkingDuration
+- copyTextFrom:
+    id: "route-walking-0-distance"
+    text: walkingDistance
 - takeScreenshot: "after-selecting-walking-mode"
-- assertVisible:
-    id: "mode-transit"
+
 - tapOn:
     id: "mode-transit"
 - waitForAnimationToEnd
+- assertVisible:
+    id: "route-transit-0-duration"
+- copyTextFrom:
+    id: "route-transit-0-duration"
+    text: transitDuration
+- copyTextFrom:
+    id: "route-transit-0-distance"
+    text: transitDistance
 - takeScreenshot: "after-selecting-transit-mode"
-- assertVisible:
-    id: "mode-bicycling"
+
 - tapOn:
     id: "mode-bicycling"
 - waitForAnimationToEnd
+- assertVisible:
+    id: "route-bicycling-0-duration"
+- copyTextFrom:
+    id: "route-bicycling-0-duration"
+    text: bicyclingDuration
+- copyTextFrom:
+    id: "route-bicycling-0-distance"
+    text: bicyclingDistance
 - takeScreenshot: "after-selecting-bicycling-mode"
+
+# Assert changed (duration OR distance)
+- assertTrue: ${drivingDuration != walkingDuration || drivingDistance != walkingDistance}
+- assertTrue: ${drivingDuration != transitDuration || drivingDistance != transitDistance}
+- assertTrue: ${drivingDuration != bicyclingDuration || drivingDistance != bicyclingDistance}
