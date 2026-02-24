@@ -20,6 +20,7 @@
     "lint": "expo lint",
     "test": "jest",
     "test:ci": "jest --ci --coverage --passWithNoTests",
+    "maestro:test": "maestro test maestro/toggle-campus.yaml",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -64,6 +65,7 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@expo/ngrok": "^4.1.0",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.0.0",
     "@types/jest": "^30.0.0",

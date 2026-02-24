@@ -4,7 +4,6 @@ export default {
   expo: {
     name: "TheInnovators",
     slug: "theinnovators",
-
     ios: {
       bundleIdentifier: "com.theinnovators.campusguide",
       supportsTablet: true,
@@ -17,7 +16,6 @@ export default {
           "We use your location to provide navigation features on campus.",
       },
     },
-
     android: {
       package: "com.theinnovators.campusguide",
       googleServicesFile: "./google-services.json",

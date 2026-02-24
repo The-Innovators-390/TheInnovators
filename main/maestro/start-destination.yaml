@@ -1,0 +1,151 @@
+# this tesitng files cover from Start from search, destination from search, prevent invalid route, visibility & editability
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Welcome -> Guest
+- assertVisible:
+    id: "guest-sign-in-button"
+- tapOn:
+    id: "guest-sign-in-button"
+
+# Map loaded, SGW
+- assertVisible:
+    id: "campusMap-root"
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+# Enter route mode
+- tapOn:
+    id: "routeModeButton"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "routePanel"
+- extendedWaitUntil:
+    visible:
+      id: "routeStartRow"
+    timeout: 5000
+
+# AC: Start selection from search bar
+- tapOn:
+    id: "routeStartRow"
+- inputText: "B"
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-B"
+    timeout: 8000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-B"
+- extendedWaitUntil:
+    visible:
+      id: "clearStart"
+    timeout: 3000
+- assertVisible:
+    id: "startPin"
+
+# AC: Destination selection (search)
+- tapOn:
+    id: "routeDestRow"
+- inputText: "M Annex"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-M"
+    timeout: 8000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-M"
+- extendedWaitUntil:
+    visible:
+      id: "clearDestination"
+    timeout: 3000
+- assertVisible:
+    id: "destinationPin"
+
+# Route auto-fetches when both set
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 20000
+
+# AC: Selection visibility and editability — clear dest, set again
+- assertVisible:
+    id: "clearStart"
+- assertVisible:
+    id: "clearDestination"
+- tapOn:
+    id: "clearDestination"
+- waitForAnimationToEnd
+- tapOn:
+    id: "routeDestRow"
+- inputText: "Henry"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-H"
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 20000
+
+# AC: Prevent invalid route (missing fields) — only start set -> no popup
+- tapOn:
+    id: "travelPopup-close"
+- waitForAnimationToEnd
+- tapOn:
+    id: "clearDestination"
+- waitForAnimationToEnd
+- tapOn:
+    id: "clearStart"
+- waitForAnimationToEnd
+- tapOn:
+    id: "routeStartRow"
+- inputText: "B"
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-B"
+    timeout: 8000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-B"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible:
+      id: "travelPopup-handle"
+    timeout: 5000
+- assertVisible:
+    id: "routePanel"
+- assertVisible:
+    id: "clearStart"
+
+# Set destination - popup appears
+- tapOn:
+    id: "routeDestRow"
+- inputText: "Henry"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-H"
+    timeout: 12000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-H"
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 20000
+
+# Selections remain visible
+- tapOn:
+    id: "travelPopup-close"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "routePanel"
+- assertVisible:
+    id: "clearStart"
+- assertVisible:
+    id: "clearDestination"

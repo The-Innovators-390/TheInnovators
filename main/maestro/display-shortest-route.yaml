@@ -1,0 +1,99 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+# welcome Guest
+- assertVisible:
+    id: "guest-sign-in-button"
+- tapOn:
+    id: "guest-sign-in-button"
+
+# map loaded
+- assertVisible:
+    id: "campusMap-root"
+- assertVisible:
+    id: "campusToggle"
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+# enter in route mode
+- tapOn:
+    id: "routeModeButton"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "routePanel"
+- extendedWaitUntil:
+    visible:
+      id: "routeStartRow"
+    timeout: 5000
+
+# set start
+# tap the start row to focus, then type and pick a building (SGW B Annex)
+- tapOn:
+    id: "routeStartRow"
+- inputText: "B"
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-B"
+    timeout: 8000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-B"
+
+# set destination: use "M Annex" so the suggestion list reliably shows SGW-M (single match)
+- tapOn:
+    id: "routeDestRow"
+- inputText: "M Annex"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-M"
+    timeout: 8000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-M"
+
+# directions are fetched automatically when both start and destination are set.
+# wait for route preview
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 20000
+
+# change inputs before navigating
+# clear destination and set a new one
+# keep the popup collapsed so the route panel and suggestion list stay visible.
+- tapOn:
+    id: "clearDestination"
+- waitForAnimationToEnd
+- tapOn:
+    id: "routeDestRow"
+- inputText: "Henry"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-H"
+
+# wait for to recalculate the route preview
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 20000
+
+- takeScreenshot: "route-preview-after-destination-change"
+
+# close travel popup and confirm map still in route mode
+- tapOn:
+    id: "travelPopup-close"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "routePanel"
+- assertVisible:
+    id: "routeStartRow"
+- assertVisible:
+    id: "routeDestRow"
