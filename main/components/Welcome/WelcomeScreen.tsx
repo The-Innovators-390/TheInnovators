@@ -20,16 +20,15 @@ export default function WelcomeScreen() {
   const onGoogleSignInPress = async () => {
     try {
       setLoading(true);
-
       await signInWithGoogle();
 
-      // success -> go to map
+      // Flow 2: after sign-in, go straight to map (calendar is handled when user clicks calendar icon)
       router.replace("/(tabs)/map");
     } catch (e: any) {
       console.log("Google sign-in failed:", e);
       Alert.alert(
         "Google Sign-In failed",
-        e?.message ?? "Something went wrong.",
+        e?.message ?? "Sign-in was cancelled or failed.",
       );
     } finally {
       setLoading(false);
@@ -37,6 +36,7 @@ export default function WelcomeScreen() {
   };
 
   const onContinueGuestPress = () => {
+    // Flow 1: guest goes to map
     router.replace("/(tabs)/map");
   };
 
