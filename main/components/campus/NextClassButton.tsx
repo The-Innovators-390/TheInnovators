@@ -2,14 +2,14 @@ import React from "react";
 import { Pressable, StyleSheet, Image } from "react-native";
 import { router } from "expo-router";
 
-export function NextClassDebugCard() {
+export function NextClassButton() {
   return (
     <Pressable
       style={styles.button}
       onPress={() => router.push("/(tabs)/calendar")}
     >
       <Image
-        source={require("../assets/images/google-calendar-icon.png")}
+        source={require("../../assets/images/google-calendar-icon.png")}
         style={styles.icon}
       />
     </Pressable>

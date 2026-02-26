@@ -6,6 +6,7 @@ import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { HeaderBackButton } from "../../components/ui/HeaderBackButton";
 
 const MapTabIcon = ({ color }: { color: string }) => (
   <IconSymbol size={28} name="paperplane.fill" color={color} />
@@ -40,14 +41,7 @@ export default function TabLayout() {
           title: "Active Calendar",
           href: null,
           headerShown: true,
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.replace("/(tabs)/map")}
-              style={{ paddingHorizontal: 12, paddingVertical: 6 }}
-            >
-              <Text style={{ fontSize: 16 }}>Back</Text>
-            </Pressable>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
     </Tabs>
