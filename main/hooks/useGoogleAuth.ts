@@ -14,7 +14,8 @@ const CALENDAR_CONNECTED_KEY = "google_calendar_connected";
 const CALENDAR_TOKEN_KEY = "google_calendar_access_token";
 
 function doConfigure(scopes?: string[]) {
-  if (!googleWebClientId) throw new Error("Missing googleWebClientId in expo.extra");
+  if (!googleWebClientId)
+    throw new Error("Missing googleWebClientId in expo.extra");
 
   GoogleSignin.configure({
     webClientId: googleWebClientId,

@@ -15,7 +15,7 @@ type CalendarListResponse = {
     summary?: string;
     location?: string;
     start?: { dateTime?: string; date?: string };
-    end?: { dateTime?: string; date?: string }; 
+    end?: { dateTime?: string; date?: string };
   }>;
 };
 

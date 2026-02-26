@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useIsFocused } from "@react-navigation/native";
 import {
   View,
@@ -47,17 +53,37 @@ function dateKey(startISO?: string) {
 
 function formatDayHeader(d: Date) {
   const weekdays = [
-    "Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday",
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
   ];
   const months = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
   const day = d.getDate();
   const suffix =
-    day % 10 === 1 && day !== 11 ? "st" :
-    day % 10 === 2 && day !== 12 ? "nd" :
-    day % 10 === 3 && day !== 13 ? "rd" : "th";
+    day % 10 === 1 && day !== 11
+      ? "st"
+      : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+          ? "rd"
+          : "th";
 
   return `${weekdays[d.getDay()]} ${months[d.getMonth()]} ${day}${suffix} ${d.getFullYear()}`;
 }
@@ -93,8 +119,18 @@ function daysInMonth(d: Date) {
 
 function monthTitle(d: Date) {
   const months = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
   return `${months[d.getMonth()]} ${d.getFullYear()}`;
 }
@@ -209,7 +245,14 @@ export default function CalendarScreen() {
         },
       ],
     );
-  }, [isFocused, loading, signedIn, calendarConnected, refreshState, loadEvents]);
+  }, [
+    isFocused,
+    loading,
+    signedIn,
+    calendarConnected,
+    refreshState,
+    loadEvents,
+  ]);
 
   const onSignInPress = async () => {
     try {
@@ -257,7 +300,10 @@ export default function CalendarScreen() {
     for (let i = 0; i < leadingBlanks; i++) cells.push({ type: "blank" });
 
     for (let day = 1; day <= count; day++) {
-      cells.push({ type: "day", date: new Date(first.getFullYear(), first.getMonth(), day) });
+      cells.push({
+        type: "day",
+        date: new Date(first.getFullYear(), first.getMonth(), day),
+      });
     }
 
     return cells;
@@ -415,19 +461,20 @@ export default function CalendarScreen() {
 
             return (
               <View key={k} style={styles.dayCellWrap}>
-                <View
-                  style={[
-                    styles.dayPill,
-                    isToday && styles.dayPillToday,
-                  ]}
-                >
-                  <Text style={[styles.dayCellText, isToday && styles.dayTextToday]}>
+                <View style={[styles.dayPill, isToday && styles.dayPillToday]}>
+                  <Text
+                    style={[styles.dayCellText, isToday && styles.dayTextToday]}
+                  >
                     {cell.date.getDate()}
                   </Text>
                 </View>
 
                 {/* tiny dot if there’s an event that day */}
-                {hasEvent ? <View style={styles.eventDot} /> : <View style={styles.eventDotSpacer} />}
+                {hasEvent ? (
+                  <View style={styles.eventDot} />
+                ) : (
+                  <View style={styles.eventDotSpacer} />
+                )}
               </View>
             );
           })}
