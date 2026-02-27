@@ -51,6 +51,8 @@ export default function UpcomingEvents({
                   e.location ? ` - ${e.location}` : ""
                 }`;
 
+                const hasLocation = !!e.location?.trim();
+
                 return (
                   <View key={e.id} style={styles.eventRow}>
                     <View style={styles.eventTextBlock}>
@@ -58,13 +60,14 @@ export default function UpcomingEvents({
                       <View style={styles.purpleLine} />
                       <Text style={styles.eventTitle}>{title}</Text>
                     </View>
-
-                    <Pressable
-                      style={styles.directionsBtn}
-                      onPress={() => onPressDirections(e)}
-                    >
-                      <Text style={styles.directionsIcon}>↗</Text>
-                    </Pressable>
+                    {hasLocation && (
+                      <Pressable
+                        style={styles.directionsBtn}
+                        onPress={() => onPressDirections(e)}
+                      >
+                        <Text style={styles.directionsIcon}>↗</Text>
+                      </Pressable>
+                    )}
                   </View>
                 );
               })}
