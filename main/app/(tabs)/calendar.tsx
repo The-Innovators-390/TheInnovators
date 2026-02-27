@@ -226,21 +226,22 @@ export default function CalendarScreen() {
         { text: "Not now", style: "cancel", onPress: goToMap },
         {
           text: "Connect",
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await requestGoogleCalendarAccess();
-              await refreshState();
-              await loadEvents();
-            } catch (e: any) {
-              Alert.alert(
-                "Calendar not connected",
-                e?.message ?? "You can connect it later.",
-              );
-              goToMap();
-            } finally {
-              setLoading(false);
-            }
+          onPress: () => {
+            void (async () => {
+              try {
+                setLoading(true);
+                await requestGoogleCalendarAccess();
+                await refreshState();
+                await loadEvents();
+              } catch (e: any) {
+                Alert.alert(
+                  "Calendar not connected",
+                  e?.message ?? "You can connect it later.",
+                );
+              } finally {
+                setLoading(false);
+              }
+            })();
           },
         },
       ],
@@ -320,7 +321,7 @@ export default function CalendarScreen() {
       arr.push(ev);
       m.set(k, arr);
     }
-    const keys = Array.from(m.keys()).sort();
+    const keys = Array.from(m.keys()).sort((a, b) => a.localeCompare(b));
     return keys.map((k) => ({
       key: k,
       items: (m.get(k) ?? []).sort((a, b) => {
