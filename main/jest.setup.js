@@ -12,6 +12,12 @@ jest.mock("@/hooks/useUserRole", () => ({
 // alert() is not defined in React Native's Jest environment.
 global.alert = jest.fn();
 
+import "@testing-library/jest-native/extend-expect";
+
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock")
+);
+
 // Fix: "No safe area value available"
 import mockSafeAreaContext from "react-native-safe-area-context/jest/mock";
 jest.mock("react-native-safe-area-context", () => mockSafeAreaContext);
