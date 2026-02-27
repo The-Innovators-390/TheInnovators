@@ -15,6 +15,7 @@ import {
   Alert,
   ScrollView,
   RefreshControl,
+  Modal,
 } from "react-native";
 import { router } from "expo-router";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
@@ -28,6 +29,8 @@ import {
 
 import {
   fetchUpcomingCalendarEvents,
+  fetchUserCalendars,
+  type GoogleCalendarListItem,
   type CalendarEvent,
 } from "@/services/googleCalendar";
 
@@ -148,8 +151,24 @@ export default function CalendarScreen() {
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
+  const [calendarsLoading, setCalendarsLoading] = useState(false);
+  const [calendarsError, setCalendarsError] = useState<string | null>(null);
+  const [calendars, setCalendars] = useState<GoogleCalendarListItem[]>([]);
+
+  const [activeCalendarId, setActiveCalendarId] = useState<string>("primary");
+
+  // dropdown selection (user picks here before applying)
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pendingCalendarId, setPendingCalendarId] = useState<string>("primary");
+
   // calendar month state (starts at “now”)
   const [monthCursor, setMonthCursor] = useState(() => new Date());
+
+  const activeCalendarName =
+    calendars.find((c) => c.id === activeCalendarId)?.summary ?? "Primary";
+
+  const pendingCalendarName =
+    calendars.find((c) => c.id === pendingCalendarId)?.summary ?? "Primary";
 
   // prevents the alert from popping multiple times on re-render
   const promptedRef = useRef(false);
@@ -164,11 +183,35 @@ export default function CalendarScreen() {
     setCalendarConnected(connected);
   }, []);
 
-  const loadEvents = useCallback(async () => {
-    try {
+  const loadCalendars = useCallback(async () => {
+  try {
+    setCalendarsError(null);
+    setCalendarsLoading(true);
+
+    const list = await fetchUserCalendars();
+    setCalendars(list);
+
+    // pick default: primary if available, else first
+    const primaryId = list.find((c) => c.primary)?.id ?? "primary";
+
+    // only initialize if still on default values
+    setActiveCalendarId((prev) => (prev === "primary" ? primaryId : prev));
+    setPendingCalendarId((prev) => (prev === "primary" ? primaryId : prev));
+  } catch (e: any) {
+    setCalendars([]);
+    setCalendarsError(e?.message ?? "Could not load calendars.");
+  } finally {
+    setCalendarsLoading(false);
+  }
+}, []);
+
+  const loadEvents = useCallback(
+    async (calendarId?: string) => {
+      const id = calendarId ?? activeCalendarId;
+          try {
       setEventsError(null);
       setEventsLoading(true);
-      const list = await fetchUpcomingCalendarEvents();
+      const list = await fetchUpcomingCalendarEvents(id);
       setEvents(list);
     } catch (e: any) {
       setEvents([]);
@@ -176,7 +219,7 @@ export default function CalendarScreen() {
     } finally {
       setEventsLoading(false);
     }
-  }, []);
+  }, [activeCalendarId]);
 
   useEffect(() => {
     (async () => {
@@ -195,19 +238,32 @@ export default function CalendarScreen() {
     if (!isFocused) promptedRef.current = false;
   }, [isFocused]);
 
+  // Prevents overlapping Google token requests (getTokens)
+  const fetchBusyRef = useRef(false);
+
+  // To insure loadCalendars + loadEvents don't run concurrently
+  const runFetchCycle = useCallback(async () => {
+  if (fetchBusyRef.current) return;
+  fetchBusyRef.current = true;
+
+  try {
+    await refreshState();
+    const connected = await isGoogleCalendarConnected();
+    if (connected) {
+      await loadCalendars();
+      await loadEvents();
+    }
+  } finally {
+    fetchBusyRef.current = false;
+  }
+}, [refreshState, loadCalendars, loadEvents]);
+
   // Only run fetches when calendar screen is focused
   useEffect(() => {
-    if (!isFocused) return;
-    if (loading) return;
-
-    (async () => {
-      await refreshState();
-      const connected = await isGoogleCalendarConnected();
-      if (connected) {
-        await loadEvents();
-      }
-    })();
-  }, [isFocused, loading, refreshState, loadEvents]);
+  if (!isFocused) return;
+  if (loading) return;
+  runFetchCycle();
+}, [isFocused, loading, runFetchCycle]);
 
   // If user is signed in but calendar is NOT connected -> prompt to connect
   useEffect(() => {
@@ -269,16 +325,14 @@ export default function CalendarScreen() {
     }
   };
 
-  const onRefresh = async () => {
-    try {
-      setRefreshing(true);
-      await refreshState();
-      const connected = await isGoogleCalendarConnected();
-      if (connected) await loadEvents();
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  const onRefresh = useCallback(async () => {
+  setRefreshing(true);
+  try {
+    await runFetchCycle();
+  } finally {
+    setRefreshing(false);
+  }
+}, [runFetchCycle]);
 
   // For highlighting days with events
   const eventDaySet = useMemo(() => {
@@ -376,8 +430,7 @@ export default function CalendarScreen() {
             try {
               setLoading(true);
               await requestGoogleCalendarAccess();
-              await refreshState();
-              await loadEvents();
+              await runFetchCycle();
             } catch (e: any) {
               Alert.alert(
                 "Calendar not connected",
@@ -531,7 +584,73 @@ export default function CalendarScreen() {
             </View>
           );
         })
-      )}
+      )} 
+      <Text style={styles.otherTitle}>Other Calendars</Text>
+
+{calendarsLoading ? (
+  <ActivityIndicator />
+) : calendarsError ? (
+  <Text style={styles.emptyText}>{calendarsError}</Text>
+) : calendars.length === 0 ? (
+  <Text style={styles.emptyText}>No other calendars found.</Text>
+) : (
+  <>
+    <Pressable
+      style={styles.dropdown}
+      onPress={() => setPickerOpen(true)}
+    >
+      <Text style={styles.dropdownText}>{pendingCalendarName}</Text>
+      <Text style={styles.dropdownChevron}>⌄</Text>
+    </Pressable>
+
+    <Pressable
+      style={[
+        styles.selectCalendarBtn,
+        pendingCalendarId === activeCalendarId && styles.selectCalendarBtnDisabled,
+      ]}
+      disabled={pendingCalendarId === activeCalendarId}
+      onPress={async () => {
+        setActiveCalendarId(pendingCalendarId);
+        await loadEvents(pendingCalendarId);
+      }}
+    >
+      <Text style={styles.selectCalendarBtnText}>Select this calendar</Text>
+    </Pressable>
+
+    <Modal
+      visible={pickerOpen}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setPickerOpen(false)}
+    >
+      <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Choose a calendar</Text>
+
+          <ScrollView style={{ maxHeight: 320 }}>
+            {calendars.map((c) => {
+              const selected = c.id === pendingCalendarId;
+              return (
+                <Pressable
+                  key={c.id}
+                  style={[styles.modalItem, selected && styles.modalItemSelected]}
+                  onPress={() => {
+                    setPendingCalendarId(c.id);
+                    setPickerOpen(false);
+                  }}
+                >
+                  <Text style={styles.modalItemText}>
+                    {c.summary} {c.primary ? "(Primary)" : ""}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Pressable>
+    </Modal>
+  </>
+)}
     </ScrollView>
   );
 }
@@ -709,4 +828,92 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   directionsIcon: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  otherTitle: {
+  fontSize: 22,         
+  fontWeight: "800",
+  marginTop: 18,
+  marginBottom: 10,
+},
+
+dropdown: {
+  width: "100%",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  borderWidth: 2,
+  borderColor: "#d0d0d0",
+  borderRadius: 18,
+  paddingHorizontal: 14,
+  paddingVertical: 12,
+  backgroundColor: "#fff",
+},
+
+dropdownText: {
+  fontSize: 15,
+  fontWeight: "700",
+  color: "#333",
+},
+
+dropdownChevron: {
+  fontSize: 18,
+  fontWeight: "900",
+  color: "#666",
+},
+
+selectCalendarBtn: {
+  width: "100%",
+  marginTop: 12,
+  paddingVertical: 14,
+  borderRadius: 28,      
+  backgroundColor: "#5BCB63",
+  alignItems: "center",
+},
+
+selectCalendarBtnDisabled: {
+  opacity: 0.55,
+},
+
+selectCalendarBtnText: {
+  color: "#000",
+  fontSize: 16,
+  fontWeight: "700",
+},
+
+modalBackdrop: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.35)",
+  justifyContent: "center",
+  padding: 18,           
+},
+
+modalCard: {
+  backgroundColor: "#fff",
+  borderRadius: 18,
+  borderWidth: 2,
+  borderColor: "#d0d0d0",
+  padding: 14,
+},
+
+modalTitle: {
+  fontSize: 16,
+  fontWeight: "800",
+  color: "#111",
+  marginBottom: 10,
+},
+
+modalItem: {
+  paddingVertical: 12,
+  paddingHorizontal: 10,
+  borderRadius: 14,
+},
+
+modalItemSelected: {
+  backgroundColor: "rgba(91,203,99,0.18)",
+},
+
+modalItemText: {
+  fontSize: 14,
+  fontWeight: "700",
+  color: "#333",
+},
 });
