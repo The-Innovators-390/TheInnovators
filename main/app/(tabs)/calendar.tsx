@@ -184,6 +184,7 @@ export default function CalendarScreen() {
         {
           text: "Connect",
           onPress: async () => {
+            void (async () => {
             try {
               setLoading(true);
               await requestGoogleCalendarAccess();
@@ -197,8 +198,9 @@ export default function CalendarScreen() {
             } finally {
               setLoading(false);
             }
-          },
+          })();
         },
+      }
       ],
     );
   }, [isFocused, loading, signedIn, calendarConnected, goToMap, runFetchCycle]);
