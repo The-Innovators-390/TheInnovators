@@ -1,6 +1,17 @@
 import React from "react";
+import { View, StyleSheet } from "react-native";
 import CampusMap from "@/components/campus/CampusMap";
+import { NextClassButton } from "../../components/campus/NextClassButton";
 
 export default function MapScreen() {
-  return <CampusMap />;
+  return (
+    <View style={styles.container}>
+      <CampusMap />
+      <NextClassButton />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+});

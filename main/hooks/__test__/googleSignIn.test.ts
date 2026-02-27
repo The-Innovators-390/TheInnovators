@@ -1,5 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
+
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { Platform } from "react-native";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import {
   configureGoogleSignIn,
@@ -52,6 +54,7 @@ describe("googleSignIn service", () => {
     expect(GoogleSignin.configure).toHaveBeenCalledWith({
       webClientId: "web-client-id.apps.googleusercontent.com",
       iosClientId: "ios-client-id.apps.googleusercontent.com",
+      scopes: [],
     });
   });
 
@@ -88,9 +91,14 @@ describe("googleSignIn service", () => {
 
     const res = await signInWithGoogle();
 
-    expect(GoogleSignin.hasPlayServices).toHaveBeenCalledWith({
-      showPlayServicesUpdateDialog: true,
-    });
+    if (Platform.OS === "android") {
+      expect(GoogleSignin.hasPlayServices).toHaveBeenCalledWith({
+        showPlayServicesUpdateDialog: true,
+      });
+    } else {
+      expect(GoogleSignin.hasPlayServices).not.toHaveBeenCalled();
+    }
+
     expect(GoogleSignin.signIn).toHaveBeenCalledTimes(1);
     expect(GoogleSignin.getTokens).toHaveBeenCalledTimes(1);
 
