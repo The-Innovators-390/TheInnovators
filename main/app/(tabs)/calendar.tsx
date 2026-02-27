@@ -135,6 +135,19 @@ function monthTitle(d: Date) {
   return `${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+//will need to remove
+export const __test__ = {
+  pad2,
+  parseISO,
+  dateKeyFromDate,
+  dateKey,
+  formatDayHeader,
+  formatTimeRange,
+  startOfMonth,
+  daysInMonth,
+  monthTitle,
+};
+
 export default function CalendarScreen() {
   const isFocused = useIsFocused();
 
