@@ -1,4 +1,3 @@
-// ✅ MUST mock native module BEFORE importing calendar.tsx
 jest.mock("@react-native-google-signin/google-signin", () => ({
   GoogleSignin: {
     getCurrentUser: jest.fn(),
@@ -24,9 +23,7 @@ jest.mock("@/services/googleCalendar", () => ({
   fetchUpcomingCalendarEvents: jest.fn(),
 }));
 
-import { __test__ } from "@/app/(tabs)/calendar"; // adjust if needed
-
-const {
+import {
   pad2,
   parseISO,
   dateKeyFromDate,
@@ -36,7 +33,7 @@ const {
   startOfMonth,
   daysInMonth,
   monthTitle,
-} = __test__;
+} from "@/services/calendarUtils";
 
 describe("calendar.tsx utils", () => {
   test("pad2", () => {

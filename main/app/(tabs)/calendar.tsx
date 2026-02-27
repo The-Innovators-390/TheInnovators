@@ -143,7 +143,7 @@ export default function CalendarScreen() {
   // Prevents overlapping Google token requests (getTokens)
   const fetchBusyRef = useRef(false);
 
-  // To insure loadCalendars + loadEvents don't run concurrently
+  // To ensure loadCalendars + loadEvents don't run concurrently
   const runFetchCycle = useCallback(async () => {
     if (fetchBusyRef.current) return;
     fetchBusyRef.current = true;
@@ -185,22 +185,22 @@ export default function CalendarScreen() {
           text: "Connect",
           onPress: async () => {
             void (async () => {
-            try {
-              setLoading(true);
-              await requestGoogleCalendarAccess();
-              await runFetchCycle();
-            } catch (e: any) {
-              Alert.alert(
-                "Calendar not connected",
-                e?.message ?? "You can connect it later.",
-              );
-              goToMap();
-            } finally {
-              setLoading(false);
-            }
-          })();
+              try {
+                setLoading(true);
+                await requestGoogleCalendarAccess();
+                await runFetchCycle();
+              } catch (e: any) {
+                Alert.alert(
+                  "Calendar not connected",
+                  e?.message ?? "You can connect it later.",
+                );
+                goToMap();
+              } finally {
+                setLoading(false);
+              }
+            })();
+          },
         },
-      }
       ],
     );
   }, [isFocused, loading, signedIn, calendarConnected, goToMap, runFetchCycle]);
