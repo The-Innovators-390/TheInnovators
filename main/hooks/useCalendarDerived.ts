@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { CalendarEvent } from "@/services/googleCalendar"; // adjust path
+import type { CalendarEvent } from "@/services/googleCalendar";
 import {
   startOfMonth,
   daysInMonth,
@@ -51,7 +51,7 @@ export function useCalendarDerived(events: CalendarEvent[], monthCursor: Date) {
       m.set(k, arr);
     }
 
-    const keys = Array.from(m.keys()).sort();
+    const keys = Array.from(m.keys()).sort((a, b) => a.localeCompare(b));
     return keys.map((k) => ({
       key: k,
       items: (m.get(k) ?? []).sort((a, b) => {

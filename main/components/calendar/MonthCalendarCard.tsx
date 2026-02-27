@@ -66,7 +66,12 @@ export default function MonthCalendarCard({
       <View style={styles.daysGrid}>
         {monthGrid.map((cell, idx) => {
           if (cell.type === "blank") {
-            return <View key={`b-${idx}`} style={styles.dayBlank} />;
+            return (
+              <View
+                key={`blank-${monthCursor.getFullYear()}-${monthCursor.getMonth()}-${idx}`}
+                style={styles.dayBlank}
+              />
+            );
           }
 
           const k = dateKeyFromDate(cell.date);

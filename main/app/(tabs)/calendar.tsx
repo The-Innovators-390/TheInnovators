@@ -183,7 +183,7 @@ export default function CalendarScreen() {
         { text: "Not now", style: "cancel", onPress: goToMap },
         {
           text: "Connect",
-          onPress: async () => {
+          onPress: () => {
             void (async () => {
               try {
                 setLoading(true);
