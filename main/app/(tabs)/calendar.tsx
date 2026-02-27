@@ -296,7 +296,7 @@ export default function CalendarScreen() {
     const leadingBlanks = first.getDay(); // 0=Sun
     const count = daysInMonth(monthCursor);
 
-    const cells: Array<{ type: "blank" } | { type: "day"; date: Date }> = [];
+    const cells: ({ type: "blank" } | { type: "day"; date: Date })[] = [];
     for (let i = 0; i < leadingBlanks; i++) cells.push({ type: "blank" });
 
     for (let day = 1; day <= count; day++) {
