@@ -316,7 +316,9 @@ describe("CalendarScreen", () => {
 
     const { findByText } = render(<CalendarScreen />);
 
-    await waitFor(() => expect(mockFetchUserCalendars).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchUserCalendars).toHaveBeenCalledTimes(1),
+    );
 
     fireEvent.press(await findByText("TEST_PICK_WORK_CALENDAR"));
 

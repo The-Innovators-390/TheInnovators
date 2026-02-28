@@ -235,9 +235,7 @@ describe("services/googleCalendar", () => {
       await fetchUpcomingCalendarEvents("user+test@domain.com");
 
       const [url] = (global as any).fetch.mock.calls[0];
-      expect(url).toContain(
-        "calendars/user%2Btest%40domain.com/events",
-      );
+      expect(url).toContain("calendars/user%2Btest%40domain.com/events");
     });
 
     test("returns empty array when items is missing", async () => {
