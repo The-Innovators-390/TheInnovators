@@ -42,7 +42,7 @@ describe("useCalendarDerived", () => {
     ] as any[];
 
     const { result } = renderHook(() =>
-      useCalendarDerived(events as any, new Date("2026-02-01T00:00:00.000Z"))
+      useCalendarDerived(events as any, new Date("2026-02-01T00:00:00.000Z")),
     );
 
     expect(result.current.eventDaySet.has("2026-02-10")).toBe(true);
@@ -75,7 +75,7 @@ describe("useCalendarDerived", () => {
     // March 2026 does not start on Sunday in most locales; regardless,
     // this assertion is safe: it should have >=0 blanks and always day cells.
     const { result } = renderHook(() =>
-      useCalendarDerived([], new Date("2026-03-10T00:00:00.000Z"))
+      useCalendarDerived([], new Date("2026-03-10T00:00:00.000Z")),
     );
 
     const blanks = result.current.monthGrid.filter((c) => c.type === "blank");
@@ -87,7 +87,7 @@ describe("useCalendarDerived", () => {
 
   it("computes todayKey from system time", () => {
     const { result } = renderHook(() =>
-      useCalendarDerived([], new Date("2026-02-01T00:00:00.000Z"))
+      useCalendarDerived([], new Date("2026-02-01T00:00:00.000Z")),
     );
 
     expect(result.current.todayKey).toBe("2026-02-15");
@@ -102,7 +102,7 @@ describe("useCalendarDerived", () => {
     ] as any[];
 
     const { result } = renderHook(() =>
-      useCalendarDerived(events as any, new Date("2026-02-01T00:00:00.000Z"))
+      useCalendarDerived(events as any, new Date("2026-02-01T00:00:00.000Z")),
     );
 
     const grouped = result.current.grouped;
@@ -123,7 +123,7 @@ describe("useCalendarDerived", () => {
     ] as any[];
 
     const { result } = renderHook(() =>
-      useCalendarDerived(events as any, new Date("2026-02-01T00:00:00.000Z"))
+      useCalendarDerived(events as any, new Date("2026-02-01T00:00:00.000Z")),
     );
 
     const grouped = result.current.grouped;
@@ -136,7 +136,7 @@ describe("useCalendarDerived", () => {
 
   it("handles empty events (no groups, empty set)", () => {
     const { result } = renderHook(() =>
-      useCalendarDerived([], new Date("2026-02-01T00:00:00.000Z"))
+      useCalendarDerived([], new Date("2026-02-01T00:00:00.000Z")),
     );
 
     expect(result.current.eventDaySet.size).toBe(0);

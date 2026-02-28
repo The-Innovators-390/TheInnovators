@@ -33,14 +33,14 @@ jest.mock("expo-constants", () => ({
 
 jest.mock("@react-native-google-signin/google-signin", () => ({
   GoogleSignin: {
-    configure: jest.fn(), 
-    hasPlayServices: jest.fn(), 
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(),
     getCurrentUser: jest.fn(),
     addScopes: jest.fn(),
     signInSilently: jest.fn(),
     signIn: jest.fn(),
     getTokens: jest.fn(),
-    signOut: jest.fn(), 
+    signOut: jest.fn(),
   },
 }));
 
@@ -113,7 +113,9 @@ describe("useGoogleAuth – calendar helpers", () => {
   it("requestGoogleCalendarAccess throws NOT_SIGNED_IN when no current user", async () => {
     getCurrentUserMock.mockResolvedValueOnce(null);
 
-    await expect(requestGoogleCalendarAccess()).rejects.toThrow("NOT_SIGNED_IN");
+    await expect(requestGoogleCalendarAccess()).rejects.toThrow(
+      "NOT_SIGNED_IN",
+    );
   });
 
   it("requestGoogleCalendarAccess returns token and marks connected=true on success", async () => {
@@ -360,7 +362,7 @@ describe("useGoogleAuth – calendar helpers", () => {
     );
   });
 
-    it("requestGoogleCalendarAccess: non-401/403 non-ok response parses Google error json but does not throw", async () => {
+  it("requestGoogleCalendarAccess: non-401/403 non-ok response parses Google error json but does not throw", async () => {
     getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
     addScopesMock.mockResolvedValueOnce(undefined);
     signInSilentlyMock.mockResolvedValueOnce(undefined);
