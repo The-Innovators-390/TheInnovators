@@ -33,9 +33,72 @@ jest.mock("@/hooks/useGoogleAuth", () => ({
 }));
 
 const mockFetchUpcoming = jest.fn();
+const mockFetchUserCalendars = jest.fn();
+
 jest.mock("@/services/googleCalendar", () => ({
   fetchUpcomingCalendarEvents: (...args: any[]) => mockFetchUpcoming(...args),
+  fetchUserCalendars: (...args: any[]) => mockFetchUserCalendars(...args),
 }));
+
+// Keep derived calculations simple/deterministic for tests
+jest.mock("@/hooks/useCalendarDerived", () => ({
+  useCalendarDerived: () => ({
+    eventDaySet: new Set(),
+    monthGrid: [],
+    todayKey: "2026-02-27",
+    grouped: {},
+  }),
+}));
+
+// Light-weight mocks for child components
+jest.mock("@/components/calendar/MonthCalendarCard", () => {
+  return function MonthCalendarCard() {
+    return null;
+  };
+});
+
+jest.mock("@/components/calendar/UpcomingEvents", () => {
+  return function UpcomingEvents(props: any) {
+    const React = require("react");
+    const { Text, View } = require("react-native");
+    return (
+      <View>
+        <Text>Upcoming Events</Text>
+        {props.events?.map((e: any) => (
+          <Text key={e.id}>{e.summary}</Text>
+        ))}
+      </View>
+    );
+  };
+});
+
+/**
+ * Critical: mock OtherCalendars to model the REAL UX:
+ * 1) pick a calendar (setPendingCalendarId)
+ * 2) apply selection (onSelectCalendar)
+ *
+ * Also render calendarsError so we can assert loadCalendars catch branch.
+ */
+jest.mock("@/components/calendar/OtherCalendars", () => {
+  return function OtherCalendars(props: any) {
+    const React = require("react");
+    const { Pressable, Text, View } = require("react-native");
+
+    return (
+      <View>
+        {!!props.calendarsError && <Text>{props.calendarsError}</Text>}
+
+        <Pressable onPress={() => props.setPendingCalendarId("work")}>
+          <Text>TEST_PICK_WORK_CALENDAR</Text>
+        </Pressable>
+
+        <Pressable onPress={props.onSelectCalendar}>
+          <Text>TEST_APPLY_CALENDAR_SELECTION</Text>
+        </Pressable>
+      </View>
+    );
+  };
+});
 
 async function flush() {
   await act(async () => {
@@ -116,7 +179,7 @@ describe("CalendarScreen", () => {
     expect(await findByText("Return to map")).toBeTruthy();
   });
 
-  test("Connect success calls request access + loads events + shows Upcoming Events", async () => {
+  test("Connect success calls request access + loads calendars + loads events + shows Upcoming Events", async () => {
     // Initial mount refresh
     mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
     mockIsConnected.mockResolvedValueOnce(false);
@@ -137,6 +200,11 @@ describe("CalendarScreen", () => {
     mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
     mockIsConnected.mockResolvedValueOnce(true);
 
+    mockFetchUserCalendars.mockResolvedValueOnce([
+      { id: "primary", summary: "Primary", primary: true },
+      { id: "work", summary: "Work", primary: false },
+    ]);
+
     mockFetchUpcoming.mockResolvedValueOnce([
       {
         id: "1",
@@ -152,6 +220,7 @@ describe("CalendarScreen", () => {
     });
 
     await waitFor(() => {
+      expect(mockFetchUserCalendars).toHaveBeenCalledTimes(1);
       expect(mockFetchUpcoming).toHaveBeenCalledTimes(1);
     });
 
@@ -198,5 +267,108 @@ describe("CalendarScreen", () => {
       (c) => c[0] === "Connect Google Calendar?",
     ).length;
     expect(count3).toBe(count1 + 1);
+  });
+
+  test("when signed in + connected, loads calendars and events and shows connected UI", async () => {
+    // Initial mount refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    // Focus cycle refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    mockFetchUserCalendars.mockResolvedValueOnce([
+      { id: "primary", summary: "Primary", primary: true },
+      { id: "work", summary: "Work", primary: false },
+    ]);
+
+    mockFetchUpcoming.mockResolvedValueOnce([]);
+
+    const { queryByText } = render(<CalendarScreen />);
+
+    await waitFor(() => {
+      expect(mockFetchUserCalendars).toHaveBeenCalledTimes(1);
+      expect(mockFetchUpcoming).toHaveBeenCalledTimes(1);
+    });
+
+    expect(queryByText("Upcoming Events")).toBeTruthy();
+  });
+
+  test("selecting another calendar (pick then apply) loads events for that calendar id", async () => {
+    // Initial mount refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    // Focus cycle refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    mockFetchUserCalendars.mockResolvedValueOnce([
+      { id: "primary", summary: "Primary", primary: true },
+      { id: "work", summary: "Work", primary: false },
+    ]);
+
+    // Initial runFetchCycle loadEvents(primary)
+    mockFetchUpcoming.mockResolvedValueOnce([]);
+    // After applying selection, loadEvents(work)
+    mockFetchUpcoming.mockResolvedValueOnce([]);
+
+    const { findByText } = render(<CalendarScreen />);
+
+    await waitFor(() => expect(mockFetchUserCalendars).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(await findByText("TEST_PICK_WORK_CALENDAR"));
+
+    // allow state update + rerender so onSelectCalendar captures new pendingCalendarId
+    await flush();
+
+    fireEvent.press(await findByText("TEST_APPLY_CALENDAR_SELECTION"));
+
+    await waitFor(() => {
+      expect(mockFetchUpcoming).toHaveBeenCalledWith("work");
+    });
+  });
+
+  test("handles calendars load failure (loadCalendars catch)", async () => {
+    // Initial mount refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    // Focus cycle refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    mockFetchUserCalendars.mockRejectedValueOnce(new Error("cal fail"));
+
+    // Events may still get called in some cycle depending on timing; that's OK.
+    mockFetchUpcoming.mockResolvedValueOnce([]);
+
+    const { findByText } = render(<CalendarScreen />);
+
+    expect(await findByText("cal fail")).toBeTruthy();
+    expect(mockFetchUserCalendars).toHaveBeenCalled();
+  });
+
+  test("handles events load failure (loadEvents catch)", async () => {
+    // Initial mount refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    // Focus cycle refresh
+    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockResolvedValueOnce(true);
+
+    mockFetchUserCalendars.mockResolvedValueOnce([
+      { id: "primary", summary: "Primary", primary: true },
+    ]);
+
+    mockFetchUpcoming.mockRejectedValueOnce(new Error("events fail"));
+
+    render(<CalendarScreen />);
+
+    await waitFor(() => {
+      expect(mockFetchUpcoming).toHaveBeenCalledTimes(1);
+    });
   });
 });
