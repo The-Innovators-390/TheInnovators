@@ -7,14 +7,64 @@ import {
   NextClassError,
 } from "@/services/googleCalendar";
 
+import {
+  searchSGWBuildings,
+  searchLoyolaBuildings,
+} from "@/components/Buildings/search";
+
+import type { Building } from "@/components/Buildings/types";
+
 type Props = {
   calendarId?: string;
 };
+
+function extractRoom(location?: string): string | undefined {
+  if (!location) return undefined;
+  const match = location.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
+  return match?.[1];
+}
+
+function detectCampus(location?: string): "SGW" | "LOY" | undefined {
+  if (!location) return undefined;
+  const s = location.toLowerCase();
+
+  if (s.includes("loyola")) return "LOY";
+  if (s.includes("sir george") || s.includes("sgw")) return "SGW";
+
+  return undefined;
+}
+
+function extractBuildingQuery(location?: string): string | undefined {
+  if (!location) return undefined;
+
+  const m = location.match(/campus\s*-\s*(.*?)\s*\bRm\b/i);
+  const between = m?.[1]?.trim();
+  if (!between) return undefined;
+
+  const cleaned = between.replace(/\bbuilding\b/gi, "").trim();
+  return cleaned || undefined;
+}
+
+function extractBuilding(location?: string): Building | undefined {
+  if (!location) return undefined;
+
+  const campus = detectCampus(location);
+  const q = extractBuildingQuery(location) ?? location;
+
+  if (campus === "LOY") return searchLoyolaBuildings(q, 1)[0];
+  if (campus === "SGW") return searchSGWBuildings(q, 1)[0];
+
+  return searchSGWBuildings(q, 1)[0] ?? searchLoyolaBuildings(q, 1)[0];
+}
 
 export default function FindNextClass({ calendarId }: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [event, setEvent] = useState<CalendarEvent | null>(null);
+
+  const building = extractBuilding(event?.location);
+  const room = extractRoom(event?.location);
+  const campus = building?.campus ?? detectCampus(event?.location);
 
   const handleFindNextClass = async () => {
     setMessage("");
@@ -102,6 +152,7 @@ export default function FindNextClass({ calendarId }: Props) {
       {event && (
         <View
           style={{
+            position: "relative",
             marginTop: 10,
             marginHorizontal: 16,
             padding: 12,
@@ -121,8 +172,22 @@ export default function FindNextClass({ calendarId }: Props) {
             </Text>
           )}
 
-          {!!event.location && (
+          {campus && <Text style={{ marginTop: 6 }}>Campus: {campus}</Text>}
+
+          {building && (
+            <Text style={{ marginTop: 4 }}>
+              Building: {building.code} — {building.name}
+            </Text>
+          )}
+
+          {room && <Text style={{ marginTop: 4 }}>Room: {room}</Text>}
+
+          {event.location?.trim() ? (
             <Text style={{ marginTop: 4 }}>Location: {event.location}</Text>
+          ) : (
+            <Text style={{ marginTop: 4 }}>
+              Location: (no location set for this event)
+            </Text>
           )}
         </View>
       )}
