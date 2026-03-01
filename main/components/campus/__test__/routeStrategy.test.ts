@@ -277,7 +277,7 @@ describe("routeStrategy.ts", () => {
       }));
 
       // Re-import after re-mocking
-      const mod = await import("./routeStrategy");
+      const mod = await import("../helper_methods/routeStrategy");
       const strat = mod.getRouteStrategy("walking")!;
 
       global.fetch = jest.fn() as any;

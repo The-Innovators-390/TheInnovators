@@ -9,7 +9,7 @@ import {
 } from "../helper_methods/googleDirections";
 import { getRouteStrategy } from "../helper_methods/routeStrategy";
 
-jest.mock("./routeStrategy", () => ({
+jest.mock("../helper_methods/routeStrategy", () => ({
   getRouteStrategy: jest.fn(),
 }));
 
