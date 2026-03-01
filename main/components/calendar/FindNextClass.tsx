@@ -14,8 +14,11 @@ import {
 
 import type { Building } from "@/components/Buildings/types";
 
+import { styles } from "@/components/calendar/calendarStyles";
+
 type Props = {
   calendarId?: string;
+  onPressDirections: (event: CalendarEvent) => void; 
 };
 
 function extractRoom(location?: string): string | undefined {
@@ -57,7 +60,7 @@ function extractBuilding(location?: string): Building | undefined {
   return searchSGWBuildings(q, 1)[0] ?? searchLoyolaBuildings(q, 1)[0];
 }
 
-export default function FindNextClass({ calendarId }: Props) {
+export default function FindNextClass({ calendarId, onPressDirections }: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [event, setEvent] = useState<CalendarEvent | null>(null);
@@ -65,6 +68,8 @@ export default function FindNextClass({ calendarId }: Props) {
   const building = extractBuilding(event?.location);
   const room = extractRoom(event?.location);
   const campus = building?.campus ?? detectCampus(event?.location);
+
+  const hasLocation = !!event?.location?.trim();
 
   const handleFindNextClass = async () => {
     setMessage("");
@@ -152,7 +157,6 @@ export default function FindNextClass({ calendarId }: Props) {
       {event && (
         <View
           style={{
-            position: "relative",
             marginTop: 10,
             marginHorizontal: 16,
             padding: 12,
@@ -162,9 +166,27 @@ export default function FindNextClass({ calendarId }: Props) {
             backgroundColor: "white",
           }}
         >
-          <Text style={{ fontWeight: "800", fontSize: 16 }}>
-            {event.summary ?? "Next class"}
-          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <Text style={{ fontWeight: "800", fontSize: 16, flex: 1 }}>
+              {event.summary ?? "Next class"}
+            </Text>
+
+            {hasLocation && (
+              <Pressable
+                style={styles.directionsBtn}
+                onPress={() => onPressDirections(event)}
+              >
+                <Text style={styles.directionsIcon}>↗</Text>
+              </Pressable>
+            )}
+          </View>
 
           {!!event.startISO && (
             <Text style={{ marginTop: 6 }}>

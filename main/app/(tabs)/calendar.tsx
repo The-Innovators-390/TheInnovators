@@ -312,7 +312,15 @@ export default function CalendarScreen() {
         styles={styles}
       />
 
-      <FindNextClass calendarId={activeCalendarId} />
+      <FindNextClass
+        calendarId={activeCalendarId}
+        onPressDirections={(e) =>
+          Alert.alert(
+            "Directions",
+            "Next step: connect this to your directions feature.",
+          )
+        }
+      />
 
       <UpcomingEvents
         eventsLoading={eventsLoading}
