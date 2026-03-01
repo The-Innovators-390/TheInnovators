@@ -31,8 +31,9 @@ import { useCalendarDerived } from "@/hooks/useCalendarDerived";
 
 import MonthCalendarCard from "@/components/calendar/MonthCalendarCard";
 
-import UpcomingEvents from "@/components/calendar/UpcomingEvents";
+import FindNextClass from "@/components/calendar/FindNextClass";
 
+import UpcomingEvents from "@/components/calendar/UpcomingEvents";
 import OtherCalendars from "@/components/calendar/OtherCalendars";
 
 export default function CalendarScreen() {
@@ -310,6 +311,8 @@ export default function CalendarScreen() {
         eventDaySet={eventDaySet}
         styles={styles}
       />
+
+      <FindNextClass calendarId={activeCalendarId} />
 
       <UpcomingEvents
         eventsLoading={eventsLoading}
