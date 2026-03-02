@@ -269,25 +269,25 @@ describe("routeStrategy.ts", () => {
   });
 
   it("throws when expoConfig.extra.googleMapsApiKey is missing", async () => {
-  jest.resetModules();
+    jest.resetModules();
 
-  jest.doMock("expo-constants", () => ({
-    expoConfig: { extra: {} },
-  }));
+    jest.doMock("expo-constants", () => ({
+      expoConfig: { extra: {} },
+    }));
 
-  let getRouteStrategy: any;
+    let getRouteStrategy: any;
 
-  jest.isolateModules(() => {
-    // IMPORTANT: require AFTER doMock, inside isolateModules
-    ({ getRouteStrategy } = require("../helper_methods/routeStrategy"));
+    jest.isolateModules(() => {
+      // IMPORTANT: require AFTER doMock, inside isolateModules
+      ({ getRouteStrategy } = require("../helper_methods/routeStrategy"));
+    });
+
+    global.fetch = jest.fn() as any;
+
+    const strat = getRouteStrategy("walking");
+
+    await expect(strat.fetchRoutes(origin, destination)).rejects.toThrow(
+      "Missing Google Maps API key in expoConfig.extra.googleMapsApiKey",
+    );
   });
-
-  global.fetch = jest.fn() as any;
-
-  const strat = getRouteStrategy("walking");
-
-  await expect(strat.fetchRoutes(origin, destination)).rejects.toThrow(
-    "Missing Google Maps API key in expoConfig.extra.googleMapsApiKey",
-  );
-});
 });
