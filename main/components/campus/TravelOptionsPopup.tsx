@@ -17,7 +17,6 @@ import { MaterialIcons } from "@expo/vector-icons";
 import type {
   DirectionRoute,
   TravelMode,
-  TransitLine,
 } from "@/components/campus/helper_methods/googleDirections";
 import type {
   ShuttleInfo,
