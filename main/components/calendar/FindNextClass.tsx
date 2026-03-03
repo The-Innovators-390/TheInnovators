@@ -18,7 +18,7 @@ import { styles } from "@/components/calendar/calendarStyles";
 
 type Props = {
   calendarId?: string;
-  onPressDirections: (event: CalendarEvent) => void; 
+  onPressDirections: (event: CalendarEvent) => void;
 };
 
 function extractRoom(location?: string): string | undefined {
@@ -60,7 +60,10 @@ function extractBuilding(location?: string): Building | undefined {
   return searchSGWBuildings(q, 1)[0] ?? searchLoyolaBuildings(q, 1)[0];
 }
 
-export default function FindNextClass({ calendarId, onPressDirections }: Props) {
+export default function FindNextClass({
+  calendarId,
+  onPressDirections,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [event, setEvent] = useState<CalendarEvent | null>(null);
