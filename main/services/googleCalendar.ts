@@ -141,7 +141,10 @@ export async function getNextClassEvent(
   return events.length > 0 ? events[0] : null;
 }
 
-export type NextClassErrorCode = "NOT_CONNECTED" | "WRONG_CALENDAR" | "API_ERROR";
+export type NextClassErrorCode =
+  | "NOT_CONNECTED"
+  | "WRONG_CALENDAR"
+  | "API_ERROR";
 
 export class NextClassError extends Error {
   code: NextClassErrorCode;

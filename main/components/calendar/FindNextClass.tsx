@@ -18,7 +18,7 @@ import { styles } from "@/components/calendar/calendarStyles";
 
 type Props = {
   calendarId?: string;
-  onPressDirections: (event: CalendarEvent) => void; 
+  onPressDirections: (event: CalendarEvent) => void;
 };
 
 function extractRoom(location?: string): string | undefined {
@@ -60,7 +60,10 @@ function extractBuilding(location?: string): Building | undefined {
   return searchSGWBuildings(q, 1)[0] ?? searchLoyolaBuildings(q, 1)[0];
 }
 
-export default function FindNextClass({ calendarId, onPressDirections }: Props) {
+export default function FindNextClass({
+  calendarId,
+  onPressDirections,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [event, setEvent] = useState<CalendarEvent | null>(null);
@@ -124,8 +127,12 @@ export default function FindNextClass({ calendarId, onPressDirections }: Props) 
   };
 
   return (
-    <View style={{ marginTop: 12, marginBottom: 8 }}>
+    <View
+      style={{ marginTop: 12, marginBottom: 8 }}
+      testID="findNextClass-root"
+    >
       <Pressable
+        testID="findNextClassButton"
         onPress={handleFindNextClass}
         disabled={loading}
         style={{
@@ -149,13 +156,17 @@ export default function FindNextClass({ calendarId, onPressDirections }: Props) 
       )}
 
       {!!message && (
-        <Text style={{ marginTop: 10, marginHorizontal: 16, color: "#B00020" }}>
+        <Text
+          testID="findNextClassMessage"
+          style={{ marginTop: 10, marginHorizontal: 16, color: "#B00020" }}
+        >
           {message}
         </Text>
       )}
 
       {event && (
         <View
+          testID="findNextClassCard"
           style={{
             marginTop: 10,
             marginHorizontal: 16,
@@ -180,6 +191,7 @@ export default function FindNextClass({ calendarId, onPressDirections }: Props) 
 
             {hasLocation && (
               <Pressable
+                testID="findNextClassDirections"
                 style={styles.directionsBtn}
                 onPress={() => onPressDirections(event)}
               >
