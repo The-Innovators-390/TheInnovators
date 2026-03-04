@@ -27,7 +27,7 @@ type CalendarListResponse = {
 
 type CalendarListApiResponse = {
   items?: Array<{
-    id: string;
+    id?: string;
     summary?: string;
     primary?: boolean;
   }>;
@@ -35,16 +35,53 @@ type CalendarListApiResponse = {
 
 async function getFreshAccessToken(): Promise<string> {
   const currentUser = await GoogleSignin.getCurrentUser();
-  if (!currentUser) {
-    throw new Error("Please sign in to use Google Calendar.");
-  }
+  if (!currentUser) throw new Error("Please sign in to use Google Calendar.");
 
   const { accessToken } = await GoogleSignin.getTokens();
-  if (!accessToken) {
-    throw new Error("Could not get Google access token.");
-  }
+  if (!accessToken) throw new Error("Could not get Google access token.");
 
   return accessToken;
+}
+
+function buildGoogleErrText(json: any): string {
+  const msg = json?.error?.message ?? "";
+  const reason = json?.error?.errors?.[0]?.reason ?? "";
+  const status = json?.error?.status ?? "";
+  return [status, reason, msg].filter(Boolean).join(" | ");
+}
+
+function mapCalendarItemToEvent(
+  e: CalendarListResponse["items"][number],
+): CalendarEvent {
+  return {
+    id: e.id,
+    summary: e.summary,
+    location: e.location,
+    startISO: e.start?.dateTime ?? e.start?.date,
+    endISO: e.end?.dateTime ?? e.end?.date,
+  };
+}
+
+async function safeJson(res: Response): Promise<any | null> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function googleFetchJson(
+  url: string,
+  token: string,
+): Promise<{ res: Response; json: any | null; errText: string }> {
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const json = await safeJson(res);
+  const errText = buildGoogleErrText(json);
+
+  return { res, json, errText };
 }
 
 export async function fetchUserCalendars(): Promise<GoogleCalendarListItem[]> {
@@ -55,33 +92,19 @@ export async function fetchUserCalendars(): Promise<GoogleCalendarListItem[]> {
     "?maxResults=250" +
     "&showHidden=false";
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  let json: any = null;
-  try {
-    json = await res.json();
-  } catch {
-    json = null;
-  }
-
-  const msg = json?.error?.message ?? "";
-  const reason = json?.error?.errors?.[0]?.reason ?? "";
-  const status = json?.error?.status ?? "";
-  const errText = [status, reason, msg].filter(Boolean).join(" | ");
+  const { res, json, errText } = await googleFetchJson(url, token);
 
   if (!res.ok) {
     throw new Error(errText || `Google Calendar error (HTTP ${res.status}).`);
   }
 
-  const data = json as CalendarListApiResponse;
+  const data = (json ?? {}) as CalendarListApiResponse;
   const items = data.items ?? [];
 
   return items
     .filter((c) => !!c.id)
     .map((c) => ({
-      id: c.id,
+      id: c.id as string,
       summary: c.summary ?? "Untitled calendar",
       primary: c.primary ?? false,
     }));
@@ -102,36 +125,16 @@ export async function fetchUpcomingCalendarEvents(
     "&singleEvents=true" +
     "&orderBy=startTime";
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  let json: any = null;
-  try {
-    json = await res.json();
-  } catch {
-    json = null;
-  }
-
-  const msg = json?.error?.message ?? "";
-  const reason = json?.error?.errors?.[0]?.reason ?? "";
-  const status = json?.error?.status ?? "";
-  const errText = [status, reason, msg].filter(Boolean).join(" | ");
+  const { res, json, errText } = await googleFetchJson(url, token);
 
   if (!res.ok) {
     throw new Error(errText || `Google Calendar error (HTTP ${res.status}).`);
   }
 
-  const data = json as CalendarListResponse;
+  const data = (json ?? {}) as CalendarListResponse;
   const items = data.items ?? [];
 
-  return items.map((e) => ({
-    id: e.id,
-    summary: e.summary,
-    location: e.location,
-    startISO: e.start?.dateTime ?? e.start?.date,
-    endISO: e.end?.dateTime ?? e.end?.date,
-  }));
+  return items.map(mapCalendarItemToEvent);
 }
 
 export async function getNextClassEvent(
@@ -161,13 +164,6 @@ function endOfTodayISO(): string {
   return d.toISOString();
 }
 
-function buildGoogleErrText(json: any): string {
-  const msg = json?.error?.message ?? "";
-  const reason = json?.error?.errors?.[0]?.reason ?? "";
-  const status = json?.error?.status ?? "";
-  return [status, reason, msg].filter(Boolean).join(" | ");
-}
-
 function toNextClassError(res: Response, errText: string): NextClassError {
   if (res.status === 401 || res.status === 403) {
     markGoogleCalendarDisconnected?.();
@@ -176,16 +172,47 @@ function toNextClassError(res: Response, errText: string): NextClassError {
       errText || "Google Calendar isn’t connected.",
     );
   }
+
   if (res.status === 404) {
     return new NextClassError(
       "WRONG_CALENDAR",
       errText || "Selected calendar not found or not accessible.",
     );
   }
+
   return new NextClassError(
     "API_ERROR",
     errText || `Google Calendar error (HTTP ${res.status}).`,
   );
+}
+
+async function fetchFirstEventOrNull(params: {
+  calendarId: string;
+  timeMinISO: string;
+  timeMaxISO?: string;
+}): Promise<CalendarEvent | null> {
+  const token = await getFreshAccessToken();
+
+  const { calendarId, timeMinISO, timeMaxISO } = params;
+
+  let url =
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId,
+    )}/events` + `?timeMin=${encodeURIComponent(timeMinISO)}`;
+
+  if (timeMaxISO) {
+    url += `&timeMax=${encodeURIComponent(timeMaxISO)}`;
+  }
+
+  url += "&maxResults=1&singleEvents=true&orderBy=startTime";
+
+  const { res, json, errText } = await googleFetchJson(url, token);
+
+  if (!res.ok) throw toNextClassError(res, errText);
+
+  const data = (json ?? {}) as CalendarListResponse;
+  const e = data.items?.[0];
+  return e ? mapCalendarItemToEvent(e) : null;
 }
 
 /**
@@ -195,46 +222,10 @@ function toNextClassError(res: Response, errText: string): NextClassError {
 export async function fetchNextClassEvent(
   calendarId: string = "primary",
 ): Promise<CalendarEvent | null> {
-  const token = await getFreshAccessToken();
-
-  const timeMin = new Date().toISOString();
-  const url =
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendarId,
-    )}/events` +
-    `?timeMin=${encodeURIComponent(timeMin)}` +
-    "&maxResults=1" +
-    "&singleEvents=true" +
-    "&orderBy=startTime";
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
+  return fetchFirstEventOrNull({
+    calendarId,
+    timeMinISO: new Date().toISOString(),
   });
-
-  let json: any = null;
-  try {
-    json = await res.json();
-  } catch {
-    json = null;
-  }
-
-  const errText = buildGoogleErrText(json);
-
-  if (!res.ok) {
-    throw toNextClassError(res, errText);
-  }
-
-  const data = json as CalendarListResponse;
-  const e = data.items?.[0];
-  if (!e) return null;
-
-  return {
-    id: e.id,
-    summary: e.summary,
-    location: e.location,
-    startISO: e.start?.dateTime ?? e.start?.date,
-    endISO: e.end?.dateTime ?? e.end?.date,
-  };
 }
 
 /**
@@ -244,49 +235,11 @@ export async function fetchNextClassEvent(
 export async function fetchNextClassEventToday(
   calendarId: string = "primary",
 ): Promise<CalendarEvent | null> {
-  const token = await getFreshAccessToken();
-
-  const timeMin = new Date().toISOString();
-  const timeMax = endOfTodayISO();
-
-  const url =
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendarId,
-    )}/events` +
-    `?timeMin=${encodeURIComponent(timeMin)}` +
-    `&timeMax=${encodeURIComponent(timeMax)}` +
-    "&maxResults=1" +
-    "&singleEvents=true" +
-    "&orderBy=startTime";
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
+  return fetchFirstEventOrNull({
+    calendarId,
+    timeMinISO: new Date().toISOString(),
+    timeMaxISO: endOfTodayISO(),
   });
-
-  let json: any = null;
-  try {
-    json = await res.json();
-  } catch {
-    json = null;
-  }
-
-  const errText = buildGoogleErrText(json);
-
-  if (!res.ok) {
-    throw toNextClassError(res, errText);
-  }
-
-  const data = json as CalendarListResponse;
-  const e = data.items?.[0];
-  if (!e) return null;
-
-  return {
-    id: e.id,
-    summary: e.summary,
-    location: e.location,
-    startISO: e.start?.dateTime ?? e.start?.date,
-    endISO: e.end?.dateTime ?? e.end?.date,
-  };
 }
 
 /** Optional convenience wrapper */
