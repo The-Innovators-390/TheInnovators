@@ -43,7 +43,8 @@ function parseLocationDetails(location?: string): LocationDetails {
 
   let campus: Campus | undefined;
   if (lower.includes("loyola")) campus = "LOY";
-  else if (lower.includes("sir george") || lower.includes("sgw")) campus = "SGW";
+  else if (lower.includes("sir george") || lower.includes("sgw"))
+    campus = "SGW";
 
   const roomMatch = raw.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
   const room = roomMatch?.[1];
@@ -98,7 +99,10 @@ function formatDateShort(iso: string): string {
   });
 }
 
-export default function FindNextClass({ calendarId, onPressDirections }: Props) {
+export default function FindNextClass({
+  calendarId,
+  onPressDirections,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [event, setEvent] = useState<CalendarEvent | null>(null);
