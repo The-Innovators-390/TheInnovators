@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0"
+  }
+}

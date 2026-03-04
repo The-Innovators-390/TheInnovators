@@ -7,6 +7,10 @@ import { Stack } from "expo-router";
 import "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+
+import Smartlook from 'react-native-smartlook-analytics'; 
+import { useEffect } from 'react';
+
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export const unstable_settings = {
@@ -15,6 +19,15 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  
+  useEffect(() => {
+   
+    Smartlook.instance.preferences.setProjectKey('9add208ef165f06a47d19e097a8f5841b9354ac6');
+    
+    
+    Smartlook.instance.start();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
