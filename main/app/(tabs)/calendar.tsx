@@ -31,8 +31,9 @@ import { useCalendarDerived } from "@/hooks/useCalendarDerived";
 
 import MonthCalendarCard from "@/components/calendar/MonthCalendarCard";
 
-import UpcomingEvents from "@/components/calendar/UpcomingEvents";
+import FindNextClass from "@/components/calendar/FindNextClass";
 
+import UpcomingEvents from "@/components/calendar/UpcomingEvents";
 import OtherCalendars from "@/components/calendar/OtherCalendars";
 
 export default function CalendarScreen() {
@@ -309,6 +310,16 @@ export default function CalendarScreen() {
         todayKey={todayKey}
         eventDaySet={eventDaySet}
         styles={styles}
+      />
+
+      <FindNextClass
+        calendarId={activeCalendarId}
+        onPressDirections={(e) =>
+          Alert.alert(
+            "Directions",
+            "Next step: connect this to your directions feature.",
+          )
+        }
       />
 
       <UpcomingEvents
