@@ -11,12 +11,20 @@
     "ios": {
       "supportsTablet": true
     },
+    "android": {
+      "package": "com.yourteam.main",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
+      "react-native-smartlook-analytics",
       [
         "expo-splash-screen",
         {
