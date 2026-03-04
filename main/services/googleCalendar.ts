@@ -51,7 +51,7 @@ function buildGoogleErrText(json: any): string {
 }
 
 function mapCalendarItemToEvent(
-  e: CalendarListResponse["items"][number],
+  e: NonNullable<CalendarListResponse["items"]>[number],
 ): CalendarEvent {
   return {
     id: e.id,
