@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
 import {
   fetchNextClassEvent,
   fetchNextClassEventToday,
@@ -21,62 +27,90 @@ type Props = {
   onPressDirections: (event: CalendarEvent) => void;
 };
 
-function extractRoom(location?: string): string | undefined {
-  if (!location) return undefined;
-  const match = location.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
-  return match?.[1];
+type Campus = "SGW" | "LOY";
+
+type LocationDetails = {
+  room?: string;
+  campus?: Campus;
+  building?: Building;
+};
+
+function parseLocationDetails(location?: string): LocationDetails {
+  if (!location?.trim()) return {};
+
+  const raw = location.trim();
+  const lower = raw.toLowerCase();
+
+  let campus: Campus | undefined;
+  if (lower.includes("loyola")) campus = "LOY";
+  else if (lower.includes("sir george") || lower.includes("sgw")) campus = "SGW";
+
+  const roomMatch = raw.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
+  const room = roomMatch?.[1];
+
+  const betweenMatch = raw.match(/campus\s*-\s*(.*?)\s*\bRm\b/i);
+  const between = betweenMatch?.[1]?.trim();
+
+  const buildingQuery =
+    between?.replace(/\bbuilding\b/gi, "").trim() || undefined;
+
+  const query = buildingQuery ?? raw;
+
+  let building: Building | undefined;
+
+  if (campus === "LOY") {
+    building = searchLoyolaBuildings(query, 1)[0];
+  } else if (campus === "SGW") {
+    building = searchSGWBuildings(query, 1)[0];
+  } else {
+    building =
+      searchSGWBuildings(query, 1)[0] ?? searchLoyolaBuildings(query, 1)[0];
+  }
+
+  const finalCampus = building?.campus ?? campus;
+
+  return { room, campus: finalCampus, building };
 }
 
-function detectCampus(location?: string): "SGW" | "LOY" | undefined {
-  if (!location) return undefined;
-  const s = location.toLowerCase();
-
-  if (s.includes("loyola")) return "LOY";
-  if (s.includes("sir george") || s.includes("sgw")) return "SGW";
-
-  return undefined;
+/**
+ * Format ISO date to "HH:MM AM/PM" (no seconds).
+ * Example: 9:05 AM
+ */
+function formatTimeNoSeconds(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
-function extractBuildingQuery(location?: string): string | undefined {
-  if (!location) return undefined;
-
-  const m = location.match(/campus\s*-\s*(.*?)\s*\bRm\b/i);
-  const between = m?.[1]?.trim();
-  if (!between) return undefined;
-
-  const cleaned = between.replace(/\bbuilding\b/gi, "").trim();
-  return cleaned || undefined;
+/**
+ * Format ISO date to a clean, readable date (optional but nice).
+ * Example: Mar 3, 2026
+ */
+function formatDateShort(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
-function extractBuilding(location?: string): Building | undefined {
-  if (!location) return undefined;
-
-  const campus = detectCampus(location);
-  const q = extractBuildingQuery(location) ?? location;
-
-  if (campus === "LOY") return searchLoyolaBuildings(q, 1)[0];
-  if (campus === "SGW") return searchSGWBuildings(q, 1)[0];
-
-  return searchSGWBuildings(q, 1)[0] ?? searchLoyolaBuildings(q, 1)[0];
-}
-
-export default function FindNextClass({
-  calendarId,
-  onPressDirections,
-}: Props) {
+export default function FindNextClass({ calendarId, onPressDirections }: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [event, setEvent] = useState<CalendarEvent | null>(null);
+  const [locationDetails, setLocationDetails] = useState<LocationDetails>({});
 
-  const building = extractBuilding(event?.location);
-  const room = extractRoom(event?.location);
-  const campus = building?.campus ?? detectCampus(event?.location);
-
+  const { building, room, campus } = locationDetails;
   const hasLocation = !!event?.location?.trim();
 
   const handleFindNextClass = async () => {
     setMessage("");
     setEvent(null);
+    setLocationDetails({});
 
     if (!calendarId) {
       setMessage("Please select your class calendar first.");
@@ -86,37 +120,45 @@ export default function FindNextClass({
     setLoading(true);
 
     try {
-      // 1) Try to find a class still happening today
       const todayNext = await fetchNextClassEventToday(calendarId);
 
       if (todayNext) {
         setEvent(todayNext);
+        setLocationDetails(parseLocationDetails(todayNext.location));
         return;
       }
 
-      // 2) If none left today, find the next class (could be tomorrow/next week)
       const next = await fetchNextClassEvent(calendarId);
 
       if (!next) {
         setMessage("No upcoming classes found.");
-      } else {
-        setMessage("No more classes scheduled for today. Next class:");
-        setEvent(next);
+        return;
       }
-    } catch (error: any) {
-      if (error instanceof NextClassError) {
-        if (error.code === "NOT_CONNECTED") {
-          setMessage(
-            "Google Calendar isn’t connected. Please connect it and try again.",
-          );
-          return;
-        }
 
-        if (error.code === "WRONG_CALENDAR") {
-          setMessage(
-            "Selected calendar cannot be accessed. Please choose the correct calendar.",
-          );
-          return;
+      setMessage("No more classes scheduled for today. Next class:");
+      setEvent(next);
+      setLocationDetails(parseLocationDetails(next.location));
+    } catch (error: unknown) {
+      if (error instanceof NextClassError) {
+        switch (error.code) {
+          case "NOT_CONNECTED":
+            setMessage(
+              "Google Calendar isn’t connected. Please connect it and try again.",
+            );
+            return;
+
+          case "WRONG_CALENDAR":
+            setMessage(
+              "Selected calendar cannot be accessed. Please choose the correct calendar.",
+            );
+            return;
+
+          case "API_ERROR":
+            setMessage(
+              error.message ||
+                "Google Calendar API error. Please try again later.",
+            );
+            return;
         }
       }
 
@@ -127,59 +169,29 @@ export default function FindNextClass({
   };
 
   return (
-    <View style={{ marginTop: 12, marginBottom: 8 }}>
+    <View style={s.container}>
       <Pressable
         onPress={handleFindNextClass}
         disabled={loading}
-        style={{
-          backgroundColor: "#7A1F2B",
-          paddingVertical: 14,
-          borderRadius: 14,
-          alignItems: "center",
-          marginHorizontal: 16,
-          opacity: loading ? 0.85 : 1,
-        }}
+        style={[s.findBtn, loading && s.findBtnDisabled]}
       >
-        <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>
+        <Text style={s.findBtnText}>
           {loading ? "Finding…" : "Find my Next Class"}
         </Text>
       </Pressable>
 
       {loading && (
-        <View style={{ marginTop: 10 }}>
+        <View style={s.loadingWrap}>
           <ActivityIndicator />
         </View>
       )}
 
-      {!!message && (
-        <Text style={{ marginTop: 10, marginHorizontal: 16, color: "#B00020" }}>
-          {message}
-        </Text>
-      )}
+      {!!message && <Text style={s.messageText}>{message}</Text>}
 
       {event && (
-        <View
-          style={{
-            marginTop: 10,
-            marginHorizontal: 16,
-            padding: 12,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: "#ddd",
-            backgroundColor: "white",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-            }}
-          >
-            <Text style={{ fontWeight: "800", fontSize: 16, flex: 1 }}>
-              {event.summary ?? "Next class"}
-            </Text>
+        <View style={s.card}>
+          <View style={s.cardHeaderRow}>
+            <Text style={s.cardTitle}>{event.summary ?? "Next class"}</Text>
 
             {hasLocation && (
               <Pressable
@@ -192,25 +204,26 @@ export default function FindNextClass({
           </View>
 
           {!!event.startISO && (
-            <Text style={{ marginTop: 6 }}>
-              Starts: {new Date(event.startISO).toLocaleString()}
+            <Text style={s.detailLineStarts}>
+              Starts: {formatTimeNoSeconds(event.startISO)} •{" "}
+              {formatDateShort(event.startISO)}
             </Text>
           )}
 
-          {campus && <Text style={{ marginTop: 6 }}>Campus: {campus}</Text>}
+          {campus && <Text style={s.detailLineStarts}>Campus: {campus}</Text>}
 
           {building && (
-            <Text style={{ marginTop: 4 }}>
+            <Text style={s.detailLine}>
               Building: {building.code} — {building.name}
             </Text>
           )}
 
-          {room && <Text style={{ marginTop: 4 }}>Room: {room}</Text>}
+          {room && <Text style={s.detailLine}>Room: {room}</Text>}
 
           {event.location?.trim() ? (
-            <Text style={{ marginTop: 4 }}>Location: {event.location}</Text>
+            <Text style={s.detailLine}>Location: {event.location}</Text>
           ) : (
-            <Text style={{ marginTop: 4 }}>
+            <Text style={s.detailLine}>
               Location: (no location set for this event)
             </Text>
           )}
@@ -219,3 +232,69 @@ export default function FindNextClass({
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  container: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
+  findBtn: {
+    backgroundColor: "#7A1F2B",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    marginHorizontal: 16,
+  },
+
+  findBtnDisabled: {
+    opacity: 0.85,
+  },
+
+  findBtnText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+
+  loadingWrap: {
+    marginTop: 10,
+  },
+
+  messageText: {
+    marginTop: 10,
+    marginHorizontal: 16,
+    color: "#B00020",
+  },
+
+  card: {
+    marginTop: 10,
+    marginHorizontal: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "white",
+  },
+
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+
+  cardTitle: {
+    fontWeight: "800",
+    fontSize: 16,
+    flex: 1,
+  },
+
+  detailLineStarts: {
+    marginTop: 6,
+  },
+
+  detailLine: {
+    marginTop: 4,
+  },
+});
