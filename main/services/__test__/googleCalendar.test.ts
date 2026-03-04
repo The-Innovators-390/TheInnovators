@@ -5,8 +5,10 @@ jest.mock("@react-native-google-signin/google-signin", () => ({
   },
 }));
 
+const mockMarkDisconnected = jest.fn();
 jest.mock("@/hooks/useGoogleAuth", () => ({
-  markGoogleCalendarDisconnected: jest.fn(),
+  markGoogleCalendarDisconnected: (...args: any[]) =>
+    mockMarkDisconnected(...args),
 }));
 
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
@@ -14,6 +16,10 @@ import {
   fetchUpcomingCalendarEvents,
   fetchUserCalendars,
   getNextClassEvent,
+  fetchNextClassEvent,
+  fetchNextClassEventToday,
+  getNextClassEventToday,
+  NextClassError,
   type CalendarEvent,
   type GoogleCalendarListItem,
 } from "@/services/googleCalendar";
@@ -245,7 +251,7 @@ describe("services/googleCalendar", () => {
       mockFetchOnce({
         ok: true,
         status: 200,
-        json: async () => ({}), // no items
+        json: async () => ({}),
       });
 
       await expect(fetchUpcomingCalendarEvents()).resolves.toEqual([]);
@@ -276,7 +282,6 @@ describe("services/googleCalendar", () => {
       mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
       mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
 
-      // json() throws -> your code sets json=null
       mockFetchOnce({
         ok: false,
         status: 500,
@@ -327,6 +332,228 @@ describe("services/googleCalendar", () => {
       });
 
       await expect(getNextClassEvent()).resolves.toBeNull();
+    });
+  });
+
+  describe("fetchNextClassEvent / fetchNextClassEventToday", () => {
+    test("fetchNextClassEvent returns null when no items", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [] }),
+      });
+
+      await expect(fetchNextClassEvent("primary")).resolves.toBeNull();
+    });
+
+    test("fetchNextClassEvent returns mapped event when item exists", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: [
+            {
+              id: "E1",
+              summary: "COMP 352",
+              location: "Hall Building",
+              start: { dateTime: "2026-03-01T14:00:00.000Z" },
+              end: { dateTime: "2026-03-01T15:00:00.000Z" },
+            },
+          ],
+        }),
+      });
+
+      const ev = await fetchNextClassEvent("primary");
+      expect(ev).toEqual({
+        id: "E1",
+        summary: "COMP 352",
+        location: "Hall Building",
+        startISO: "2026-03-01T14:00:00.000Z",
+        endISO: "2026-03-01T15:00:00.000Z",
+      });
+
+      const [url] = (global as any).fetch.mock.calls[0];
+      expect(url).toContain("maxResults=1");
+      expect(url).toContain("singleEvents=true");
+      expect(url).toContain("orderBy=startTime");
+    });
+
+    test("fetchNextClassEventToday returns null when no items", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [] }),
+      });
+
+      await expect(fetchNextClassEventToday("primary")).resolves.toBeNull();
+
+      const [url] = (global as any).fetch.mock.calls[0];
+      expect(url).toContain("timeMax=");
+    });
+
+    test("fetchNextClassEventToday returns mapped event when item exists (date fallback)", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: [
+            {
+              id: "E2",
+              summary: "SOEN 341",
+              location: "Loyola",
+              start: { date: "2026-03-01" },
+              end: { date: "2026-03-02" },
+            },
+          ],
+        }),
+      });
+
+      const ev = await fetchNextClassEventToday("primary");
+      expect(ev).toEqual({
+        id: "E2",
+        summary: "SOEN 341",
+        location: "Loyola",
+        startISO: "2026-03-01",
+        endISO: "2026-03-02",
+      });
+    });
+
+    test("maps 401/403 to NOT_CONNECTED and calls markGoogleCalendarDisconnected", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          error: {
+            status: "UNAUTHENTICATED",
+            message: "Invalid Credentials",
+            errors: [{ reason: "authError" }],
+          },
+        }),
+      });
+
+      let err: any;
+      try {
+        await fetchNextClassEvent("primary");
+      } catch (e) {
+        err = e;
+      }
+
+      expect(err).toBeInstanceOf(NextClassError);
+      expect(err.code).toBe("NOT_CONNECTED");
+      expect(String(err.message)).toContain("UNAUTHENTICATED");
+      expect(mockMarkDisconnected).toHaveBeenCalledTimes(1);
+    });
+
+    test("maps 404 to WRONG_CALENDAR", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: {
+            status: "NOT_FOUND",
+            message: "Not found",
+            errors: [{ reason: "notFound" }],
+          },
+        }),
+      });
+
+      let err: any;
+      try {
+        await fetchNextClassEventToday("bad");
+      } catch (e) {
+        err = e;
+      }
+
+      expect(err).toBeInstanceOf(NextClassError);
+      expect(err.code).toBe("WRONG_CALENDAR");
+      expect(String(err.message)).toContain("NOT_FOUND");
+    });
+
+    test("maps other errors to API_ERROR (and handles empty json)", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      });
+
+      let err: any;
+      try {
+        await fetchNextClassEvent("primary");
+      } catch (e) {
+        err = e;
+      }
+
+      expect(err).toBeInstanceOf(NextClassError);
+      expect(err.code).toBe("API_ERROR");
+      expect(String(err.message)).toContain("HTTP 500");
+    });
+
+    test("when json is not parseable in next-class endpoints, still throws NextClassError with fallback", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new Error("bad json");
+        },
+      });
+
+      let err: any;
+      try {
+        await fetchNextClassEventToday("primary");
+      } catch (e) {
+        err = e;
+      }
+
+      expect(err).toBeInstanceOf(NextClassError);
+      expect(err.code).toBe("API_ERROR");
+      expect(String(err.message)).toContain("HTTP 500");
+    });
+
+    test("getNextClassEventToday wrapper returns underlying result", async () => {
+      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: [
+            {
+              id: "E3",
+              summary: "ENGR 202",
+              start: { dateTime: "2026-03-01T10:00:00.000Z" },
+              end: { dateTime: "2026-03-01T11:00:00.000Z" },
+            },
+          ],
+        }),
+      });
+
+      const ev = await getNextClassEventToday("primary");
+      expect(ev?.id).toBe("E3");
     });
   });
 });
