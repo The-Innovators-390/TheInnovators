@@ -1,0 +1,149 @@
+name: PR → Project Automation
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  move-linked-issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync linked issues with Project
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const ORG_LOGIN = "The-Innovators-390";
+            const PROJECT_NUMBER = 1;
+
+            const STATUS_FIELD_NAME = "Status";
+            const QA_REVIEW = "QA / Review";
+            const TODO = "To Do";
+            const CLOSED = "Closed";
+
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const action = context.payload.action;
+            const isClosed = action === "closed";
+            const isMerged = Boolean(pr.merged);
+
+            // Your required rules:
+            // - merged -> Closed
+            // - closed but not merged -> To Do
+            // - otherwise -> QA / Review
+            let targetStatus;
+            if (isClosed && isMerged) targetStatus = CLOSED;
+            else if (isClosed && !isMerged) targetStatus = TODO;
+            else targetStatus = QA_REVIEW;
+
+            // 1) Read linked issues that GitHub considers "will close" (Development box + closes/fixes keywords)
+            const prData = await github.graphql(`
+              query($owner:String!, $repo:String!, $number:Int!) {
+                repository(owner:$owner, name:$repo) {
+                  pullRequest(number:$number) {
+                    closingIssuesReferences(first: 50) {
+                      nodes { id number }
+                    }
+                  }
+                }
+              }
+            `, { owner, repo, number: pr.number });
+
+            const issues = prData.repository.pullRequest.closingIssuesReferences.nodes ?? [];
+            if (issues.length === 0) {
+              core.info("No closing issues found for this PR (Development box / closes # not detected).");
+              return;
+            }
+
+            // 2) Get project + status field options + items (so we don’t crash if issue is already on the board)
+            const projectData = await github.graphql(`
+              query($org:String!, $number:Int!) {
+                organization(login:$org) {
+                  projectV2(number:$number) {
+                    id
+                    fields(first: 50) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id name }
+                        }
+                      }
+                    }
+                    items(first: 100) {
+                      nodes {
+                        id
+                        content { ... on Issue { id } }
+                      }
+                    }
+                  }
+                }
+              }
+            `, { org: ORG_LOGIN, number: PROJECT_NUMBER });
+
+            const project = projectData.organization.projectV2;
+            if (!project) throw new Error("Project not found. Check ORG_LOGIN / PROJECT_NUMBER.");
+
+            const statusField = project.fields.nodes.find(f => f?.name === STATUS_FIELD_NAME);
+            if (!statusField) throw new Error(`Field "${STATUS_FIELD_NAME}" not found on the project.`);
+
+            const option = statusField.options.find(o => o.name === targetStatus);
+            if (!option) throw new Error(`Status option "${targetStatus}" not found. Check column name exactly.`);
+
+            async function getOrAddItemId(issueNodeId) {
+              // If issue already exists on board, reuse item id
+              const existing = project.items.nodes.find(n => n.content?.id === issueNodeId);
+              if (existing) return existing.id;
+
+              // Otherwise add it
+              const added = await github.graphql(`
+                mutation($projectId:ID!, $contentId:ID!) {
+                  addProjectV2ItemById(input:{projectId:$projectId, contentId:$contentId}) {
+                    item { id }
+                  }
+                }
+              `, { projectId: project.id, contentId: issueNodeId });
+
+              return added.addProjectV2ItemById.item.id;
+            }
+
+            // 3) Update project status + close issues only on merge
+            for (const issue of issues) {
+              const itemId = await getOrAddItemId(issue.id);
+
+              await github.graphql(`
+                mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $optionId:String!) {
+                  updateProjectV2ItemFieldValue(input:{
+                    projectId:$projectId,
+                    itemId:$itemId,
+                    fieldId:$fieldId,
+                    value:{ singleSelectOptionId:$optionId }
+                  }) { projectV2Item { id } }
+                }
+              `, {
+                projectId: project.id,
+                itemId,
+                fieldId: statusField.id,
+                optionId: option.id
+              });
+
+              core.info(`Moved issue #${issue.number} → ${targetStatus}`);
+
+              if (isClosed && isMerged) {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: "closed"
+                });
+                core.info(`Closed issue #${issue.number}`);
+              }
+            }
