@@ -33,6 +33,14 @@ export type DirectionRoute = {
   distanceText: string;
   transitLines?: TransitLine[];
   steps?: DirectionStep[];
+  /** Optional: when a "route" is actually a composed journey (e.g., shuttle).
+   *  Allows the UI to render segments with different styles (walk dashed, ride solid).
+   */
+  segmentPolylines?: {
+    walkToStop: string;
+    shuttle: string;
+    walkToDestination: string;
+  };
 };
 
 export type DirectionStep = {

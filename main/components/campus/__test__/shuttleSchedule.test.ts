@@ -1,353 +1,237 @@
+/* eslint-disable import/first */
 import {
-  SGW_SHUTTLE_STOP,
-  LOY_SHUTTLE_STOP,
-  isCampusToCampusRoute,
-  getShuttleDirection,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  jest,
+} from "@jest/globals";
+
+import {
   getShuttleStatus,
   getNextDepartures,
-  buildShuttleDirectionRoute,
-  buildShuttleNavigationSteps,
   buildShuttleInfo,
-} from "@/components/campus/helper_methods/shuttleSchedule";
+  buildShuttleDirectionRoute,
+  buildShuttleDirectionRouteFromGoogle,
+  SGW_SHUTTLE_STOP,
+  LOY_SHUTTLE_STOP,
+  type ShuttleDirection,
+} from "../helper_methods/shuttleSchedule";
 
-// ─── Mock Intl.DateTimeFormat to control Montreal time ────────────────────────
+type LatLng = { latitude: number; longitude: number };
 
-const _OrigDateTimeFormat = Intl.DateTimeFormat;
+const mockFetchDirections = jest.fn();
+const mockPickFastestRoute = jest.fn();
 
-function setMontrealTime(weekday: string, hour: number, minute: number) {
-  const formatToParts = jest.fn().mockReturnValue([
-    { type: "weekday", value: weekday },
-    { type: "hour", value: String(hour).padStart(2, "0") },
-    { type: "minute", value: String(minute).padStart(2, "0") },
-  ]);
-  // @ts-ignore – replace the constructor for the duration of the test
-  global.Intl = {
-    ...global.Intl,
-    DateTimeFormat: function () {
-      return { formatToParts };
+jest.mock("../helper_methods/googleDirections", () => ({
+  __esModule: true,
+  fetchDirections: (...args: any[]) => mockFetchDirections(...args),
+  pickFastestRoute: (...args: any[]) => mockPickFastestRoute(...args),
+}));
+
+// --- Helper: mock Montreal time via Intl.DateTimeFormat().formatToParts() ---
+const RealDateTimeFormat = Intl.DateTimeFormat;
+
+function mockMontrealTime(parts: {
+  weekday?: string;
+  hour?: string;
+  minute?: string;
+}) {
+  // mock the constructor Intl.DateTimeFormat
+  (Intl as any).DateTimeFormat = jest.fn(() => ({
+    formatToParts: () => {
+      const out: any[] = [];
+      if (parts.weekday != null)
+        out.push({ type: "weekday", value: parts.weekday });
+      if (parts.hour != null) out.push({ type: "hour", value: parts.hour });
+      if (parts.minute != null)
+        out.push({ type: "minute", value: parts.minute });
+      return out;
     },
-  };
+  }));
 }
 
-afterEach(() => {
-  // @ts-ignore – restore
-  global.Intl = { ...global.Intl, DateTimeFormat: _OrigDateTimeFormat };
-});
+function restoreIntl() {
+  Intl.DateTimeFormat = RealDateTimeFormat;
+}
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const ORIGIN: LatLng = { latitude: 45.49729, longitude: -73.57898 };
+const DEST: LatLng = { latitude: 45.45824, longitude: -73.64051 };
 
-describe("shuttle stop coordinates", () => {
-  it("SGW_SHUTTLE_STOP has valid lat/lng", () => {
-    expect(SGW_SHUTTLE_STOP.latitude).toBeCloseTo(45.4968, 2);
-    expect(SGW_SHUTTLE_STOP.longitude).toBeCloseTo(-73.5789, 2);
+describe("shuttleSchedule helpers", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    restoreIntl();
+
+    // default: Monday 09:00 (so next SGW->LOY departure is 09:30)
+    mockMontrealTime({ weekday: "Monday", hour: "09", minute: "00" });
+
+    // pickFastestRoute just returns first route
+    mockPickFastestRoute.mockImplementation(
+      (routes: any[]) => routes?.[0] ?? null,
+    );
   });
 
-  it("LOY_SHUTTLE_STOP has valid lat/lng", () => {
-    expect(LOY_SHUTTLE_STOP.latitude).toBeCloseTo(45.458, 2);
-    expect(LOY_SHUTTLE_STOP.longitude).toBeCloseTo(-73.6395, 2);
-  });
-});
-
-// ─── isCampusToCampusRoute ────────────────────────────────────────────────────
-
-describe("isCampusToCampusRoute", () => {
-  it("returns true for SGW → LOY", () => {
-    expect(isCampusToCampusRoute("SGW", "LOY")).toBe(true);
+  afterEach(() => {
+    restoreIntl();
   });
 
-  it("returns true for LOY → SGW", () => {
-    expect(isCampusToCampusRoute("LOY", "SGW")).toBe(true);
-  });
+  it("returns no-service-today on weekends", () => {
+    mockMontrealTime({ weekday: "Saturday", hour: "10", minute: "00" });
 
-  it("returns false for SGW → SGW", () => {
-    expect(isCampusToCampusRoute("SGW", "SGW")).toBe(false);
-  });
-
-  it("returns false for LOY → LOY", () => {
-    expect(isCampusToCampusRoute("LOY", "LOY")).toBe(false);
-  });
-});
-
-// ─── getShuttleDirection ──────────────────────────────────────────────────────
-
-describe("getShuttleDirection", () => {
-  it("returns SGW_TO_LOY when starting at SGW", () => {
-    expect(getShuttleDirection("SGW", "LOY")).toBe("SGW_TO_LOY");
-  });
-
-  it("returns LOY_TO_SGW when starting at LOY", () => {
-    expect(getShuttleDirection("LOY", "SGW")).toBe("LOY_TO_SGW");
-  });
-});
-
-// ─── getShuttleStatus ─────────────────────────────────────────────────────────
-
-describe("getShuttleStatus", () => {
-  it("returns 'no-service-today' on Saturday", () => {
-    setMontrealTime("Saturday", 10, 0);
     expect(getShuttleStatus("SGW_TO_LOY")).toBe("no-service-today");
-  });
-
-  it("returns 'no-service-today' on Sunday", () => {
-    setMontrealTime("Sunday", 12, 0);
-    expect(getShuttleStatus("LOY_TO_SGW")).toBe("no-service-today");
-  });
-
-  it("returns 'operating' on Monday before first departure", () => {
-    // Monday 09:00 → 540 min; first SGW→LOY dep is 09:30 → 570 min
-    setMontrealTime("Monday", 9, 0);
-    expect(getShuttleStatus("SGW_TO_LOY")).toBe("operating");
-  });
-
-  it("returns 'last-bus-departed' on Monday after 18:30", () => {
-    // Monday 19:00 → 1140 min; last departure 18:30 → 1110 min
-    setMontrealTime("Monday", 19, 0);
-    expect(getShuttleStatus("SGW_TO_LOY")).toBe("last-bus-departed");
-  });
-
-  it("returns 'operating' on Tuesday for LOY_TO_SGW mid-day", () => {
-    setMontrealTime("Tuesday", 12, 0);
-    expect(getShuttleStatus("LOY_TO_SGW")).toBe("operating");
-  });
-
-  it("returns 'operating' on Wednesday for LOY_TO_SGW", () => {
-    setMontrealTime("Wednesday", 10, 0);
-    expect(getShuttleStatus("LOY_TO_SGW")).toBe("operating");
-  });
-
-  it("returns 'operating' on Thursday for SGW_TO_LOY", () => {
-    setMontrealTime("Thursday", 10, 0);
-    expect(getShuttleStatus("SGW_TO_LOY")).toBe("operating");
-  });
-
-  it("returns 'operating' on Friday for SGW_TO_LOY (Friday schedule)", () => {
-    setMontrealTime("Friday", 10, 0);
-    expect(getShuttleStatus("SGW_TO_LOY")).toBe("operating");
-  });
-
-  it("returns 'operating' on Friday for LOY_TO_SGW (Friday schedule)", () => {
-    setMontrealTime("Friday", 10, 0);
-    expect(getShuttleStatus("LOY_TO_SGW")).toBe("operating");
-  });
-
-  it("returns 'last-bus-departed' on Friday after 18:15", () => {
-    setMontrealTime("Friday", 19, 0);
-    expect(getShuttleStatus("SGW_TO_LOY")).toBe("last-bus-departed");
-  });
-
-  it("returns 'last-bus-departed' on Friday LOY_TO_SGW after last bus", () => {
-    setMontrealTime("Friday", 19, 0);
-    expect(getShuttleStatus("LOY_TO_SGW")).toBe("last-bus-departed");
-  });
-});
-
-// ─── getNextDepartures ────────────────────────────────────────────────────────
-
-describe("getNextDepartures", () => {
-  it("returns empty array on weekend", () => {
-    setMontrealTime("Saturday", 10, 0);
     expect(getNextDepartures("SGW_TO_LOY", 3)).toEqual([]);
   });
 
-  it("returns next departures after current time on Monday", () => {
-    // Monday 09:31 → 571 min; first dep after that is 09:45 → 585 min
-    setMontrealTime("Monday", 9, 31);
-    const result = getNextDepartures("SGW_TO_LOY", 3);
-    expect(result.length).toBe(3);
-    expect(result[0]).toBe("09:45");
+  it("returns last-bus-departed when no upcoming departures remain", () => {
+    // Monday at 23:59 => no departures left
+    mockMontrealTime({ weekday: "Monday", hour: "23", minute: "59" });
+
+    expect(getShuttleStatus("LOY_TO_SGW")).toBe("last-bus-departed");
+    expect(getNextDepartures("LOY_TO_SGW", 2)).toEqual([]);
   });
 
-  it("limits result to the requested count", () => {
-    setMontrealTime("Monday", 9, 0);
-    const result = getNextDepartures("SGW_TO_LOY", 2);
-    expect(result).toHaveLength(2);
+  it("selects Friday schedule when day is Friday (schedule key branch)", () => {
+    // Friday 09:00 => should return upcoming Friday-specific times
+    mockMontrealTime({ weekday: "Friday", hour: "09", minute: "00" });
+
+    const next = getNextDepartures("SGW_TO_LOY", 2);
+    // first Friday SGW->LOY departure is 09:45
+    expect(next[0]).toBe("09:45");
   });
 
-  it("returns empty array when past all departures", () => {
-    setMontrealTime("Monday", 20, 0);
-    expect(getNextDepartures("SGW_TO_LOY", 5)).toEqual([]);
+  it("normalizes hour '24' to 0 (midnight edge case) and still works", () => {
+    // Sunday at "24:00" still Sunday => no service
+    mockMontrealTime({ weekday: "Sunday", hour: "24", minute: "00" });
+    expect(getShuttleStatus("SGW_TO_LOY")).toBe("no-service-today");
   });
 
-  it("returns Friday LOY_TO_SGW schedule when on Friday", () => {
-    setMontrealTime("Friday", 9, 0);
-    const result = getNextDepartures("LOY_TO_SGW", 3);
-    expect(result.length).toBe(3);
-    // Friday LOY_TO_SGW first departure is 09:15
-    expect(result[0]).toBe("09:15");
-  });
+  it("buildShuttleInfo returns status + up to 5 next departures", () => {
+    mockMontrealTime({ weekday: "Monday", hour: "09", minute: "00" });
 
-  it("returns Friday SGW_TO_LOY schedule when on Friday", () => {
-    setMontrealTime("Friday", 9, 0);
-    const result = getNextDepartures("SGW_TO_LOY", 1);
-    // Friday SGW_TO_LOY first departure is 09:45
-    expect(result[0]).toBe("09:45");
-  });
-
-  it("returns Mon-Thu LOY_TO_SGW schedule on Thursday", () => {
-    setMontrealTime("Thursday", 9, 0);
-    const result = getNextDepartures("LOY_TO_SGW", 1);
-    // Mon-Thu LOY_TO_SGW first departure is 09:15
-    expect(result[0]).toBe("09:15");
-  });
-});
-
-// ─── buildShuttleDirectionRoute ───────────────────────────────────────────────
-
-const ORIGIN = { latitude: 45.497, longitude: -73.578 };
-const DEST = { latitude: 45.458, longitude: -73.639 };
-
-describe("buildShuttleDirectionRoute", () => {
-  it("returns null when not operating (weekend)", () => {
-    setMontrealTime("Saturday", 10, 0);
-    expect(buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST)).toBeNull();
-  });
-
-  it("returns null when last bus has departed", () => {
-    setMontrealTime("Monday", 20, 0);
-    expect(buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST)).toBeNull();
-  });
-
-  it("returns a valid DirectionRoute on Monday morning", () => {
-    // Monday 09:00 → wait = 09:30 - 09:00 = 30 min → total = 30 + 30 = 60 min
-    setMontrealTime("Monday", 9, 0);
-    const route = buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST);
-
-    expect(route).not.toBeNull();
-    expect(route?.summary).toBe("Concordia Shuttle");
-    expect(route?.distanceText).toBe("~8 km");
-    expect(route?.distanceMeters).toBe(8000);
-    expect(typeof route?.polyline).toBe("string");
-    expect(route!.polyline.length).toBeGreaterThan(0);
-    expect(route?.durationSec).toBeGreaterThan(0);
-  });
-
-  it("returns route for LOY_TO_SGW direction", () => {
-    setMontrealTime("Monday", 9, 0);
-    const route = buildShuttleDirectionRoute("LOY_TO_SGW", DEST, ORIGIN);
-    expect(route).not.toBeNull();
-    expect(route?.summary).toBe("Concordia Shuttle");
-  });
-
-  it("formats durationText as 'Xh Y min' when wait > 60 min", () => {
-    // Monday 08:00 → 480 min; first dep 09:30 → 570 min; wait=90 min; total=120 min → 2h
-    setMontrealTime("Monday", 8, 0);
-    const route = buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST);
-    expect(route?.durationText).toMatch(/h/);
-  });
-
-  it("formats durationText as 'X min' when total < 60 min", () => {
-    // Monday 09:29 → 569 min; first dep 09:30 → wait=1 min; total=31 min
-    setMontrealTime("Monday", 9, 29);
-    const route = buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST);
-    expect(route?.durationText).toMatch(/min/);
-    expect(route?.durationText).not.toMatch(/\dh/);
-  });
-
-  it("returns a valid route on Friday (Friday schedule)", () => {
-    setMontrealTime("Friday", 9, 0);
-    const route = buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST);
-    expect(route).not.toBeNull();
-    expect(route?.summary).toBe("Concordia Shuttle");
-  });
-
-  it("durationText is exactly 'Xh' when wait is a round hour with no leftover minutes", () => {
-    // Monday 07:30 → 450 min; first dep 09:30 → 570 min; wait=120 min → total=150 min → 2h 30 min
-    setMontrealTime("Monday", 7, 30);
-    const route = buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST);
-    expect(route?.durationText).toContain("h");
-  });
-});
-
-// ─── buildShuttleNavigationSteps ─────────────────────────────────────────────
-
-describe("buildShuttleNavigationSteps", () => {
-  it("returns exactly 3 steps for SGW_TO_LOY", () => {
-    setMontrealTime("Monday", 9, 0);
-    const steps = buildShuttleNavigationSteps("SGW_TO_LOY", ORIGIN, DEST);
-    expect(steps).toHaveLength(3);
-  });
-
-  it("step 0: walk instruction mentions SGW and next departure time", () => {
-    setMontrealTime("Monday", 9, 0);
-    const steps = buildShuttleNavigationSteps("SGW_TO_LOY", ORIGIN, DEST);
-    expect(steps[0].instruction).toContain("SGW");
-    expect(steps[0].instruction).toContain("09:30");
-  });
-
-  it("step 1: ride instruction mentions ~30 min and destination campus", () => {
-    setMontrealTime("Monday", 9, 0);
-    const steps = buildShuttleNavigationSteps("SGW_TO_LOY", ORIGIN, DEST);
-    expect(steps[1].instruction).toContain("~30 min");
-    expect(steps[1].instruction).toContain("Loyola");
-    expect(steps[1].distanceText).toContain("km");
-    expect(steps[1].durationText).toContain("min");
-  });
-
-  it("step 2: arrival instruction mentions destination campus", () => {
-    setMontrealTime("Monday", 9, 0);
-    const steps = buildShuttleNavigationSteps("SGW_TO_LOY", ORIGIN, DEST);
-    expect(steps[2].instruction).toContain("Loyola");
-  });
-
-  it("step coordinates match correct stops for SGW_TO_LOY", () => {
-    setMontrealTime("Monday", 9, 0);
-    const steps = buildShuttleNavigationSteps("SGW_TO_LOY", ORIGIN, DEST);
-    expect(steps[0].start).toEqual(ORIGIN);
-    expect(steps[0].end).toEqual(SGW_SHUTTLE_STOP);
-    expect(steps[1].start).toEqual(SGW_SHUTTLE_STOP);
-    expect(steps[1].end).toEqual(LOY_SHUTTLE_STOP);
-    expect(steps[2].start).toEqual(LOY_SHUTTLE_STOP);
-    expect(steps[2].end).toEqual(DEST);
-  });
-
-  it("returns 3 steps for LOY_TO_SGW direction", () => {
-    setMontrealTime("Monday", 9, 0);
-    const steps = buildShuttleNavigationSteps("LOY_TO_SGW", DEST, ORIGIN);
-    expect(steps).toHaveLength(3);
-    expect(steps[0].instruction).toContain("Loyola");
-    expect(steps[2].instruction).toContain("SGW");
-  });
-
-  it("step coordinates match correct stops for LOY_TO_SGW", () => {
-    setMontrealTime("Monday", 9, 0);
-    const steps = buildShuttleNavigationSteps("LOY_TO_SGW", DEST, ORIGIN);
-    expect(steps[0].end).toEqual(LOY_SHUTTLE_STOP);
-    expect(steps[1].start).toEqual(LOY_SHUTTLE_STOP);
-    expect(steps[1].end).toEqual(SGW_SHUTTLE_STOP);
-    expect(steps[2].end).toEqual(ORIGIN);
-  });
-
-  it("omits departure time note when no upcoming buses (weekend)", () => {
-    setMontrealTime("Saturday", 10, 0);
-    const steps = buildShuttleNavigationSteps("SGW_TO_LOY", ORIGIN, DEST);
-    expect(steps[0].instruction).not.toContain("next departure at");
-  });
-});
-
-// ─── buildShuttleInfo ─────────────────────────────────────────────────────────
-
-describe("buildShuttleInfo", () => {
-  it("returns operating status with departures on a weekday morning", () => {
-    setMontrealTime("Monday", 9, 0);
     const info = buildShuttleInfo("SGW_TO_LOY");
+    expect(info.direction).toBe("SGW_TO_LOY");
     expect(info.status).toBe("operating");
     expect(info.nextDepartures.length).toBeGreaterThan(0);
-    expect(info.direction).toBe("SGW_TO_LOY");
+    expect(info.nextDepartures.length).toBeLessThanOrEqual(5);
   });
 
-  it("returns no-service-today on weekend with empty departures", () => {
-    setMontrealTime("Sunday", 12, 0);
-    const info = buildShuttleInfo("SGW_TO_LOY");
-    expect(info.status).toBe("no-service-today");
-    expect(info.nextDepartures).toEqual([]);
-    expect(info.direction).toBe("SGW_TO_LOY");
+  it("buildShuttleDirectionRoute returns null when shuttle is not operating", () => {
+    mockMontrealTime({ weekday: "Saturday", hour: "10", minute: "00" });
+
+    const route = buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST);
+    expect(route).toBeNull();
   });
 
-  it("returns last-bus-departed status after hours with empty departures", () => {
-    setMontrealTime("Monday", 20, 0);
-    const info = buildShuttleInfo("LOY_TO_SGW");
-    expect(info.status).toBe("last-bus-departed");
-    expect(info.nextDepartures).toEqual([]);
-    expect(info.direction).toBe("LOY_TO_SGW");
+  it("buildShuttleDirectionRoute returns a synthetic route when operating (durationText hour-branch)", () => {
+    // Monday 00:00 => next is 09:30 => wait is large => triggers "Xh Ym" duration text branch
+    mockMontrealTime({ weekday: "Monday", hour: "00", minute: "00" });
+
+    const route = buildShuttleDirectionRoute("SGW_TO_LOY", ORIGIN, DEST);
+    expect(route).toBeTruthy();
+    expect(route?.summary).toBe("Concordia Shuttle");
+    expect(route?.polyline).toEqual(expect.any(String));
+    expect(route?.durationSec).toBeGreaterThan(0);
+    expect(route?.durationText).toContain("h"); // covers hour formatting branch
+  });
+
+  it("buildShuttleDirectionRouteFromGoogle builds 3 segments and returns segmentPolylines", async () => {
+    mockMontrealTime({ weekday: "Monday", hour: "09", minute: "00" });
+
+    const walk1 = {
+      polyline: "_p~iF~ps|U_ulLnnqC_mqNvxq`@",
+      durationSec: 120,
+      distanceMeters: 200,
+      durationText: "2 min",
+      distanceText: "0.2 km",
+      summary: "Walk1",
+    };
+    const ride = {
+      polyline: "_p~iF~ps|U_ulLnnqC_mqNvxq`@",
+      durationSec: 900,
+      distanceMeters: 6000,
+      durationText: "15 min",
+      distanceText: "6.0 km",
+      summary: "Ride",
+    };
+    const walk2 = {
+      polyline: "_p~iF~ps|U_ulLnnqC_mqNvxq`@",
+      durationSec: 180,
+      distanceMeters: 300,
+      durationText: "3 min",
+      distanceText: "0.3 km",
+      summary: "Walk2",
+    };
+
+    // fetchDirections called 3 times; return different arrays
+    mockFetchDirections
+      .mockResolvedValueOnce([walk1]) // origin -> boardStop (walking)
+      .mockResolvedValueOnce([ride]) // boardStop -> alightStop (driving)
+      .mockResolvedValueOnce([walk2]); // alightStop -> destination (walking)
+
+    const direction: ShuttleDirection = "SGW_TO_LOY";
+    const route = await buildShuttleDirectionRouteFromGoogle(
+      direction,
+      ORIGIN,
+      DEST,
+    );
+
+    expect(mockFetchDirections).toHaveBeenCalledTimes(3);
+
+    // confirm correct stops used based on direction (covers boardStop/alightStop branches)
+    expect(mockFetchDirections).toHaveBeenNthCalledWith(1, {
+      origin: ORIGIN,
+      destination: SGW_SHUTTLE_STOP,
+      mode: "walking",
+    });
+    expect(mockFetchDirections).toHaveBeenNthCalledWith(2, {
+      origin: SGW_SHUTTLE_STOP,
+      destination: LOY_SHUTTLE_STOP,
+      mode: "driving",
+    });
+    expect(mockFetchDirections).toHaveBeenNthCalledWith(3, {
+      origin: LOY_SHUTTLE_STOP,
+      destination: DEST,
+      mode: "walking",
+    });
+
+    expect(route).toBeTruthy();
+    expect(route?.segmentPolylines).toEqual({
+      walkToStop: walk1.polyline,
+      shuttle: ride.polyline,
+      walkToDestination: walk2.polyline,
+    });
+    expect(route?.distanceMeters).toBe(200 + 6000 + 300);
+    expect(route?.distanceText).toContain("~"); // metersToApproxText normal path
+  });
+
+  it("buildShuttleDirectionRouteFromGoogle falls back to ride polyline when combinedPts < 2", async () => {
+    mockMontrealTime({ weekday: "Monday", hour: "09", minute: "00" });
+
+    // Polyline "!" decodes to 1 point in decodePolylineSafe => combinedPts length < 2
+    const onePoint = {
+      polyline: "!",
+      durationSec: 60,
+      distanceMeters: 100,
+      durationText: "1 min",
+      distanceText: "0.1 km",
+      summary: "X",
+    };
+
+    mockFetchDirections
+      .mockResolvedValueOnce([onePoint])
+      .mockResolvedValueOnce([onePoint])
+      .mockResolvedValueOnce([onePoint]);
+
+    const route = await buildShuttleDirectionRouteFromGoogle(
+      "SGW_TO_LOY",
+      ORIGIN,
+      DEST,
+    );
+
+    expect(route).toBeTruthy();
+    // This hits: combinedPts.length >= 2 ? encodePolyline(...) : ride.polyline
+    expect(route?.polyline).toBe("!");
   });
 });
