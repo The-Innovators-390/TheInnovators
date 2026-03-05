@@ -9,6 +9,7 @@ import type { Campus } from "@/components/Buildings/types";
 import {
   fetchDirections,
   pickFastestRoute,
+  decodePolyline,
   type DirectionRoute,
   type DirectionStep,
   type LatLng,
@@ -213,8 +214,11 @@ function getMontrealNow(): { dayName: string; minuteOfDay: number } {
   }).formatToParts(now);
 
   const dayName = parts.find((p) => p.type === "weekday")?.value ?? "";
-  const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
-  const minute = parseInt(
+  const hour = Number.parseInt(
+    parts.find((p) => p.type === "hour")?.value ?? "0",
+    10,
+  );
+  const minute = Number.parseInt(
     parts.find((p) => p.type === "minute")?.value ?? "0",
     10,
   );
@@ -237,14 +241,13 @@ function getTodaySchedule(direction: ShuttleDirection): string[] | null {
   if (day === "saturday" || day === "sunday") return null;
 
   const isFriday = day === "friday";
-  const key =
-    direction === "SGW_TO_LOY"
-      ? isFriday
-        ? "SGW_TO_LOYOLA_FRIDAY"
-        : "SGW_TO_LOYOLA"
-      : isFriday
-        ? "LOYOLA_TO_SGW_FRIDAY"
-        : "LOYOLA_TO_SGW";
+  let key: keyof typeof SCHEDULE;
+
+  if (direction === "SGW_TO_LOY") {
+    key = isFriday ? "SGW_TO_LOYOLA_FRIDAY" : "SGW_TO_LOYOLA";
+  } else {
+    key = isFriday ? "LOYOLA_TO_SGW_FRIDAY" : "LOYOLA_TO_SGW";
+  }
 
   return SCHEDULE[key]?.departures ?? null;
 }
@@ -302,10 +305,10 @@ function encodePolylineValue(value: number): string {
   let v = value < 0 ? ~(value << 1) : value << 1;
   let result = "";
   while (v >= 0x20) {
-    result += String.fromCharCode((0x20 | (v & 0x1f)) + 63);
+    result += String.fromCodePoint((0x20 | (v & 0x1f)) + 63);
     v >>= 5;
   }
-  return result + String.fromCharCode(v + 63);
+  return result + String.fromCodePoint(v + 63);
 }
 
 function encodePolyline(points: LatLng[]): string {
@@ -356,8 +359,10 @@ export function buildShuttleDirectionRoute(
 
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  const durationText =
-    h > 0 ? `${h}h ${m > 0 ? `${m} min` : ""}`.trim() : `${m} min`;
+  let durationText = `${m} min`;
+  if (h > 0) {
+    durationText = m > 0 ? `${h}h ${m} min` : `${h}h`;
+  }
 
   return {
     summary: "Concordia Shuttle",
@@ -434,8 +439,10 @@ export async function buildShuttleDirectionRouteFromGoogle(
 
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  const durationText =
-    h > 0 ? `${h}h ${m > 0 ? `${m} min` : ""}`.trim() : `${m} min`;
+  let durationText = `${m} min`;
+  if (h > 0) {
+    durationText = m > 0 ? `${h}h ${m} min` : `${h}h`;
+  }
 
   const totalDistance =
     walk1.distanceMeters + ride.distanceMeters + walk2.distanceMeters;
@@ -457,42 +464,7 @@ export async function buildShuttleDirectionRouteFromGoogle(
 
 function decodePolylineSafe(encoded: string): LatLng[] {
   try {
-    let index = 0;
-    const len = encoded.length;
-    let lat = 0;
-    let lng = 0;
-    const coordinates: LatLng[] = [];
-
-    while (index < len) {
-      let b = 0;
-      let shift = 0;
-      let result = 0;
-
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-
-      const dlat = result & 1 ? ~(result >> 1) : result >> 1;
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-
-      const dlng = result & 1 ? ~(result >> 1) : result >> 1;
-      lng += dlng;
-
-      coordinates.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
-    }
-
-    return coordinates;
+    return decodePolyline(encoded);
   } catch {
     return [];
   }
