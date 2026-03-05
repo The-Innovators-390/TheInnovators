@@ -2,7 +2,7 @@
   <img width="300" src="assets/README_banner.png" />
 </p>
 
-# The Innovators — Concordia Campus Guide App
+# The Innovators — Concordia Campus Guide Mobile App
 
 Welcome to the Innovators Repository!
 
