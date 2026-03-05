@@ -78,7 +78,7 @@ jobs:
                         }
                       }
                     }
-                    items(first: 200) {
+                    items(first: 100) {
                       nodes {
                         id
                         content { ... on Issue { id } }
