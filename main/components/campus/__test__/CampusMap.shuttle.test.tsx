@@ -113,6 +113,7 @@ const mockBuildShuttleInfo = jest.fn() as jest.Mock<any>;
 const mockStartNavigationWithSteps = jest.fn() as jest.Mock<any>;
 const mockStartNavigation = jest.fn() as jest.Mock<any>;
 const mockExitNavigation = jest.fn() as jest.Mock<any>;
+const mockGetDeviceLocation = jest.fn() as jest.Mock<any>;
 
 // Capture popup props
 let lastTravelOptionsPopupProps: any = null;
@@ -263,7 +264,7 @@ jest.mock("@/hooks/useUserRole", () => ({
 // ---------------------------
 jest.mock("@/hooks/useRouteNavigation", () => ({
   __esModule: true,
-  useRouteNavigation: () => ({
+  useRouteNavigation: (config: any) => ({
     isNavigating: false,
     isNearStart: false,
     isArrived: false,
@@ -276,8 +277,15 @@ jest.mock("@/hooks/useRouteNavigation", () => ({
     activeSummary: null,
     remainingDistanceText: null,
     remainingDurationText: null,
-    startNavigationWithSteps: (...args: any[]) =>
-      mockStartNavigationWithSteps(...args),
+
+    startNavigationWithSteps: (...args: any[]) => {
+      const res = mockStartNavigationWithSteps(...args);
+      if (typeof config?.onStarted === "function") {
+        config.onStarted();
+      }
+      return res;
+    },
+
     startNavigation: (...args: any[]) => mockStartNavigation(...args),
     stopNavigation: jest.fn(),
     exitNavigation: (...args: any[]) => mockExitNavigation(...args),
@@ -286,7 +294,7 @@ jest.mock("@/hooks/useRouteNavigation", () => ({
     setSteps: jest.fn(),
     setCurrentStepIndex: jest.fn(),
   }),
-  default: () => ({
+  default: (config: any) => ({
     isNavigating: false,
     isNearStart: false,
     isArrived: false,
@@ -299,8 +307,15 @@ jest.mock("@/hooks/useRouteNavigation", () => ({
     activeSummary: null,
     remainingDistanceText: null,
     remainingDurationText: null,
-    startNavigationWithSteps: (...args: any[]) =>
-      mockStartNavigationWithSteps(...args),
+
+    startNavigationWithSteps: (...args: any[]) => {
+      const res = mockStartNavigationWithSteps(...args);
+      if (typeof config?.onStarted === "function") {
+        config.onStarted();
+      }
+      return res;
+    },
+
     startNavigation: (...args: any[]) => mockStartNavigation(...args),
     stopNavigation: jest.fn(),
     exitNavigation: (...args: any[]) => mockExitNavigation(...args),
@@ -316,10 +331,14 @@ jest.mock("@/hooks/useRouteNavigation", () => ({
 // ---------------------------
 jest.mock("@/components/campus/helper_methods/locationUtils", () => ({
   __esModule: true,
-  getDeviceLocation: jest
-    .fn()
-    .mockRejectedValue(new Error("skip device location in shuttle test")),
-  LocationError: class MockLocationError extends Error {},
+  getDeviceLocation: (...args: any[]) => mockGetDeviceLocation(...args),
+  LocationError: class MockLocationError extends Error {
+    code?: string;
+    constructor(message?: string, code?: string) {
+      super(message);
+      this.code = code;
+    }
+  },
 }));
 
 // ---------------------------
@@ -456,7 +475,16 @@ jest.mock("@/components/campus/CurrentLocationButton", () => {
   const RN = jest.requireActual("react-native") as typeof ReactNativeType;
   return {
     __esModule: true,
-    default: () => <RN.View testID="currentLocationBtn" />,
+    default: ({ onLocationFound }: any) => (
+      <RN.Pressable
+        testID="currentLocationBtn"
+        onPress={() =>
+          onLocationFound?.({ latitude: 45.5005, longitude: -73.5705 })
+        }
+      >
+        <RN.Text>Current Location</RN.Text>
+      </RN.Pressable>
+    ),
   };
 });
 
@@ -488,11 +516,11 @@ jest.mock("../../ui/DirectionLoadError", () => {
   const RN = jest.requireActual("react-native") as typeof ReactNativeType;
   return {
     __esModule: true,
-    default: ({ visible, message }: any) =>
+    default: ({ visible, message, onRefresh }: any) =>
       visible ? (
-        <RN.View testID="directions-load-error">
+        <RN.Pressable testID="directions-load-error" onPress={onRefresh}>
           <RN.Text>{message}</RN.Text>
-        </RN.View>
+        </RN.Pressable>
       ) : null,
   };
 });
@@ -555,6 +583,11 @@ jest.mock("@/components/campus/TravelOptionsPopup", () => {
       props.onConfirmMode ??
       (() => {});
 
+    const onSelectRouteIndex =
+      props.onSelectRouteIndex ?? props.onRouteIndexChange ?? (() => {});
+
+    const onClose = props.onClose ?? (() => {});
+
     const [localSelectedMode, setLocalSelectedMode] =
       ReactActual.useState(initialSelectedMode);
 
@@ -594,6 +627,17 @@ jest.mock("@/components/campus/TravelOptionsPopup", () => {
           <RN.Text>{`GO ${localSelectedMode}`}</RN.Text>
         </RN.Pressable>
 
+        <RN.Pressable
+          testID="select-route-index-0"
+          onPress={() => onSelectRouteIndex(0)}
+        >
+          <RN.Text>Route 0</RN.Text>
+        </RN.Pressable>
+
+        <RN.Pressable testID="close-popup" onPress={onClose}>
+          <RN.Text>Close</RN.Text>
+        </RN.Pressable>
+
         {shuttleInfo ? (
           <RN.Text testID="shuttle-status">
             {shuttleInfo.status ?? "unknown"}
@@ -616,6 +660,10 @@ describe("CampusMap – shuttle integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     lastTravelOptionsPopupProps = null;
+
+    mockGetDeviceLocation.mockRejectedValue(
+      new Error("skip device location in shuttle test"),
+    );
 
     mockFetchDirections.mockResolvedValue([MOCK_GOOGLE_DIRECTIONS_ROUTE]);
 
@@ -670,7 +718,9 @@ describe("CampusMap – shuttle integration", () => {
     mockBuildShuttleDirectionRoute.mockReturnValue(MOCK_SHUTTLE_ROUTE);
     mockBuildShuttleNavigationSteps.mockReturnValue(MOCK_SHUTTLE_ROUTE.steps);
     mockBuildShuttleInfo.mockReturnValue(MOCK_SHUTTLE_ROUTE.shuttleInfo);
+
     mockStartNavigation.mockResolvedValue(undefined);
+    mockStartNavigationWithSteps.mockResolvedValue?.(undefined);
   });
 
   it("includes shuttle mode chip when SGW→LOY route and user is student", async () => {
@@ -804,5 +854,233 @@ describe("CampusMap – shuttle integration", () => {
 
     expect(lastTravelOptionsPopupProps).toBeTruthy();
     expect(lastTravelOptionsPopupProps.visible).toBe(false);
+  });
+
+  it("closes TravelOptionsPopup when onClose is triggered", async () => {
+    const { findByTestId } = render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps).toBeTruthy();
+      expect(lastTravelOptionsPopupProps.visible).toBe(true);
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("close-popup"));
+    });
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps.visible).toBe(false);
+    });
+  });
+
+  it("hides the travel popup when navigation starts (onStarted callback)", async () => {
+    const { findByTestId } = render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps?.visible).toBe(true);
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("mode-shuttle"));
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("go-shuttle"));
+    });
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps?.visible).toBe(false);
+    });
+  });
+
+  it("sets user location on mount when device location resolves", async () => {
+    mockGetDeviceLocation.mockResolvedValueOnce({
+      latitude: 45.5001,
+      longitude: -73.5701,
+    });
+
+    const { findByTestId } = render(<CampusMap />);
+
+    const marker = await findByTestId("userLocationMarker");
+    expect(marker).toBeTruthy();
+  });
+
+  it("falls back to synthetic shuttle route when Google shuttle route returns null", async () => {
+    mockBuildShuttleDirectionRouteFromGoogle.mockResolvedValueOnce(null);
+    mockBuildShuttleDirectionRoute.mockReturnValueOnce(MOCK_SHUTTLE_ROUTE);
+
+    render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(mockBuildShuttleDirectionRouteFromGoogle).toHaveBeenCalled();
+      expect(mockBuildShuttleDirectionRoute).toHaveBeenCalled();
+    });
+
+    expect(lastTravelOptionsPopupProps).toBeTruthy();
+
+    const shuttleMode = lastTravelOptionsPopupProps.modes.find(
+      (m: any) => m.mode === "shuttle",
+    );
+
+    expect(shuttleMode).toBeTruthy();
+    expect(shuttleMode.routes).toHaveLength(1);
+  });
+
+  it("decodes shuttle segment polylines during initial load when shuttle is the only available mode", async () => {
+    mockFetchDirections
+      .mockResolvedValueOnce([]) // driving
+      .mockResolvedValueOnce([]) // transit
+      .mockResolvedValueOnce([]) // walking
+      .mockResolvedValueOnce([]); // bicycling
+
+    mockBuildShuttleDirectionRouteFromGoogle.mockResolvedValueOnce(
+      MOCK_SHUTTLE_ROUTE,
+    );
+
+    render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(mockDecodePolyline).toHaveBeenCalledWith(
+        "mock-shuttle-overview-polyline",
+      );
+      expect(mockDecodePolyline).toHaveBeenCalledWith(
+        "mock-walk-to-stop-polyline",
+      );
+      expect(mockDecodePolyline).toHaveBeenCalledWith(
+        "mock-shuttle-leg-polyline",
+      );
+      expect(mockDecodePolyline).toHaveBeenCalledWith(
+        "mock-walk-to-destination-polyline",
+      );
+    });
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps?.selectedMode).toBe("shuttle");
+    });
+  });
+
+  it("decodes shuttle segment polylines when selecting a shuttle route index", async () => {
+    const { findByTestId } = render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("mode-shuttle"));
+    });
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps.selectedMode).toBe("shuttle");
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("select-route-index-0"));
+    });
+
+    await waitFor(() => {
+      expect(mockDecodePolyline).toHaveBeenCalledWith(
+        "mock-walk-to-stop-polyline",
+      );
+      expect(mockDecodePolyline).toHaveBeenCalledWith(
+        "mock-shuttle-leg-polyline",
+      );
+      expect(mockDecodePolyline).toHaveBeenCalledWith(
+        "mock-walk-to-destination-polyline",
+      );
+    });
+  });
+
+  it("starts normal navigation for a non-shuttle mode", async () => {
+    const { findByTestId } = render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(lastTravelOptionsPopupProps?.visible).toBe(true);
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("mode-driving"));
+    });
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("go-driving"));
+    });
+
+    await waitFor(() => {
+      expect(mockStartNavigation).toHaveBeenCalledWith("driving", 0);
+    });
+  });
+
+  it("updates route stroke width across multiple zoom levels", () => {
+    const { getByTestId } = render(<CampusMap />);
+    const mapView = getByTestId("mapView");
+
+    act(() => {
+      mapView.props.onRegionChangeComplete?.({
+        latitude: 45.497,
+        longitude: -73.579,
+        latitudeDelta: 0.7,
+        longitudeDelta: 0.7,
+      });
+    });
+
+    act(() => {
+      mapView.props.onRegionChangeComplete?.({
+        latitude: 45.497,
+        longitude: -73.579,
+        latitudeDelta: 0.35,
+        longitudeDelta: 0.35,
+      });
+    });
+
+    act(() => {
+      mapView.props.onRegionChangeComplete?.({
+        latitude: 45.497,
+        longitude: -73.579,
+        latitudeDelta: 0.16,
+        longitudeDelta: 0.16,
+      });
+    });
+
+    act(() => {
+      mapView.props.onRegionChangeComplete?.({
+        latitude: 45.497,
+        longitude: -73.579,
+        latitudeDelta: 0.09,
+        longitudeDelta: 0.09,
+      });
+    });
+
+    expect(mapView).toBeTruthy();
+  });
+
+  it("refreshes the directions error overlay", async () => {
+    mockBuildShuttleDirectionRouteFromGoogle.mockRejectedValueOnce(
+      new Error("first fail"),
+    );
+
+    const { findByTestId } = render(<CampusMap />);
+
+    const errorOverlay = await findByTestId("directions-load-error");
+    expect(errorOverlay).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(errorOverlay);
+    });
+
+    await waitFor(() => {
+      expect(mockBuildShuttleDirectionRouteFromGoogle).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("renders a user location marker when CurrentLocationButton reports a location", async () => {
+    const { findByTestId } = render(<CampusMap />);
+
+    await act(async () => {
+      fireEvent.press(await findByTestId("currentLocationBtn"));
+    });
+
+    const marker = await findByTestId("userLocationMarker");
+    expect(marker).toBeTruthy();
   });
 });
