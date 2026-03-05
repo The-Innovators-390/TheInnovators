@@ -2,9 +2,9 @@
   <img width="300" src="assets/README_banner.png" />
 </p>
 
-# The Innovators — Concordia Campus Guide App
+# The Innovators — Concordia Campus Guide Mobile App
 
-Welcome to the Innovators Repository!
+Welcome to the Innovators Repository!!
 
 We are a team of undergraduate Software Engineering students building a next-generation Campus Guide App as part of our Mini-Capstone project. Our mission is to set a new standard for campus navigation and student experience across both the Sir George Williams and Loyola campuses.
 
