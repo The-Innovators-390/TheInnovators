@@ -1,0 +1,54 @@
+# US-16: Find my Next Class - button and message/card (signed-in + calendar connected).
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+# Only tap sign-in when on welcome screen;
+# then we have complete sign-in from the emulator
+- runFlow:
+    when:
+      visible:
+        id: "google-sign-in-button"
+    commands:
+      - tapOn:
+          id: "google-sign-in-button"
+      - extendedWaitUntil:
+          visible:
+            id: "campusMap-root"
+          timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 5000
+- tapOn:
+    id: "nextClassButton"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "calendar-connected"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "findNextClassButton"
+    timeout: 5000
+- tapOn:
+    id: "findNextClassButton"
+# It will take some time to fetch the next class card or error message
+- extendedWaitUntil:
+    visible:
+      id: "findNextClass-root"
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: "findNextClassCard"
+    commands:
+      - assertVisible:
+          id: "findNextClassCard"
+- runFlow:
+    when:
+      visible:
+        id: "findNextClassMessage"
+    commands:
+      - assertVisible:
+          id: "findNextClassMessage"

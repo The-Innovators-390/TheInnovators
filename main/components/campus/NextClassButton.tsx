@@ -5,6 +5,7 @@ import { router } from "expo-router";
 export function NextClassButton() {
   return (
     <Pressable
+      testID="nextClassButton"
       style={styles.button}
       onPress={() => router.push("/(tabs)/calendar")}
     >

@@ -189,8 +189,9 @@ export default function FindNextClass({
   };
 
   return (
-    <View style={s.container}>
+    <View style={s.container} testID="findNextClass-root">
       <Pressable
+        testID="findNextClassButton"
         onPress={handleFindNextClass}
         disabled={loading}
         style={[s.findBtn, loading && s.findBtnDisabled]}
@@ -206,15 +207,20 @@ export default function FindNextClass({
         </View>
       )}
 
-      {!!message && <Text style={s.messageText}>{message}</Text>}
+      {!!message && (
+        <Text testID="findNextClassMessage" style={s.messageText}>
+          {message}
+        </Text>
+      )}
 
       {event && (
-        <View style={s.card}>
+        <View testID="findNextClassCard" style={s.card}>
           <View style={s.cardHeaderRow}>
             <Text style={s.cardTitle}>{event.summary ?? "Next class"}</Text>
 
             {hasLocation && (
               <Pressable
+                testID="findNextClassDirections"
                 style={styles.directionsBtn}
                 onPress={() => onPressDirections(event)}
               >

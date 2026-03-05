@@ -238,18 +238,28 @@ export default function CalendarScreen() {
   // NOT signed in
   if (!signedIn) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.header}>Not logged in!</Text>
+      <View style={styles.center} testID="calendar-notSignedIn">
+        <Text style={styles.header} testID="calendar-notSignedIn-header">
+          Not logged in!
+        </Text>
         <Text style={styles.body}>
           Connect to your Google Calendar account to have access to the{"\n"}
           “Directions to my next class” feature!
         </Text>
 
-        <Pressable style={styles.googleBtn} onPress={onSignInPress}>
+        <Pressable
+          style={styles.googleBtn}
+          onPress={onSignInPress}
+          testID="calendar-signInButton"
+        >
           <Text style={styles.googleBtnText}>Sign in with Google</Text>
         </Pressable>
 
-        <Pressable style={styles.redBtn} onPress={goToMap}>
+        <Pressable
+          style={styles.redBtn}
+          onPress={goToMap}
+          testID="calendar-returnToMap"
+        >
           <Text style={styles.redBtnText}>Return to map</Text>
         </Pressable>
       </View>
@@ -259,14 +269,17 @@ export default function CalendarScreen() {
   // Signed in but not connected (fallback UI; alert also appears)
   if (!calendarConnected) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.header}>Connect Google Calendar</Text>
+      <View style={styles.center} testID="calendar-notConnected">
+        <Text style={styles.header} testID="calendar-notConnected-header">
+          Connect Google Calendar
+        </Text>
         <Text style={styles.body}>
           Connect your Google Calendar account to have access to the{"\n"}
           “Directions to my next class” feature!
         </Text>
 
         <Pressable
+          testID="calendar-connectCalendarButton"
           style={styles.googleBtn}
           onPress={async () => {
             try {
@@ -287,7 +300,11 @@ export default function CalendarScreen() {
           <Text style={styles.googleBtnText}>Connect Google Calendar</Text>
         </Pressable>
 
-        <Pressable style={styles.redBtn} onPress={goToMap}>
+        <Pressable
+          style={styles.redBtn}
+          onPress={goToMap}
+          testID="calendar-returnToMap"
+        >
           <Text style={styles.redBtnText}>Return to map</Text>
         </Pressable>
       </View>
@@ -297,6 +314,7 @@ export default function CalendarScreen() {
   // Connected: real calendar + upcoming events
   return (
     <ScrollView
+      testID="calendar-connected"
       style={styles.page}
       contentContainerStyle={styles.pageContent}
       refreshControl={
