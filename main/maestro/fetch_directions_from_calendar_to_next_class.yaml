@@ -1,0 +1,51 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "google-sign-in-button"
+    commands:
+      - tapOn:
+          id: "google-sign-in-button"
+      - extendedWaitUntil:
+          visible:
+            id: "campusMap-root"
+          timeout: 60000
+
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 10000
+
+- tapOn:
+    id: "nextClassButton"
+
+- extendedWaitUntil:
+    visible:
+      id: "findNextClassButton"
+    timeout: 10000
+
+- tapOn:
+    id: "findNextClassButton"
+
+- extendedWaitUntil:
+    visible:
+      id: "findNextClassCard"
+    timeout: 15000
+
+- tapOn:
+    id: "findNextClassDirections"
+
+- extendedWaitUntil:
+    visible:
+      id: "mapView"
+    timeout: 15000
+
+- assertVisible:
+    id: "mode-walking"
+
+- assertVisible:
+    id: "mode-driving"
