@@ -336,6 +336,9 @@ jest.mock("@/hooks/useRouteNavigation", () => ({
 }));
 
 // ─── Import CampusMap after all mocks ─────────────────────────────────────
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: jest.fn(() => ({})),
+}));
 import CampusMap from "@/components/campus/CampusMap";
 
 const { fetchDirections } =

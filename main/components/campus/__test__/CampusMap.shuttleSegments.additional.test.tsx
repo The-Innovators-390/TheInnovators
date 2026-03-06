@@ -264,6 +264,9 @@ jest.mock("react-native-maps", () => {
   };
 });
 
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: jest.fn(() => ({})),
+}));
 import CampusMap from "@/components/campus/CampusMap";
 
 function makeRoute(polyline: string, durationSec = 300) {
