@@ -25,6 +25,8 @@ import {
   type CalendarEvent,
 } from "@/services/googleCalendar";
 
+import { parseLocationDetails } from "@/services/calendarUtils";
+
 import { styles } from "@/components/calendar/calendarStyles";
 
 import { useCalendarDerived } from "@/hooks/useCalendarDerived";
@@ -70,6 +72,28 @@ export default function CalendarScreen() {
 
   const goToMap = useCallback(() => {
     router.replace("/(tabs)/map");
+  }, []);
+
+  const handlePressDirections = useCallback((event: CalendarEvent) => {
+    if (!event.location?.trim()) {
+      Alert.alert("No Location", "This event has no location information.");
+      return;
+    }
+
+    const { building } = parseLocationDetails(event.location);
+
+    if (!building) {
+      Alert.alert(
+        "Location not found",
+        `We couldn't find a Concordia building for: "${event.location}".`,
+      );
+      return;
+    }
+
+    router.push({
+      pathname: "/(tabs)/map",
+      params: { destBuildingId: building.id },
+    });
   }, []);
 
   const refreshState = useCallback(async () => {
@@ -332,12 +356,7 @@ export default function CalendarScreen() {
 
       <FindNextClass
         calendarId={activeCalendarId}
-        onPressDirections={(e) =>
-          Alert.alert(
-            "Directions",
-            "Next step: connect this to your directions feature.",
-          )
-        }
+        onPressDirections={handlePressDirections}
       />
 
       <UpcomingEvents
@@ -346,12 +365,7 @@ export default function CalendarScreen() {
         events={events}
         grouped={grouped}
         styles={styles}
-        onPressDirections={(e) =>
-          Alert.alert(
-            "Directions",
-            "Next step: connect this to your directions feature.",
-          )
-        }
+        onPressDirections={handlePressDirections}
       />
 
       <OtherCalendars

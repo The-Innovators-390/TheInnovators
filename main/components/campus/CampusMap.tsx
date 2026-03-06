@@ -13,6 +13,7 @@ import {
   Platform,
   StyleSheet,
 } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
 import {
   getDeviceLocation,
@@ -171,6 +172,8 @@ export default function CampusMap() {
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
 
+  const { destBuildingId } = useLocalSearchParams<{ destBuildingId: string }>();
+
   const routeStrokeWidth = useMemo(() => {
     const d = region?.latitudeDelta ?? 0.1;
 
@@ -266,6 +269,22 @@ export default function CampusMap() {
     () => buildAllBuildings(SGW_BUILDINGS, LOYOLA_BUILDINGS),
     [],
   );
+
+  useEffect(() => {
+    if (!destBuildingId) return;
+
+    const targetBuilding = ALL_BUILDINGS.find((b) => b.id === destBuildingId);
+    if (targetBuilding) {
+      if (!nav.isRouteMode) nav.setIsRouteMode(true);
+      nav.setRouteDest(targetBuilding);
+      setDestText(`${targetBuilding.code} - ${targetBuilding.name}`);
+      setStartToCurrentLocation();
+      setSelected(null);
+      setPopupIndex(-1);
+      setQuery("");
+      focusBuilding(targetBuilding);
+    }
+  }, [destBuildingId, ALL_BUILDINGS]);
 
   const handleLocationFound = (location: UserLocation) => {
     setUserLocation(location);

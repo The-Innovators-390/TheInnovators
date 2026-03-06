@@ -14,11 +14,9 @@ import {
 } from "@/services/googleCalendar";
 
 import {
-  searchSGWBuildings,
-  searchLoyolaBuildings,
-} from "@/components/Buildings/search";
-
-import type { Building } from "@/components/Buildings/types";
+  parseLocationDetails,
+  type LocationDetails,
+} from "@/services/calendarUtils";
 
 import { styles } from "@/components/calendar/calendarStyles";
 
@@ -26,68 +24,6 @@ type Props = {
   calendarId?: string;
   onPressDirections: (event: CalendarEvent) => void;
 };
-
-type Campus = "SGW" | "LOY";
-
-type LocationDetails = {
-  room?: string;
-  campus?: Campus;
-  building?: Building;
-};
-
-function extractBetweenCampusAndRm(raw: string): string | undefined {
-  const lower = raw.toLowerCase();
-
-  const campusIdx = lower.indexOf("campus");
-  if (campusIdx === -1) return undefined;
-
-  const dashIdx = lower.indexOf("-", campusIdx);
-  if (dashIdx === -1) return undefined;
-
-  const rmIdx = lower.indexOf("rm", dashIdx + 1);
-  if (rmIdx === -1) return undefined;
-
-  const between = raw.slice(dashIdx + 1, rmIdx).trim();
-  return between || undefined;
-}
-
-function parseLocationDetails(location?: string): LocationDetails {
-  if (!location?.trim()) return {};
-
-  const raw = location.trim();
-  const lower = raw.toLowerCase();
-
-  let campus: Campus | undefined;
-  if (lower.includes("loyola")) campus = "LOY";
-  else if (lower.includes("sir george") || lower.includes("sgw")) {
-    campus = "SGW";
-  }
-
-  const roomMatch = raw.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
-  const room = roomMatch?.[1];
-
-  const between = extractBetweenCampusAndRm(raw);
-
-  const buildingQuery =
-    between?.replace(/\bbuilding\b/gi, "").trim() || undefined;
-
-  const query = buildingQuery ?? raw;
-
-  let building: Building | undefined;
-
-  if (campus === "LOY") {
-    building = searchLoyolaBuildings(query, 1)[0];
-  } else if (campus === "SGW") {
-    building = searchSGWBuildings(query, 1)[0];
-  } else {
-    building =
-      searchSGWBuildings(query, 1)[0] ?? searchLoyolaBuildings(query, 1)[0];
-  }
-
-  const finalCampus = building?.campus ?? campus;
-
-  return { room, campus: finalCampus, building };
-}
 
 /**
  * Format ISO date to "HH:MM AM/PM" (no seconds).
