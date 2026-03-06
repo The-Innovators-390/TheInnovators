@@ -2,7 +2,7 @@ import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import MonthCalendarCard from "@/components/calendar/MonthCalendarCard";
 
-// ✅ IMPORTANT: variables referenced inside jest.mock factory must start with "mock"
+// IMPORTANT: variables referenced inside jest.mock factory must start with "mock"
 const mockMonthTitle = jest.fn((_d: Date) => "March 2026");
 const mockDateKeyFromDate = jest.fn((d: Date) => {
   const yyyy = d.getFullYear();

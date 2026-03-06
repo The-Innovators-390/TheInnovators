@@ -198,6 +198,14 @@ jest.mock("@/components/campus/BuildingShapesLayer", () => {
 });
 
 // -------------------- Import AFTER mocks --------------------
+jest.mock("expo-router", () => {
+  const actual = jest.requireActual("expo-router");
+  return {
+    __esModule: true,
+    ...actual,
+    useLocalSearchParams: jest.fn(() => ({})),
+  };
+});
 import CampusMap from "../CampusMap";
 
 describe("CampusMap - region wiring (updated code only)", () => {

@@ -6,7 +6,14 @@
  */
 
 import type { Campus } from "@/components/Buildings/types";
-import type { DirectionRoute, DirectionStep, LatLng } from "./googleDirections";
+import {
+  fetchDirections,
+  pickFastestRoute,
+  decodePolyline,
+  type DirectionRoute,
+  type DirectionStep,
+  type LatLng,
+} from "./googleDirections";
 
 // ─── Shuttle Stop Coordinates ─────────────────────────────────────────────────
 
@@ -207,8 +214,11 @@ function getMontrealNow(): { dayName: string; minuteOfDay: number } {
   }).formatToParts(now);
 
   const dayName = parts.find((p) => p.type === "weekday")?.value ?? "";
-  const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
-  const minute = parseInt(
+  const hour = Number.parseInt(
+    parts.find((p) => p.type === "hour")?.value ?? "0",
+    10,
+  );
+  const minute = Number.parseInt(
     parts.find((p) => p.type === "minute")?.value ?? "0",
     10,
   );
@@ -231,14 +241,13 @@ function getTodaySchedule(direction: ShuttleDirection): string[] | null {
   if (day === "saturday" || day === "sunday") return null;
 
   const isFriday = day === "friday";
-  const key =
-    direction === "SGW_TO_LOY"
-      ? isFriday
-        ? "SGW_TO_LOYOLA_FRIDAY"
-        : "SGW_TO_LOYOLA"
-      : isFriday
-        ? "LOYOLA_TO_SGW_FRIDAY"
-        : "LOYOLA_TO_SGW";
+  let key: keyof typeof SCHEDULE;
+
+  if (direction === "SGW_TO_LOY") {
+    key = isFriday ? "SGW_TO_LOYOLA_FRIDAY" : "SGW_TO_LOYOLA";
+  } else {
+    key = isFriday ? "LOYOLA_TO_SGW_FRIDAY" : "LOYOLA_TO_SGW";
+  }
 
   return SCHEDULE[key]?.departures ?? null;
 }
@@ -296,10 +305,10 @@ function encodePolylineValue(value: number): string {
   let v = value < 0 ? ~(value << 1) : value << 1;
   let result = "";
   while (v >= 0x20) {
-    result += String.fromCharCode((0x20 | (v & 0x1f)) + 63);
+    result += String.fromCodePoint((0x20 | (v & 0x1f)) + 63);
     v >>= 5;
   }
-  return result + String.fromCharCode(v + 63);
+  return result + String.fromCodePoint(v + 63);
 }
 
 function encodePolyline(points: LatLng[]): string {
@@ -350,8 +359,10 @@ export function buildShuttleDirectionRoute(
 
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  const durationText =
-    h > 0 ? `${h}h ${m > 0 ? `${m} min` : ""}`.trim() : `${m} min`;
+  let durationText = `${m} min`;
+  if (h > 0) {
+    durationText = m > 0 ? `${h}h ${m} min` : `${h}h`;
+  }
 
   return {
     summary: "Concordia Shuttle",
@@ -361,6 +372,109 @@ export function buildShuttleDirectionRoute(
     distanceMeters: SHUTTLE_DISTANCE_M,
     distanceText: "~8 km",
   };
+}
+
+/**
+ * Builds a shuttle route that follows real roads/paths by composing 3 Google routes:
+ *   1) walking: origin -> boarding stop (dashed)
+ *   2) driving: boarding stop -> alight stop (solid)
+ *   3) walking: alight stop -> destination (dashed)
+ *
+ * Returns null when there is no upcoming shuttle service.
+ */
+export async function buildShuttleDirectionRouteFromGoogle(
+  direction: ShuttleDirection,
+  origin: LatLng,
+  destination: LatLng,
+): Promise<DirectionRoute | null> {
+  const status = getShuttleStatus(direction);
+  if (status !== "operating") return null;
+
+  const next = getNextDepartures(direction, 1);
+  if (next.length === 0) return null;
+
+  const { minuteOfDay } = getMontrealNow();
+  const boardStop =
+    direction === "SGW_TO_LOY" ? SGW_SHUTTLE_STOP : LOY_SHUTTLE_STOP;
+  const alightStop =
+    direction === "SGW_TO_LOY" ? LOY_SHUTTLE_STOP : SGW_SHUTTLE_STOP;
+
+  // Fetch 3 segments in parallel.
+  const [walkToStopRoutes, rideRoutes, walkToDestRoutes] = await Promise.all([
+    fetchDirections({ origin, destination: boardStop, mode: "walking" }),
+    // We use "driving" to force road-following geometry and avoid a straight line.
+    fetchDirections({
+      origin: boardStop,
+      destination: alightStop,
+      mode: "driving",
+    }),
+    fetchDirections({ origin: alightStop, destination, mode: "walking" }),
+  ]);
+
+  const sortByDuration = (rs: DirectionRoute[]) =>
+    [...rs].sort((a, b) => a.durationSec - b.durationSec);
+
+  const walk1 = pickFastestRoute(sortByDuration(walkToStopRoutes));
+  const ride = pickFastestRoute(sortByDuration(rideRoutes));
+  const walk2 = pickFastestRoute(sortByDuration(walkToDestRoutes));
+
+  if (!walk1 || !ride || !walk2) return null;
+
+  // Combined polyline for fit-to-coordinates (avoid duplicates at boundaries).
+  // We keep segment polylines too, so UI can render dashed walking legs.
+  const walk1Pts = decodePolylineSafe(walk1.polyline);
+  const ridePts = decodePolylineSafe(ride.polyline);
+  const walk2Pts = decodePolylineSafe(walk2.polyline);
+
+  const combinedPts = [...walk1Pts, ...ridePts.slice(1), ...walk2Pts.slice(1)];
+  const combinedPolyline =
+    combinedPts.length >= 2 ? encodePolyline(combinedPts) : ride.polyline;
+
+  const waitMin = parseMinutes(next[0]) - minuteOfDay;
+  const waitSec = Math.max(0, waitMin) * 60;
+
+  const totalSec =
+    waitSec + walk1.durationSec + ride.durationSec + walk2.durationSec;
+  const totalMin = Math.round(totalSec / 60);
+
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  let durationText = `${m} min`;
+  if (h > 0) {
+    durationText = m > 0 ? `${h}h ${m} min` : `${h}h`;
+  }
+
+  const totalDistance =
+    walk1.distanceMeters + ride.distanceMeters + walk2.distanceMeters;
+
+  return {
+    summary: "Concordia Shuttle",
+    polyline: combinedPolyline,
+    durationSec: totalSec,
+    durationText,
+    distanceMeters: totalDistance,
+    distanceText: metersToApproxText(totalDistance),
+    segmentPolylines: {
+      walkToStop: walk1.polyline,
+      shuttle: ride.polyline,
+      walkToDestination: walk2.polyline,
+    },
+  };
+}
+
+function decodePolylineSafe(encoded: string): LatLng[] {
+  try {
+    return decodePolyline(encoded);
+  } catch {
+    return [];
+  }
+}
+
+function metersToApproxText(meters: number): string {
+  if (!Number.isFinite(meters) || meters <= 0) return "";
+  const km = meters / 1000;
+  if (km >= 1) return `~${km.toFixed(1)} km`;
+  return `~${Math.round(meters)} m`;
 }
 
 // ─── Build Navigation Steps ───────────────────────────────────────────────────

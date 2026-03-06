@@ -42,7 +42,7 @@ jest.mock("@/components/Buildings/data/SGW_data.json", () => [
     latitude: 45.4978,
     longitude: -73.5795,
     campus: "SGW",
-    // ✅ Must be visible at initial region so marker exists in tests
+    //  Must be visible at initial region so marker exists in tests
     zoomCategory: 1,
     aliases: ["nop", "no polygon"],
     polygon: [],
@@ -244,6 +244,15 @@ jest.mock("react-native-maps", () => {
 });
 
 //  Import AFTER mocks
+jest.mock("expo-router", () => {
+  const actual = jest.requireActual("expo-router");
+  // @ts-ignore
+  return {
+    __esModule: true,
+    ...actual,
+    useLocalSearchParams: jest.fn(() => ({})),
+  };
+});
 import CampusMap from "../CampusMap";
 
 import {

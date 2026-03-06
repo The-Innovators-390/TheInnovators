@@ -8,6 +8,12 @@ import {
   LOY_REGION,
 } from "../helper_methods/campusMap.constants";
 
+// Mock expo-router
+jest.mock("expo-router", () => ({
+  __esModule: true,
+  useLocalSearchParams: jest.fn(() => ({})),
+}));
+
 // Silence icon async setState warnings
 jest.mock("@expo/vector-icons", () => {
   return new Proxy(
@@ -33,7 +39,7 @@ jest.mock("@/components/layout/BrandBar", () => () => null);
 
 // Make ToggleButton controllable
 jest.mock("../ToggleButton", () => {
-  const React = require("react");
+  const ReactActual = require("react");
   const { View, Pressable, Text } = require("react-native");
   return function MockToggleButton(props: any) {
     return (
@@ -60,6 +66,7 @@ jest.mock("../ToggleButton", () => {
 const mockGetDeviceLocation = jest.fn(() => new Promise(() => {}));
 jest.mock("../helper_methods/locationUtils", () => ({
   getDeviceLocation: () => mockGetDeviceLocation(),
+  LocationError: class LocationError extends Error {},
 }));
 
 // CampusMap imports these from campusMap.buildings (NOT locationUtils)
@@ -70,17 +77,63 @@ jest.mock("../helper_methods/campusMap.buildings", () => ({
   makeUserLocationBuilding: () => null,
 }));
 
+jest.mock("@/hooks/useNavigation", () => ({
+  useNavigation: () => ({
+    isRouteMode: false,
+    routeStart: null,
+    routeDest: null,
+    activeField: "destination",
+    routeError: null,
+    toggleRouteMode: jest.fn(),
+    setRouteStart: jest.fn(),
+    setRouteDest: jest.fn(),
+    setActiveField: jest.fn(),
+    setFieldFromBuilding: jest.fn(),
+    validateRouteRequest: jest.fn(() => true),
+    setRouteError: jest.fn(),
+    clearStart: jest.fn(),
+    clearDestination: jest.fn(),
+    setIsRouteMode: jest.fn(),
+  }),
+}));
+
+jest.mock("@/hooks/useRouteNavigation", () => ({
+  useRouteNavigation: () => ({
+    isNavigating: false,
+    isStarting: false,
+    navError: null,
+    isNearStart: false,
+    activeSteps: [],
+    activeStepIndex: 0,
+    currentStep: null,
+    activeSummary: null,
+    isArrived: false,
+    startNavigation: jest.fn(),
+    startNavigationWithSteps: jest.fn(),
+    exitNavigation: jest.fn(),
+    nextStep: jest.fn(),
+    prevStep: jest.fn(),
+    setActiveStepIndex: jest.fn(),
+  }),
+}));
+
+jest.mock("@/hooks/useUserRole", () => ({
+  useUserRole: () => ({ role: "visitor", loading: false }),
+  isShuttleEligible: () => false,
+}));
+
 // Mock react-native-maps and capture animateToRegion
 const mockAnimateToRegion = jest.fn();
 
 jest.mock("react-native-maps", () => {
-  const React = require("react");
+  const ReactActual = require("react");
   const { View } = require("react-native");
 
-  // eslint-disable-next-line react/display-name
-  const MapView = React.forwardRef((props: any, ref: any) => {
-    React.useImperativeHandle(ref, () => ({
+  const MapView = ReactActual.forwardRef((props: any, ref: any) => {
+    ReactActual.useImperativeHandle(ref, () => ({
       animateToRegion: mockAnimateToRegion,
+      fitToCoordinates: jest.fn(),
+      animateCamera: jest.fn(),
     }));
     return (
       <View {...props} testID={props.testID ?? "mapView"}>
@@ -95,6 +148,7 @@ jest.mock("react-native-maps", () => {
     PROVIDER_GOOGLE: "google",
     Marker: (p: any) => <View {...p} />,
     Polygon: (p: any) => <View {...p} />,
+    Polyline: (p: any) => <View {...p} />,
   };
 });
 

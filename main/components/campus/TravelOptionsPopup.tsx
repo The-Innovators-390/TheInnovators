@@ -22,6 +22,7 @@ import type {
   ShuttleInfo,
   ShuttleStatus,
 } from "@/components/campus/helper_methods/shuttleSchedule";
+import { getRouteStrategy, RouteChip } from "./helper_methods/routeStrategy";
 
 const ICON_SUBWAY = require("../../assets/icons/icon-subway.png");
 const ICON_BUS = require("../../assets/icons/icon-bus.png");
@@ -47,27 +48,27 @@ type Props = {
 
 //formatting the transitDetails we extracted from the directions response to be more user friendly when displayed on the UI
 //i.e. show the bus number of the buses used to create the routes given to the user instead of simple duration
-function getBusDetails(route: DirectionRoute): string[] {
+function getBusDetails(lines: RouteChip[] | undefined): string[] {
   const set = new Set<string>();
 
-  for (const line of route.transitLines ?? []) {
-    if (line.vehicleType?.toLowerCase() === "bus" && line.name) {
-      set.add(line.name);
+  for (const line of lines ?? []) {
+    if (line.kind?.toLowerCase() === "bus" && line.label) {
+      set.add(line.label);
     }
   }
   return [...set];
 }
 
-function getMetroDetails(route: DirectionRoute): string[] {
+function getMetroDetails(lines: RouteChip[] | undefined): string[] {
   const set = new Set<string>();
 
-  for (const line of route.transitLines ?? []) {
+  for (const line of lines ?? []) {
     if (
-      (line.vehicleType?.toLowerCase() === "subway" ||
-        line.vehicleType?.toLowerCase() === "metro") &&
-      line.name
+      (line.kind?.toLowerCase() === "subway" ||
+        line.kind?.toLowerCase() === "metro") &&
+      line.label
     ) {
-      set.add(line.name);
+      set.add(line.label);
     }
   }
   return [...set];
@@ -403,8 +404,11 @@ export default function TravelOptionsPopup({
           /* ── Standard Google-routes list ── */
           routes.map((r, idx) => {
             const active = idx === selectedRouteIndex;
-            const buses = selectedMode === "transit" ? getBusDetails(r) : [];
-            const metros = selectedMode === "transit" ? getMetroDetails(r) : [];
+            const strategy = getRouteStrategy(selectedMode);
+            const chipLines = strategy?.getChips(r) ?? [];
+
+            const buses = getBusDetails(chipLines);
+            const metros = getMetroDetails(chipLines);
 
             return (
               <Pressable
@@ -420,39 +424,38 @@ export default function TravelOptionsPopup({
                     <Text style={s.routeSummary}>{r.summary}</Text>
                   )}
 
-                  {selectedMode === "transit" &&
-                    (r.transitLines?.length ?? 0) > 0 && (
-                      <View style={s.transitRow}>
-                        {buses.slice(0, 4).map((bus) => (
+                  {chipLines.length > 0 && (
+                    <View style={s.transitRow}>
+                      {buses.slice(0, 4).map((bus) => (
+                        <LineChip
+                          key={`bus-${bus}`}
+                          label={bus}
+                          iconSource={ICON_BUS}
+                          backgroundColor="rgba(0, 98, 255, 0.12)"
+                          textColor="#111"
+                        />
+                      ))}
+
+                      {buses.length > 4 && (
+                        <Text style={s.moreText}>+{buses.length - 4}</Text>
+                      )}
+
+                      {metros.slice(0, 2).map((metro) => {
+                        const bg = metroLineColor(metro);
+                        const fg = metroTextColor(bg);
+
+                        return (
                           <LineChip
-                            key={`bus-${bus}`}
-                            label={bus}
-                            iconSource={ICON_BUS}
-                            backgroundColor="rgba(0, 98, 255, 0.12)"
-                            textColor="#111"
+                            key={`metro-${metro}`}
+                            label={metro}
+                            iconSource={ICON_SUBWAY}
+                            backgroundColor={bg}
+                            textColor={fg}
                           />
-                        ))}
-
-                        {buses.length > 4 && (
-                          <Text style={s.moreText}>+{buses.length - 4}</Text>
-                        )}
-
-                        {metros.slice(0, 2).map((metro) => {
-                          const bg = metroLineColor(metro);
-                          const fg = metroTextColor(bg);
-
-                          return (
-                            <LineChip
-                              key={`metro-${metro}`}
-                              label={metro}
-                              iconSource={ICON_SUBWAY}
-                              backgroundColor={bg}
-                              textColor={fg}
-                            />
-                          );
-                        })}
-                      </View>
-                    )}
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
 
                 <Pressable

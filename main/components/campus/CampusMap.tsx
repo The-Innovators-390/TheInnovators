@@ -13,6 +13,7 @@ import {
   Platform,
   StyleSheet,
 } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
 import {
   getDeviceLocation,
@@ -65,6 +66,7 @@ import {
   isCampusToCampusRoute,
   getShuttleDirection,
   buildShuttleDirectionRoute,
+  buildShuttleDirectionRouteFromGoogle,
   buildShuttleNavigationSteps,
   buildShuttleInfo,
   type ShuttleDirection,
@@ -170,6 +172,8 @@ export default function CampusMap() {
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
 
+  const { destBuildingId } = useLocalSearchParams<{ destBuildingId: string }>();
+
   const routeStrokeWidth = useMemo(() => {
     const d = region?.latitudeDelta ?? 0.1;
 
@@ -221,6 +225,13 @@ export default function CampusMap() {
   const [startPinTracking, setStartPinTracking] = useState(true);
   const [destPinTracking, setDestPinTracking] = useState(true);
 
+  // NEW: store decoded segment polylines for shuttle (walk dashed + shuttle solid)
+  const [shuttleSegmentCoords, setShuttleSegmentCoords] = useState<null | {
+    walkToStop: { latitude: number; longitude: number }[];
+    shuttle: { latitude: number; longitude: number }[];
+    walkToDestination: { latitude: number; longitude: number }[];
+  }>(null);
+
   // Keep tracksViewChanges=true for 500 ms after building changes, then stop.
   // Using a timer (not onLoad) ensures the image is fully painted before we
   // stop re-capturing — onLoad fires when data is decoded, not when painted.
@@ -258,6 +269,22 @@ export default function CampusMap() {
     () => buildAllBuildings(SGW_BUILDINGS, LOYOLA_BUILDINGS),
     [],
   );
+
+  useEffect(() => {
+    if (!destBuildingId) return;
+
+    const targetBuilding = ALL_BUILDINGS.find((b) => b.id === destBuildingId);
+    if (targetBuilding) {
+      if (!nav.isRouteMode) nav.setIsRouteMode(true);
+      nav.setRouteDest(targetBuilding);
+      setDestText(`${targetBuilding.code} - ${targetBuilding.name}`);
+      setStartToCurrentLocation();
+      setSelected(null);
+      setPopupIndex(-1);
+      setQuery("");
+      focusBuilding(targetBuilding);
+    }
+  }, [destBuildingId, ALL_BUILDINGS]);
 
   const handleLocationFound = (location: UserLocation) => {
     setUserLocation(location);
@@ -340,15 +367,16 @@ export default function CampusMap() {
     if (!nav.isRouteMode || !start || !dest) {
       setTravelPopupVisible(false);
       setAllRouteCoords([]);
+      setShuttleSegmentCoords(null);
       return;
     }
 
     setDirectionsError(null);
 
     //clears out old routes
-
     setTravelPopupVisible(false);
     setAllRouteCoords([]);
+    setShuttleSegmentCoords(null);
     setRoutesByMode({
       driving: [],
       transit: [],
@@ -385,12 +413,20 @@ export default function CampusMap() {
 
         // T-9.6: compute shuttle route locally — only for eligible roles (T-9.2)
         if (shuttleDirection && shuttleEligible) {
-          const shuttleRoute = buildShuttleDirectionRoute(
+          // Prefer Google-based segment geometry to avoid straight-line (driving logic for shuttle leg).
+          const shuttleRoute = await buildShuttleDirectionRouteFromGoogle(
             shuttleDirection,
             origin,
             destination,
           );
-          next["shuttle"] = shuttleRoute ? [shuttleRoute] : [];
+
+          // Fallback to synthetic route if Google fails (still shows schedule).
+          const fallback =
+            shuttleRoute ??
+            buildShuttleDirectionRoute(shuttleDirection, origin, destination);
+
+          // IMPORTANT: only one shuttle option
+          next["shuttle"] = fallback ? [fallback] : [];
         }
 
         setRoutesByMode(next);
@@ -403,6 +439,7 @@ export default function CampusMap() {
         if (totalRoutes === 0) {
           setTravelPopupVisible(false);
           setAllRouteCoords([]);
+          setShuttleSegmentCoords(null);
           setDirectionsError(
             "No route found for this selection. Try another mode",
           );
@@ -432,6 +469,23 @@ export default function CampusMap() {
         const safeIndex = Math.max(0, fastestIndex);
         const selectedCoords = decodedAll[safeIndex] ?? [];
 
+        // If shuttle is selected, decode segment polylines (for dashed walking legs).
+        if (bestMode === "shuttle") {
+          const r = routesForMode[safeIndex];
+          const seg = r?.segmentPolylines;
+          if (seg) {
+            setShuttleSegmentCoords({
+              walkToStop: decodePolyline(seg.walkToStop),
+              shuttle: decodePolyline(seg.shuttle),
+              walkToDestination: decodePolyline(seg.walkToDestination),
+            });
+          } else {
+            setShuttleSegmentCoords(null);
+          }
+        } else {
+          setShuttleSegmentCoords(null);
+        }
+
         // Fit map to route
         if (selectedCoords.length >= 2) {
           mapRef.current?.fitToCoordinates(selectedCoords, {
@@ -444,6 +498,7 @@ export default function CampusMap() {
           // Don’t break existing UX; just hide travel popup if directions fail
           setTravelPopupVisible(false);
           setAllRouteCoords([]);
+          setShuttleSegmentCoords(null);
 
           setDirectionsError(toDirectionsErrorMessage(e));
         }
@@ -629,6 +684,22 @@ export default function CampusMap() {
       setSelectedMode(mode);
       setSelectedRouteIndex(routeIndex);
 
+      // NEW: for shuttle, decode segment polylines (dashed walking segments)
+      if (mode === "shuttle") {
+        const seg = chosen.segmentPolylines;
+        if (seg) {
+          setShuttleSegmentCoords({
+            walkToStop: decodePolyline(seg.walkToStop),
+            shuttle: decodePolyline(seg.shuttle),
+            walkToDestination: decodePolyline(seg.walkToDestination),
+          });
+        } else {
+          setShuttleSegmentCoords(null);
+        }
+      } else {
+        setShuttleSegmentCoords(null);
+      }
+
       const coords = decodedAll[routeIndex] ?? [];
 
       if (coords.length >= 2) {
@@ -706,32 +777,78 @@ export default function CampusMap() {
           </Marker>
         )}
 
-        {otherRoutes.map(({ coords, index }) => (
-          <Polyline
-            key={`${selectedMode}-${index}-${routeStrokeWidth}`}
-            coordinates={coords}
-            tappable
-            onPress={() => applySelection(selectedMode, index)}
-            strokeWidth={Math.max(2, routeStrokeWidth - 2)}
-            strokeColor="#8FB5FF"
-            lineDashPattern={selectedMode === "walking" ? [10, 8] : undefined}
-            lineCap="round"
-            lineJoin="round"
-          />
-        ))}
+        {/* NEW: Shuttle rendering (3-part polyline with dashed walking segments) */}
+        {selectedMode === "shuttle" && shuttleSegmentCoords ? (
+          <>
+            {shuttleSegmentCoords.walkToStop.length > 0 && (
+              <Polyline
+                key={`shuttle-walk1-${routeStrokeWidth}`}
+                coordinates={shuttleSegmentCoords.walkToStop}
+                strokeWidth={routeStrokeWidth}
+                strokeColor="#4286f5"
+                lineDashPattern={[10, 8]}
+                lineCap="round"
+                lineJoin="round"
+              />
+            )}
 
-        {selectedCoordsForRender.length > 0 && (
-          <Polyline
-            key={`${selectedMode}-selected-${selectedRouteIndex}-${routeStrokeWidth}`}
-            coordinates={selectedCoordsForRender}
-            tappable
-            onPress={() => applySelection(selectedMode, selectedRouteIndex)}
-            strokeWidth={routeStrokeWidth}
-            strokeColor="#4286f5"
-            lineDashPattern={selectedMode === "walking" ? [10, 8] : undefined}
-            lineCap="round"
-            lineJoin="round"
-          />
+            {shuttleSegmentCoords.shuttle.length > 0 && (
+              <Polyline
+                key={`shuttle-ride-${routeStrokeWidth}`}
+                coordinates={shuttleSegmentCoords.shuttle}
+                strokeWidth={routeStrokeWidth}
+                strokeColor="#912338"
+                lineCap="round"
+                lineJoin="round"
+              />
+            )}
+
+            {shuttleSegmentCoords.walkToDestination.length > 0 && (
+              <Polyline
+                key={`shuttle-walk2-${routeStrokeWidth}`}
+                coordinates={shuttleSegmentCoords.walkToDestination}
+                strokeWidth={routeStrokeWidth}
+                strokeColor="#4286f5"
+                lineDashPattern={[10, 8]}
+                lineCap="round"
+                lineJoin="round"
+              />
+            )}
+          </>
+        ) : (
+          <>
+            {otherRoutes.map(({ coords, index }) => (
+              <Polyline
+                key={`${selectedMode}-${index}-${routeStrokeWidth}`}
+                coordinates={coords}
+                tappable
+                onPress={() => applySelection(selectedMode, index)}
+                strokeWidth={Math.max(2, routeStrokeWidth - 2)}
+                strokeColor="#8FB5FF"
+                lineDashPattern={
+                  selectedMode === "walking" ? [10, 8] : undefined
+                }
+                lineCap="round"
+                lineJoin="round"
+              />
+            ))}
+
+            {selectedCoordsForRender.length > 0 && (
+              <Polyline
+                key={`${selectedMode}-selected-${selectedRouteIndex}-${routeStrokeWidth}`}
+                coordinates={selectedCoordsForRender}
+                tappable
+                onPress={() => applySelection(selectedMode, selectedRouteIndex)}
+                strokeWidth={routeStrokeWidth}
+                strokeColor="#4286f5"
+                lineDashPattern={
+                  selectedMode === "walking" ? [10, 8] : undefined
+                }
+                lineCap="round"
+                lineJoin="round"
+              />
+            )}
+          </>
         )}
 
         {nav.routeStart && (
@@ -886,6 +1003,7 @@ export default function CampusMap() {
 
                   setTravelPopupVisible(false);
                   setAllRouteCoords([]);
+                  setShuttleSegmentCoords(null);
                   setRoutesByMode({
                     driving: [],
                     transit: [],
@@ -903,6 +1021,7 @@ export default function CampusMap() {
 
                   setTravelPopupVisible(false);
                   setAllRouteCoords([]);
+                  setShuttleSegmentCoords(null);
                   setRoutesByMode({
                     driving: [],
                     transit: [],
@@ -958,6 +1077,8 @@ export default function CampusMap() {
               setStartText("");
               setDestText("");
               setQuery("");
+              setAllRouteCoords([]);
+              setShuttleSegmentCoords(null);
 
               nav.toggleRouteMode();
             }}
@@ -1006,14 +1127,32 @@ export default function CampusMap() {
               // Allow selecting shuttle to view schedule even when no routes
               setSelectedMode("shuttle");
               setSelectedRouteIndex(0);
+
+              const r = routesByMode.shuttle[0];
               if (routesByMode.shuttle.length > 0) {
-                const decodedAll = routesByMode.shuttle.map((r) =>
-                  decodePolyline(r.polyline),
+                const decodedAll = routesByMode.shuttle.map((x) =>
+                  decodePolyline(x.polyline),
                 );
                 setAllRouteCoords(decodedAll);
+
+                // NEW: decode segments for dashed walking legs if present
+                const seg = r?.segmentPolylines;
+                if (seg) {
+                  setShuttleSegmentCoords({
+                    walkToStop: decodePolyline(seg.walkToStop),
+                    shuttle: decodePolyline(seg.shuttle),
+                    walkToDestination: decodePolyline(seg.walkToDestination),
+                  });
+                } else {
+                  setShuttleSegmentCoords(null);
+                }
+              } else {
+                setAllRouteCoords([]);
+                setShuttleSegmentCoords(null);
               }
               return;
             }
+
             // Non-shuttle: default to fastest route (index 0)
             applySelection(mode, 0);
           }}
@@ -1076,6 +1215,7 @@ export default function CampusMap() {
         }}
         accentColor={focusedCampus === "SGW" ? "#912338" : "#E0B100"}
       />
+
       <NavigationOverlay
         isNavigating={routeNavigation.isNavigating}
         isNearStart={routeNavigation.isNearStart}
@@ -1112,6 +1252,7 @@ export default function CampusMap() {
         onExit={() => {
           routeNavigation.exitNavigation();
           setAllRouteCoords([]);
+          setShuttleSegmentCoords(null);
         }}
       />
 

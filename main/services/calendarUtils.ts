@@ -1,3 +1,10 @@
+import {
+  searchSGWBuildings,
+  searchLoyolaBuildings,
+} from "@/components/Buildings/search";
+
+import type { Building } from "@/components/Buildings/types";
+
 export function pad2(n: number) {
   return n < 10 ? `0${n}` : `${n}`;
 }
@@ -100,4 +107,137 @@ export function monthTitle(d: Date) {
     "December",
   ];
   return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+export type Campus = "SGW" | "LOY";
+
+export type LocationDetails = {
+  room?: string;
+  campus?: Campus;
+  building?: Building;
+};
+
+function extractBetweenCampusAndRm(raw: string): string | undefined {
+  const lower = raw.toLowerCase();
+
+  const campusIdx = lower.indexOf("campus");
+  if (campusIdx === -1) return undefined;
+
+  const dashIdx = lower.indexOf("-", campusIdx);
+  if (dashIdx === -1) return undefined;
+
+  const rmIdx = lower.indexOf("rm", dashIdx + 1);
+  if (rmIdx === -1) return undefined;
+
+  const between = raw.slice(dashIdx + 1, rmIdx).trim();
+  return between || undefined;
+}
+
+function removeParenthesizedText(input: string): string {
+  let result = "";
+  let depth = 0;
+
+  for (const ch of input) {
+    if (ch === "(") {
+      depth += 1;
+      continue;
+    }
+
+    if (ch === ")") {
+      if (depth > 0) depth -= 1;
+      continue;
+    }
+
+    if (depth === 0) {
+      result += ch;
+    }
+  }
+
+  return result;
+}
+
+function extractFirstParenthesizedText(input: string): string | undefined {
+  const start = input.indexOf("(");
+  if (start === -1) return undefined;
+
+  const end = input.indexOf(")", start + 1);
+  if (end === -1) return undefined;
+
+  const value = input.slice(start + 1, end).trim();
+  return value || undefined;
+}
+
+export function parseLocationDetails(location?: string): LocationDetails {
+  if (!location?.trim()) return {};
+
+  const raw = location.trim();
+  const lower = raw.toLowerCase();
+
+  // 1) Detect Campus
+  let campus: Campus | undefined;
+  if (lower.includes("loyola")) campus = "LOY";
+  else if (lower.includes("sir george") || lower.includes("sgw")) {
+    campus = "SGW";
+  }
+
+  // 2) Extract Room
+  const roomMatch = raw.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
+  const room = roomMatch?.[1];
+
+  // 3) Extract building candidate text
+  const between = extractBetweenCampusAndRm(raw);
+
+  const baseQuery = removeParenthesizedText(between ?? raw)
+    .replace(/\bRm\b.*$/i, "")
+    .replace(/\broom\b.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const cleaned = baseQuery
+    .replace(/\b(campus|sir george|sgw|loyola)\b/gi, "")
+    .trim();
+
+  // Build a list of queries to try (most → least likely)
+  const queriesToTry = Array.from(
+    new Set(
+      [
+        cleaned,
+        cleaned.toLowerCase().includes("building")
+          ? null
+          : `${cleaned} building`,
+        raw,
+        raw.toLowerCase().includes("building") ? null : `${raw} building`,
+        between ?? null,
+        between && !between.toLowerCase().includes("building")
+          ? `${between} building`
+          : null,
+      ].filter(Boolean) as string[],
+    ),
+  );
+
+  const runSearch = (q: string) => {
+    if (!q.trim()) return undefined;
+    if (campus === "LOY") return searchLoyolaBuildings(q, 1)[0];
+    if (campus === "SGW") return searchSGWBuildings(q, 1)[0];
+    return searchSGWBuildings(q, 1)[0] ?? searchLoyolaBuildings(q, 1)[0];
+  };
+
+  let building: Building | undefined;
+
+  // 4) Try all query variants
+  for (const q of queriesToTry) {
+    building = runSearch(q);
+    if (building) break;
+  }
+
+  // 5) Fallback: building code in parentheses (MB)
+  if (!building) {
+    const code = extractFirstParenthesizedText(raw);
+    if (code) {
+      building = runSearch(code);
+    }
+  }
+
+  const finalCampus = building?.campus ?? campus;
+  return { room, campus: finalCampus, building };
 }

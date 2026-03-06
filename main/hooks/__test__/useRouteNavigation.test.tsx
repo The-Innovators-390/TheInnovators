@@ -7,11 +7,11 @@ import type {
   LatLng,
 } from "@/components/campus/helper_methods/googleDirections";
 
-import { fetchDirectionsWithSteps } from "@/components/campus/helper_methods/googleDirections";
+import { fetchDirections } from "@/components/campus/helper_methods/googleDirections";
 import { distanceMeters } from "@/components/campus/helper_methods/geo";
 
 jest.mock("@/components/campus/helper_methods/googleDirections", () => ({
-  fetchDirectionsWithSteps: jest.fn(),
+  fetchDirections: jest.fn(),
 }));
 
 jest.mock("@/components/campus/helper_methods/geo", () => ({
@@ -60,7 +60,7 @@ describe("useRouteNavigation", () => {
   });
 
   it("startNavigation sorts by duration and selects by index; sets state and calls onStarted", async () => {
-    (fetchDirectionsWithSteps as jest.Mock).mockResolvedValue([
+    (fetchDirections as jest.Mock).mockResolvedValue([
       makeRoute(600, origin, destination), // 10 min
       makeRoute(300, origin, destination), // 5 min
     ]);
@@ -95,7 +95,7 @@ describe("useRouteNavigation", () => {
   });
 
   it("auto-advances when near start and near end of current step (not last step)", async () => {
-    (fetchDirectionsWithSteps as jest.Mock).mockResolvedValue([
+    (fetchDirections as jest.Mock).mockResolvedValue([
       makeRoute(300, origin, destination),
     ]);
 
@@ -129,7 +129,7 @@ describe("useRouteNavigation", () => {
   });
 
   it("does not auto-advance until near start (isNearStart stays false)", async () => {
-    (fetchDirectionsWithSteps as jest.Mock).mockResolvedValue([
+    (fetchDirections as jest.Mock).mockResolvedValue([
       makeRoute(300, origin, destination),
     ]);
 
@@ -165,7 +165,7 @@ describe("useRouteNavigation", () => {
   });
 
   it("exitNavigation resets state", async () => {
-    (fetchDirectionsWithSteps as jest.Mock).mockResolvedValue([
+    (fetchDirections as jest.Mock).mockResolvedValue([
       makeRoute(300, origin, destination),
     ]);
 

@@ -25,14 +25,17 @@ import {
   type CalendarEvent,
 } from "@/services/googleCalendar";
 
+import { parseLocationDetails } from "@/services/calendarUtils";
+
 import { styles } from "@/components/calendar/calendarStyles";
 
 import { useCalendarDerived } from "@/hooks/useCalendarDerived";
 
 import MonthCalendarCard from "@/components/calendar/MonthCalendarCard";
 
-import UpcomingEvents from "@/components/calendar/UpcomingEvents";
+import FindNextClass from "@/components/calendar/FindNextClass";
 
+import UpcomingEvents from "@/components/calendar/UpcomingEvents";
 import OtherCalendars from "@/components/calendar/OtherCalendars";
 
 export default function CalendarScreen() {
@@ -69,6 +72,28 @@ export default function CalendarScreen() {
 
   const goToMap = useCallback(() => {
     router.replace("/(tabs)/map");
+  }, []);
+
+  const handlePressDirections = useCallback((event: CalendarEvent) => {
+    if (!event.location?.trim()) {
+      Alert.alert("No Location", "This event has no location information.");
+      return;
+    }
+
+    const { building } = parseLocationDetails(event.location);
+
+    if (!building) {
+      Alert.alert(
+        "Location not found",
+        `We couldn't find a Concordia building for: "${event.location}".`,
+      );
+      return;
+    }
+
+    router.push({
+      pathname: "/(tabs)/map",
+      params: { destBuildingId: building.id },
+    });
   }, []);
 
   const refreshState = useCallback(async () => {
@@ -237,18 +262,28 @@ export default function CalendarScreen() {
   // NOT signed in
   if (!signedIn) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.header}>Not logged in!</Text>
+      <View style={styles.center} testID="calendar-notSignedIn">
+        <Text style={styles.header} testID="calendar-notSignedIn-header">
+          Not logged in!
+        </Text>
         <Text style={styles.body}>
           Connect to your Google Calendar account to have access to the{"\n"}
           “Directions to my next class” feature!
         </Text>
 
-        <Pressable style={styles.googleBtn} onPress={onSignInPress}>
+        <Pressable
+          style={styles.googleBtn}
+          onPress={onSignInPress}
+          testID="calendar-signInButton"
+        >
           <Text style={styles.googleBtnText}>Sign in with Google</Text>
         </Pressable>
 
-        <Pressable style={styles.redBtn} onPress={goToMap}>
+        <Pressable
+          style={styles.redBtn}
+          onPress={goToMap}
+          testID="calendar-returnToMap"
+        >
           <Text style={styles.redBtnText}>Return to map</Text>
         </Pressable>
       </View>
@@ -258,14 +293,17 @@ export default function CalendarScreen() {
   // Signed in but not connected (fallback UI; alert also appears)
   if (!calendarConnected) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.header}>Connect Google Calendar</Text>
+      <View style={styles.center} testID="calendar-notConnected">
+        <Text style={styles.header} testID="calendar-notConnected-header">
+          Connect Google Calendar
+        </Text>
         <Text style={styles.body}>
           Connect your Google Calendar account to have access to the{"\n"}
           “Directions to my next class” feature!
         </Text>
 
         <Pressable
+          testID="calendar-connectCalendarButton"
           style={styles.googleBtn}
           onPress={async () => {
             try {
@@ -286,7 +324,11 @@ export default function CalendarScreen() {
           <Text style={styles.googleBtnText}>Connect Google Calendar</Text>
         </Pressable>
 
-        <Pressable style={styles.redBtn} onPress={goToMap}>
+        <Pressable
+          style={styles.redBtn}
+          onPress={goToMap}
+          testID="calendar-returnToMap"
+        >
           <Text style={styles.redBtnText}>Return to map</Text>
         </Pressable>
       </View>
@@ -296,6 +338,7 @@ export default function CalendarScreen() {
   // Connected: real calendar + upcoming events
   return (
     <ScrollView
+      testID="calendar-connected"
       style={styles.page}
       contentContainerStyle={styles.pageContent}
       refreshControl={
@@ -311,18 +354,18 @@ export default function CalendarScreen() {
         styles={styles}
       />
 
+      <FindNextClass
+        calendarId={activeCalendarId}
+        onPressDirections={handlePressDirections}
+      />
+
       <UpcomingEvents
         eventsLoading={eventsLoading}
         eventsError={eventsError}
         events={events}
         grouped={grouped}
         styles={styles}
-        onPressDirections={(e) =>
-          Alert.alert(
-            "Directions",
-            "Next step: connect this to your directions feature.",
-          )
-        }
+        onPressDirections={handlePressDirections}
       />
 
       <OtherCalendars

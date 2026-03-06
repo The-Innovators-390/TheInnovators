@@ -179,6 +179,10 @@ jest.mock("react-native-maps", () => {
 });
 
 //  Import AFTER mocks
+jest.mock("expo-router", () => ({
+  __esModule: true,
+  useLocalSearchParams: jest.fn(() => ({})),
+}));
 import CampusMap from "../CampusMap";
 
 beforeEach(() => {
