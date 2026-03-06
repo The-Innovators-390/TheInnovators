@@ -62,6 +62,19 @@ jest.mock("react-native-gesture-handler", () => {
   };
 });
 
+jest.mock("react-native-smartlook-analytics", () => ({
+  __esModule: true,
+  default: {
+    instance: {
+      preferences: {
+        setProjectKey: jest.fn(),
+      },
+      start: jest.fn(),
+      stop: jest.fn(),
+    },
+  },
+}));
+
 // ✅ test file is at main/_test_/ so app is one level up
 import Layout from "../app/_layout";
 
