@@ -1,3 +1,10 @@
+import {
+  searchSGWBuildings,
+  searchLoyolaBuildings,
+} from "@/components/Buildings/search";
+
+import type { Building } from "@/components/Buildings/types";
+
 export function pad2(n: number) {
   return n < 10 ? `0${n}` : `${n}`;
 }
@@ -102,13 +109,6 @@ export function monthTitle(d: Date) {
   return `${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-import {
-  searchSGWBuildings,
-  searchLoyolaBuildings,
-} from "@/components/Buildings/search";
-
-import type { Building } from "@/components/Buildings/types";
-
 export type Campus = "SGW" | "LOY";
 
 export type LocationDetails = {
@@ -133,6 +133,40 @@ function extractBetweenCampusAndRm(raw: string): string | undefined {
   return between || undefined;
 }
 
+function removeParenthesizedText(input: string): string {
+  let result = "";
+  let depth = 0;
+
+  for (const ch of input) {
+    if (ch === "(") {
+      depth += 1;
+      continue;
+    }
+
+    if (ch === ")") {
+      if (depth > 0) depth -= 1;
+      continue;
+    }
+
+    if (depth === 0) {
+      result += ch;
+    }
+  }
+
+  return result;
+}
+
+function extractFirstParenthesizedText(input: string): string | undefined {
+  const start = input.indexOf("(");
+  if (start === -1) return undefined;
+
+  const end = input.indexOf(")", start + 1);
+  if (end === -1) return undefined;
+
+  const value = input.slice(start + 1, end).trim();
+  return value || undefined;
+}
+
 export function parseLocationDetails(location?: string): LocationDetails {
   if (!location?.trim()) return {};
 
@@ -142,8 +176,9 @@ export function parseLocationDetails(location?: string): LocationDetails {
   // 1) Detect Campus
   let campus: Campus | undefined;
   if (lower.includes("loyola")) campus = "LOY";
-  else if (lower.includes("sir george") || lower.includes("sgw"))
+  else if (lower.includes("sir george") || lower.includes("sgw")) {
     campus = "SGW";
+  }
 
   // 2) Extract Room
   const roomMatch = raw.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
@@ -152,15 +187,12 @@ export function parseLocationDetails(location?: string): LocationDetails {
   // 3) Extract building candidate text
   const between = extractBetweenCampusAndRm(raw);
 
-  const baseQuery = (between ?? raw)
-    .replace(/\([^)]*\)/g, "") // remove (MB)
-    .replace(/\bRm\b.*$/i, "") // remove everything after "Rm"
-    .replace(/\broom\b.*$/i, "") // remove everything after "room"
+  const baseQuery = removeParenthesizedText(between ?? raw)
+    .replace(/\bRm\b.*$/i, "")
+    .replace(/\broom\b.*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Important: DON’T remove "building" anymore — sometimes schedule builder doesn't include it,
-  // but your JSON DOES include it. We will try both.
   const cleaned = baseQuery
     .replace(/\b(campus|sir george|sgw|loyola)\b/gi, "")
     .trim();
@@ -170,14 +202,11 @@ export function parseLocationDetails(location?: string): LocationDetails {
     new Set(
       [
         cleaned,
-        // If Schedule Builder omitted the word "Building"
         cleaned.toLowerCase().includes("building")
           ? null
           : `${cleaned} building`,
-        // Sometimes the raw string is better
         raw,
         raw.toLowerCase().includes("building") ? null : `${raw} building`,
-        // If we extracted "between", try it too
         between ?? null,
         between && !between.toLowerCase().includes("building")
           ? `${between} building`
@@ -203,8 +232,7 @@ export function parseLocationDetails(location?: string): LocationDetails {
 
   // 5) Fallback: building code in parentheses (MB)
   if (!building) {
-    const codeMatch = raw.match(/\(([^)]+)\)/);
-    const code = codeMatch?.[1]?.trim();
+    const code = extractFirstParenthesizedText(raw);
     if (code) {
       building = runSearch(code);
     }
