@@ -236,6 +236,14 @@ jest.mock("react-native-maps", () => {
 });
 
 // Import AFTER mocks
+jest.mock("expo-router", () => {
+  const actual = jest.requireActual("expo-router");
+  return {
+    __esModule: true,
+    ...actual,
+    useLocalSearchParams: jest.fn(() => ({})),
+  };
+});
 import CampusMap from "../CampusMap";
 
 const googleDirections =

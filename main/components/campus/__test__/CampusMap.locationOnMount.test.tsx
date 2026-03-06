@@ -55,6 +55,14 @@ jest.mock("../helper_methods/campusMap.buildings", () => ({
   makeUserLocationBuilding: () => null,
 }));
 
+jest.mock("expo-router", () => {
+  const actual = jest.requireActual("expo-router");
+  return {
+    __esModule: true,
+    ...actual,
+    useLocalSearchParams: jest.fn(() => ({})),
+  };
+});
 import CampusMap from "../CampusMap";
 
 beforeEach(() => {

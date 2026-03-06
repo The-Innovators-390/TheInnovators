@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import {
-  fetchDirectionsWithSteps,
+  fetchDirections,
   type DirectionStep,
   type LatLng,
   type TravelMode,
@@ -104,7 +104,7 @@ export function useRouteNavigation(params: {
       setNavError(null);
 
       try {
-        const detailed = await fetchDirectionsWithSteps({
+        const detailed = await fetchDirections({
           origin,
           destination,
           mode,
@@ -120,7 +120,7 @@ export function useRouteNavigation(params: {
           return;
         }
 
-        setActiveSteps(chosen.steps);
+        setActiveSteps(chosen.steps ?? []);
         setActiveStepIndex(0);
         setActiveSummary({
           mode,

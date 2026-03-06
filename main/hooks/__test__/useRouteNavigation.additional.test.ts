@@ -5,10 +5,10 @@ import type {
   DirectionStep,
   LatLng,
 } from "@/components/campus/helper_methods/googleDirections";
-import { fetchDirectionsWithSteps } from "@/components/campus/helper_methods/googleDirections";
+import { fetchDirections } from "@/components/campus/helper_methods/googleDirections";
 
 jest.mock("@/components/campus/helper_methods/googleDirections", () => ({
-  fetchDirectionsWithSteps: jest.fn(),
+  fetchDirections: jest.fn(),
 }));
 
 jest.mock("@/components/campus/helper_methods/geo", () => ({
@@ -61,7 +61,7 @@ describe("startNavigationWithSteps", () => {
     expect(result.current.activeStepIndex).toBe(0);
     expect(result.current.activeSummary?.mode).toBe("shuttle");
     expect(result.current.activeSummary?.durationSec).toBe(2100);
-    expect(fetchDirectionsWithSteps).not.toHaveBeenCalled();
+    expect(fetchDirections).not.toHaveBeenCalled();
   });
 
   it("calls onStarted callback when using startNavigationWithSteps", () => {
@@ -123,7 +123,7 @@ describe("startNavigation – error paths", () => {
   });
 
   it("sets navError when chosen route index is out of bounds", async () => {
-    (fetchDirectionsWithSteps as jest.Mock).mockResolvedValue([
+    (fetchDirections as jest.Mock).mockResolvedValue([
       {
         durationText: "5 mins",
         durationSec: 300,
@@ -147,8 +147,8 @@ describe("startNavigation – error paths", () => {
     expect(result.current.isStarting).toBe(false);
   });
 
-  it("sets navError when fetchDirectionsWithSteps throws", async () => {
-    (fetchDirectionsWithSteps as jest.Mock).mockRejectedValue(
+  it("sets navError when fetchDirections throws", async () => {
+    (fetchDirections as jest.Mock).mockRejectedValue(
       new Error("Network failure"),
     );
 
@@ -166,7 +166,7 @@ describe("startNavigation – error paths", () => {
   });
 
   it("sets navError from error without message property", async () => {
-    (fetchDirectionsWithSteps as jest.Mock).mockRejectedValue("bare error");
+    (fetchDirections as jest.Mock).mockRejectedValue("bare error");
 
     const { result } = renderHook(() =>
       useRouteNavigation({ origin, destination, userLocation: null }),
