@@ -52,7 +52,6 @@ appId: com.theinnovators.campusguide
     commands:
       - assertVisible:
           id: "calendar-connected"
-
 # - runFlow:
 #     when:
 #       visible:
