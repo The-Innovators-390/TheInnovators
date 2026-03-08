@@ -1,0 +1,72 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "google-sign-in-button"
+    commands:
+      - tapOn:
+          id: "google-sign-in-button"
+      - extendedWaitUntil:
+          visible:
+            id: "campusMap-root"
+          timeout: 60000
+
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 10000
+
+# Open calendar tab the same way as your existing flow
+- tapOn:
+    id: "nextClassButton"
+
+- extendedWaitUntil:
+    visible:
+      id: "upcomingEventsTitle"
+    timeout: 15000
+
+# Scroll down until Other Calendars section is reachable
+- scrollUntilVisible:
+    element:
+      id: "calendarDropdown"
+    direction: DOWN
+    timeout: 20000
+    speed: 60
+    visibilityPercentage: 50
+    waitToSettleTimeoutMs: 500
+
+# Open calendar picker
+- tapOn:
+    id: "calendarDropdown"
+
+- extendedWaitUntil:
+    visible:
+      id: "calendarPickerModal"
+    timeout: 10000
+
+# Select another calendar
+- tapOn:
+    id: "calendarOption-1"
+
+# Scroll to see Select Button
+- scrollUntilVisible:
+    element:
+      id: "selectCalendarButton"
+    direction: DOWN
+    timeout: 15000
+    speed: 60
+    visibilityPercentage: 50
+    waitToSettleTimeoutMs: 500
+
+# Confirm selection
+- tapOn:
+    id: "selectCalendarButton"
+
+- extendedWaitUntil:
+    visible:
+      id: "upcomingEventsTitle"
+    timeout: 15000
