@@ -5,7 +5,7 @@
 <!-- Why is this refactor needed? -->
 <!-- Examples: improve readability, reduce duplication, better separation of concerns, align with design patterns, improve maintainability -->
 
-## Related Issue 
+## Related Issue
 Closes #
 
 ## Scope of Refactor
@@ -40,9 +40,4 @@ Closes #
 <!-- What should reviewers observe? -->
 - Existing functionality continues to work as before
 - Code is cleaner / easier to maintain
-- 
-
-## Technical Debt Addressed
-<!-- Optional: note what maintainability concerns were improved. -->
-- 
 - 
