@@ -45,7 +45,7 @@ export async function signInWithGoogle() {
 }
 
 export async function isGoogleSignedIn() {
-  const gUser = await GoogleSignin.getCurrentUser();
+  const gUser =  GoogleSignin.getCurrentUser();
   return !!gUser;
 }
 
@@ -54,7 +54,7 @@ export async function markGoogleCalendarDisconnected() {
 }
 
 export async function requestGoogleCalendarAccess() {
-  const currentUser = await GoogleSignin.getCurrentUser();
+  const currentUser = GoogleSignin.getCurrentUser();
   if (!currentUser) throw new Error("NOT_SIGNED_IN");
 
   // Ask for calendar scope
@@ -71,7 +71,7 @@ export async function requestGoogleCalendarAccess() {
   if (!accessToken) throw new Error("Google Calendar: missing accessToken");
 
   // Debug token scopes (this endpoint is super useful)
-  let scopeInfo = "";
+    let scopeInfo = "";
   try {
     const tokenInfoRes = await fetch(
       `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${accessToken}`,

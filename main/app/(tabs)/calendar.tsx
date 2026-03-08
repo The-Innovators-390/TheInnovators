@@ -97,7 +97,7 @@ export default function CalendarScreen() {
   }, []);
 
   const refreshState = useCallback(async () => {
-    const user = await GoogleSignin.getCurrentUser();
+    const user = GoogleSignin.getCurrentUser();
     const connected = await isGoogleCalendarConnected();
 
     const signedInNow = !!user;

@@ -34,7 +34,7 @@ type CalendarListApiResponse = {
 };
 
 async function getFreshAccessToken(): Promise<string> {
-  const currentUser = await GoogleSignin.getCurrentUser();
+  const currentUser =  GoogleSignin.getCurrentUser();
   if (!currentUser) throw new Error("Please sign in to use Google Calendar.");
 
   const { accessToken } = await GoogleSignin.getTokens();
