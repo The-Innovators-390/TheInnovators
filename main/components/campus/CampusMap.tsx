@@ -12,6 +12,7 @@ import {
   Pressable,
   Platform,
   StyleSheet,
+  InteractionManager,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
@@ -959,7 +960,7 @@ export default function CampusMap() {
 
         {/* ROUTE MODE UI */}
         {nav.isRouteMode && !routeNavigation.isNavigating && (
-          <>
+          <View testID="routeModeContainer" style={{ gap: 0 }}>
             <View style={routeStyles.routePanel} testID="routePanel">
               <RouteInput
                 start={nav.routeStart}
@@ -1041,7 +1042,7 @@ export default function CampusMap() {
               containerTestID="route-suggestions"
               containerStyle={routeStyles.routeSuggestions}
             />
-          </>
+          </View>
         )}
       </View>
 

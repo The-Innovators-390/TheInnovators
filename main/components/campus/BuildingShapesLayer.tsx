@@ -102,6 +102,7 @@ export default function BuildingShapesLayer({
                 <View
                   accessible
                   accessibilityRole="button"
+                  testID={`building-marker-${b.campus}-${b.id}`}
                   style={[
                     s.codeCircle,
                     {
