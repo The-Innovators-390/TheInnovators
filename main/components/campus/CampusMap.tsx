@@ -249,7 +249,6 @@ export default function CampusMap() {
     { latitude: number; longitude: number }[][]
   >([]);
 
-
   const routeNavigation = useRouteNavigation({
     origin: nav.routeStart
       ? {
@@ -559,7 +558,6 @@ export default function CampusMap() {
     directionRetryTick,
     clearRouteData,
     updateShuttleSegmentCoords,
-    selectedMode,
   ]);
 
   useEffect(() => {
@@ -756,7 +754,6 @@ export default function CampusMap() {
     () => computeFloatingBottom(!!selected, popupIndex),
     [selected, popupIndex],
   );
-
 
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
