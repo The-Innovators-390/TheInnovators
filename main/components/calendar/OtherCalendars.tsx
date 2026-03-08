@@ -58,12 +58,19 @@ export default function OtherCalendars({
 
     return (
       <>
-        <Pressable style={styles.dropdown} onPress={() => setPickerOpen(true)}>
-          <Text style={styles.dropdownText}>{pendingCalendarName}</Text>
+        <Pressable
+          testID="calendarDropdown"
+          style={styles.dropdown}
+          onPress={() => setPickerOpen(true)}
+        >
+          <Text testID="calendarDropdownText" style={styles.dropdownText}>
+            {pendingCalendarName}
+          </Text>
           <Text style={styles.dropdownChevron}>⌄</Text>
         </Pressable>
 
         <Pressable
+          testID="selectCalendarButton"
           style={[
             styles.selectCalendarBtn,
             isSameCalendar && styles.selectCalendarBtnDisabled,
@@ -86,14 +93,15 @@ export default function OtherCalendars({
             style={styles.modalBackdrop}
             onPress={() => setPickerOpen(false)}
           >
-            <View style={styles.modalCard}>
+            <View style={styles.modalCard} testID="calendarPickerModal">
               <Text style={styles.modalTitle}>Choose a calendar</Text>
 
               <ScrollView style={{ maxHeight: 320 }}>
-                {calendars.map((c) => {
+                {calendars.map((c, index) => {
                   const selected = c.id === pendingCalendarId;
                   return (
                     <Pressable
+                      testID={`calendarOption-${index}`}
                       key={c.id}
                       style={[
                         styles.modalItem,

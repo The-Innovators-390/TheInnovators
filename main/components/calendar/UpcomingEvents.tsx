@@ -27,15 +27,20 @@ export default function UpcomingEvents({
   const hasNoEvents = events.length === 0;
 
   const content = useMemo(() => {
-    if (eventsLoading) return <ActivityIndicator />;
+    if (eventsLoading)
+      return <ActivityIndicator testID="eventsLoadingIndicator" />;
 
     if (eventsError) {
-      return <Text style={styles.emptyText}>{eventsError}</Text>;
+      return (
+        <Text testID="eventsErrorText" style={styles.emptyText}>
+          {eventsError}
+        </Text>
+      );
     }
 
     if (hasNoEvents) {
       return (
-        <Text style={styles.emptyText}>
+        <Text testID="noUpcomingEventsText" style={styles.emptyText}>
           No upcoming events were found in your calendar.
         </Text>
       );
@@ -46,10 +51,19 @@ export default function UpcomingEvents({
       const header = first ? formatDayHeader(first) : "Upcoming";
 
       return (
-        <View key={group.key} style={styles.eventsCard}>
-          <Text style={styles.eventsCardHeader}>{header}</Text>
+        <View
+          key={group.key}
+          style={styles.eventsCard}
+          testID={`eventsGroup-${group.key}`}
+        >
+          <Text
+            style={styles.eventsCardHeader}
+            testID={`eventsGroupHeader-${group.key}`}
+          >
+            {header}
+          </Text>
 
-          {group.items.map((e) => {
+          {group.items.map((e, index) => {
             const time = formatTimeRange(e.startISO, e.endISO);
             const title = `${e.summary ?? "Untitled"}${
               e.location ? ` - ${e.location}` : ""
@@ -58,15 +72,30 @@ export default function UpcomingEvents({
             const hasLocation = !!e.location?.trim();
 
             return (
-              <View key={e.id} style={styles.eventRow}>
+              <View
+                key={e.id}
+                style={styles.eventRow}
+                testID={`calendarEvent-${group.key}-${index}`}
+              >
                 <View style={styles.eventTextBlock}>
-                  <Text style={styles.eventTime}>{time}</Text>
+                  <Text
+                    style={styles.eventTime}
+                    testID={`calendarEventTime-${group.key}-${index}`}
+                  >
+                    {time}
+                  </Text>
                   <View style={styles.purpleLine} />
-                  <Text style={styles.eventTitle}>{title}</Text>
+                  <Text
+                    style={styles.eventTitle}
+                    testID={`calendarEventTitle-${group.key}-${index}`}
+                  >
+                    {title}
+                  </Text>
                 </View>
 
                 {hasLocation && (
                   <Pressable
+                    testID={`calendarEventDirections-${group.key}-${index}`}
                     style={styles.directionsBtn}
                     onPress={() => onPressDirections(e)}
                   >
@@ -90,7 +119,9 @@ export default function UpcomingEvents({
 
   return (
     <>
-      <Text style={styles.upcomingTitle}>Upcoming Events</Text>
+      <Text testID="upcomingEventsTitle" style={styles.upcomingTitle}>
+        Upcoming Events
+      </Text>
       {content}
     </>
   );
