@@ -51,13 +51,18 @@ appId: com.theinnovators.campusguide
 - assertVisible:
     id: "routeDestRow"
 
-# Set destination by tapping a building on the map (destination field is focused by default)
+# Select destination
+- tapOn:
+    id: "routeDestRow"
+- inputText: "Henry"
+- hideKeyboard
 - extendedWaitUntil:
     visible:
-      id: "building-marker-SGW-SGW-H"
+      id: "routeSuggestion-SGW-SGW-H"
     timeout: 10000
 - tapOn:
-    id: "building-marker-SGW-SGW-H"
+    id: "routeSuggestion-SGW-SGW-H"
+- waitForAnimationToEnd
 
 # Route is fetched when both start and destination are set (travel popup appears)
 - extendedWaitUntil:
