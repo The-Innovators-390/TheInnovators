@@ -46,7 +46,7 @@ describe("services/googleCalendar", () => {
 
   describe("fetchUserCalendars", () => {
     test("throws if user not signed in", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce(null);
+      mockGetCurrentUser.mockReturnValueOnce(null);
 
       await expect(fetchUserCalendars()).rejects.toThrow(
         "Please sign in to use Google Calendar.",
@@ -54,8 +54,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("throws if accessToken missing", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "" });
 
       await expect(fetchUserCalendars()).rejects.toThrow(
         "Could not get Google access token.",
@@ -63,8 +63,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("calls calendarList endpoint with bearer token and maps items (filters missing id + default summary)", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -99,8 +99,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("returns empty array when items is missing", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -112,8 +112,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("when response not ok, throws formatted error from json.error", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -133,8 +133,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("when response not ok and json is not parseable, throws fallback HTTP error", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -152,7 +152,7 @@ describe("services/googleCalendar", () => {
 
   describe("fetchUpcomingCalendarEvents", () => {
     test("throws if user not signed in", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce(null);
+      mockGetCurrentUser.mockReturnValueOnce(null);
 
       await expect(fetchUpcomingCalendarEvents()).rejects.toThrow(
         "Please sign in to use Google Calendar.",
@@ -160,8 +160,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("throws if accessToken missing", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "" });
 
       await expect(fetchUpcomingCalendarEvents()).rejects.toThrow(
         "Could not get Google access token.",
@@ -169,8 +169,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("calls fetch with bearer token and returns mapped events (dateTime + date)", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -229,8 +229,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("encodes calendarId in URL (special characters)", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -245,8 +245,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("returns empty array when items is missing", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -258,8 +258,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("when response not ok, throws formatted error from json.error", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -279,8 +279,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("when response not ok and json is not parseable, throws fallback HTTP error", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -298,8 +298,8 @@ describe("services/googleCalendar", () => {
 
   describe("getNextClassEvent", () => {
     test("returns first event when list non-empty", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -322,8 +322,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("returns null when no events", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -337,8 +337,8 @@ describe("services/googleCalendar", () => {
 
   describe("fetchNextClassEvent / fetchNextClassEventToday", () => {
     test("fetchNextClassEvent returns null when no items", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -350,8 +350,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("fetchNextClassEvent returns mapped event when item exists", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -385,8 +385,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("fetchNextClassEventToday returns null when no items", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -401,8 +401,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("fetchNextClassEventToday returns mapped event when item exists (date fallback)", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,
@@ -431,8 +431,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("maps 401/403 to NOT_CONNECTED and calls markGoogleCalendarDisconnected", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -460,8 +460,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("maps 404 to WRONG_CALENDAR", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -488,8 +488,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("maps other errors to API_ERROR (and handles empty json)", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -510,8 +510,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("when json is not parseable in next-class endpoints, still throws NextClassError with fallback", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: false,
@@ -534,8 +534,8 @@ describe("services/googleCalendar", () => {
     });
 
     test("getNextClassEventToday wrapper returns underlying result", async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-      mockGetTokens.mockResolvedValueOnce({ accessToken: "TOKEN123" });
+      mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+      mockGetTokens.mockReturnValueOnce({ accessToken: "TOKEN123" });
 
       mockFetchOnce({
         ok: true,

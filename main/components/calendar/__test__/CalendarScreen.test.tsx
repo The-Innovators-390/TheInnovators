@@ -96,8 +96,8 @@ describe("CalendarScreen", () => {
   });
 
   test("renders Not logged in UI when user is null", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce(null);
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce(null);
+    mockIsConnected.mockReturnValueOnce(false);
 
     const { findByText } = render(<CalendarScreen />);
 
@@ -107,17 +107,17 @@ describe("CalendarScreen", () => {
   });
 
   test("Sign in button calls signInWithGoogle then refreshes state", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce(null);
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce(null);
+    mockIsConnected.mockReturnValueOnce(false);
 
     const { findByText } = render(<CalendarScreen />);
     const btn = await findByText("Sign in with Google");
 
-    mockSignIn.mockResolvedValueOnce(undefined);
+    mockSignIn.mockReturnValueOnce(undefined);
 
     // refreshState after sign-in
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(false);
 
     fireEvent.press(btn);
 
@@ -127,8 +127,8 @@ describe("CalendarScreen", () => {
   });
 
   test("Sign in error shows alert", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce(null);
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce(null);
+    mockIsConnected.mockReturnValueOnce(false);
 
     const { findByText } = render(<CalendarScreen />);
     const btn = await findByText("Sign in with Google");
@@ -143,12 +143,12 @@ describe("CalendarScreen", () => {
   });
 
   test("signed in but not connected shows fallback Connect UI", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(false);
 
     // focus refresh (safe)
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(false);
 
     const { findAllByText, findByText } = render(<CalendarScreen />);
 
@@ -159,30 +159,30 @@ describe("CalendarScreen", () => {
   });
 
   test("Connect success calls request access + loads calendars + loads events", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(false);
 
     // focus refresh
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(false);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(false);
 
     const { findAllByText } = render(<CalendarScreen />);
 
     const nodes = await findAllByText("Connect Google Calendar");
     fireEvent.press(nodes[1]);
 
-    mockRequestAccess.mockResolvedValueOnce(undefined);
+    mockRequestAccess.mockReturnValueOnce(undefined);
 
     // After access: refreshState -> now connected
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(true);
 
-    mockFetchUserCalendars.mockResolvedValueOnce([
+    mockFetchUserCalendars.mockReturnValueOnce([
       { id: "primary", summary: "Primary", primary: true },
       { id: "work", summary: "Work", primary: false },
     ]);
 
-    mockFetchUpcoming.mockResolvedValueOnce([
+    mockFetchUpcoming.mockReturnValueOnce([
       {
         id: "1",
         summary: "COMP 352",
@@ -241,18 +241,18 @@ describe("CalendarScreen", () => {
   });
 
   test("when signed in + connected, loads calendars and events", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(true);
 
     // focus refresh
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(true);
 
-    mockFetchUserCalendars.mockResolvedValueOnce([
+    mockFetchUserCalendars.mockReturnValueOnce([
       { id: "primary", summary: "Primary", primary: true },
     ]);
 
-    mockFetchUpcoming.mockResolvedValueOnce([]);
+    mockFetchUpcoming.mockReturnValueOnce([]);
 
     render(<CalendarScreen />);
 
@@ -263,15 +263,15 @@ describe("CalendarScreen", () => {
   });
 
   test("handles calendars load failure (loadCalendars catch)", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(true);
 
     // focus refresh
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(true);
 
     mockFetchUserCalendars.mockRejectedValueOnce(new Error("cal fail"));
-    mockFetchUpcoming.mockResolvedValueOnce([]);
+    mockFetchUpcoming.mockReturnValueOnce([]);
 
     const { findByText } = render(<CalendarScreen />);
 
@@ -280,14 +280,14 @@ describe("CalendarScreen", () => {
   });
 
   test("handles events load failure (loadEvents catch)", async () => {
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(true);
 
     // focus refresh
-    mockGetCurrentUser.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    mockIsConnected.mockReturnValueOnce(true);
 
-    mockFetchUserCalendars.mockResolvedValueOnce([
+    mockFetchUserCalendars.mockReturnValueOnce([
       { id: "primary", summary: "Primary", primary: true },
     ]);
 
