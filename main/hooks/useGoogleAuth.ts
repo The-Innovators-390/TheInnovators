@@ -45,7 +45,7 @@ export async function signInWithGoogle() {
 }
 
 export async function isGoogleSignedIn() {
-  const gUser = await GoogleSignin.getCurrentUser();
+  const gUser = GoogleSignin.getCurrentUser();
   return !!gUser;
 }
 
@@ -54,7 +54,7 @@ export async function markGoogleCalendarDisconnected() {
 }
 
 export async function requestGoogleCalendarAccess() {
-  const currentUser = await GoogleSignin.getCurrentUser();
+  const currentUser = GoogleSignin.getCurrentUser();
   if (!currentUser) throw new Error("NOT_SIGNED_IN");
 
   // Ask for calendar scope
