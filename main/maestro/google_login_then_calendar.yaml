@@ -1,0 +1,37 @@
+# US-14 / Calendar flow:
+# User signs in with Google from welcome screen,
+# reaches map, opens calendar, and sees connected calendar UI.
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+# If we are on the welcome screen, sign in with Google
+- runFlow:
+    when:
+      visible:
+        id: "google-sign-in-button"
+    commands:
+      - tapOn:
+          id: "google-sign-in-button"
+      - extendedWaitUntil:
+          visible:
+            id: "nextClassButton"
+          timeout: 60000
+
+# Make sure we are on the map
+- extendedWaitUntil:
+    visible:
+      id: "nextClassButton"
+    timeout: 10000
+
+# Open calendar from map
+- tapOn:
+    id: "nextClassButton"
+- waitForAnimationToEnd
+
+# Expect connected calendar screen
+- extendedWaitUntil:
+    visible:
+      id: "calendar-connected"
+    timeout: 15000
