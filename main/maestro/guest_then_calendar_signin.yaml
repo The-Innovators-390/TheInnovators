@@ -1,0 +1,63 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "guest-sign-in-button"
+    commands:
+      - tapOn:
+          id: "guest-sign-in-button"
+      - extendedWaitUntil:
+          visible:
+            id: "nextClassButton"
+          timeout: 60000
+
+- extendedWaitUntil:
+    visible:
+      id: "nextClassButton"
+    timeout: 10000
+
+- tapOn:
+    id: "nextClassButton"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "calendar-notSignedIn"
+    timeout: 10000
+
+- assertVisible:
+    id: "calendar-notSignedIn"
+
+- assertVisible:
+    id: "calendar-signInButton"
+
+- tapOn:
+    id: "calendar-signInButton"
+- waitForAnimationToEnd
+
+# wait for one post-sign-in state to appear
+- extendedWaitUntil:
+    visible:
+      id: "calendar-connected"
+    timeout: 20000
+
+- runFlow:
+    when:
+      visible:
+        id: "calendar-connected"
+    commands:
+      - assertVisible:
+          id: "calendar-connected"
+# - runFlow:
+#     when:
+#       visible:
+#         id: "calendar-notConnected"
+#     commands:
+#       - assertVisible:
+#           id: "calendar-notConnected"
+#       - assertVisible:
+#           id: "calendar-connectCalendarButton"

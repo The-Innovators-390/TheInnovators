@@ -1,0 +1,73 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "guest-sign-in-button"
+- tapOn:
+    id: "guest-sign-in-button"
+
+- assertVisible:
+    id: "campusMap-root"
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+# Enter route mode (route panel appears; start is auto-set to current location)
+- tapOn:
+    id: "routeModeButton"
+- waitForAnimationToEnd
+
+# If system location permission dialog appears, dismiss it
+- runFlow:
+    when:
+      visible:
+        text: "Allow While Using App"
+    commands:
+      - tapOn:
+          text: "Allow While Using App"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        text: "While using this app"
+    commands:
+      - tapOn:
+          text: "While using this app"
+      - waitForAnimationToEnd
+
+# Route mode UI is visible
+- extendedWaitUntil:
+    visible:
+      id: "routeModeContainer"
+    timeout: 10000
+- assertVisible:
+    id: "routePanel"
+- assertVisible:
+    id: "routeStartRow"
+- assertVisible:
+    id: "routeDestRow"
+
+# Select destination
+- tapOn:
+    id: "routeDestRow"
+- inputText: "Henry"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "routeSuggestion-SGW-SGW-H"
+- waitForAnimationToEnd
+
+# Route is fetched when both start and destination are set (travel popup appears)
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 20000
+
+---

@@ -82,13 +82,13 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("isGoogleSignedIn returns true when a user exists", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
 
     await expect(isGoogleSignedIn()).resolves.toBe(true);
   });
 
   it("isGoogleSignedIn returns false when no user", async () => {
-    getCurrentUserMock.mockResolvedValueOnce(null);
+    getCurrentUserMock.mockReturnValueOnce(null);
 
     await expect(isGoogleSignedIn()).resolves.toBe(false);
   });
@@ -111,7 +111,7 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess throws NOT_SIGNED_IN when no current user", async () => {
-    getCurrentUserMock.mockResolvedValueOnce(null);
+    getCurrentUserMock.mockReturnValueOnce(null);
 
     await expect(requestGoogleCalendarAccess()).rejects.toThrow(
       "NOT_SIGNED_IN",
@@ -119,16 +119,16 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess returns token and marks connected=true on success", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
-    signInSilentlyMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: "access-123" });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
+    signInSilentlyMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: "access-123" });
 
     const fetchMock = jest.fn() as jest.MockedFunction<any>;
     global.fetch = fetchMock as any;
 
     // tokeninfo
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       json: async () => ({
         scope: "https://www.googleapis.com/auth/calendar.readonly",
@@ -136,7 +136,7 @@ describe("useGoogleAuth – calendar helpers", () => {
     });
 
     // calendar verify OK
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       status: 200,
       json: async () => ({}),
@@ -155,20 +155,20 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess falls back to signIn when signInSilently fails", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
     signInSilentlyMock.mockRejectedValueOnce(new Error("silent failed"));
-    signInMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: "access-456" });
+    signInMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: "access-456" });
 
     const fetchMock = jest.fn() as jest.MockedFunction<any>;
     global.fetch = fetchMock as any;
 
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       json: async () => ({ scope: "" }),
     });
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       status: 200,
       json: async () => ({}),
@@ -180,10 +180,10 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess throws when accessToken missing", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
-    signInSilentlyMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: null });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
+    signInSilentlyMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: null });
 
     await expect(requestGoogleCalendarAccess()).rejects.toThrow(
       "Google Calendar: missing accessToken",
@@ -191,22 +191,22 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess on 403 marks disconnected and throws CALENDAR_PERMISSION_MISSING", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
-    signInSilentlyMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: "access-denied" });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
+    signInSilentlyMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: "access-denied" });
 
     const fetchMock = jest.fn() as jest.MockedFunction<any>;
     global.fetch = fetchMock as any;
 
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       json: async () => ({
         scope: "https://www.googleapis.com/auth/calendar.readonly",
       }),
     });
 
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: false,
       status: 403,
       json: async () => ({
@@ -245,9 +245,9 @@ describe("useGoogleAuth – calendar helpers", () => {
   it("signInWithGoogle (android) calls hasPlayServices and signs in with credential", async () => {
     (Platform as any).OS = "android";
 
-    hasPlayServicesMock.mockResolvedValueOnce(true);
-    signInMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ idToken: "id-123" });
+    hasPlayServicesMock.mockReturnValueOnce(true);
+    signInMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ idToken: "id-123" });
 
     await signInWithGoogle();
 
@@ -262,8 +262,8 @@ describe("useGoogleAuth – calendar helpers", () => {
   it("signInWithGoogle (ios) does NOT call hasPlayServices", async () => {
     (Platform as any).OS = "ios";
 
-    signInMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ idToken: "id-456" });
+    signInMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ idToken: "id-456" });
 
     await signInWithGoogle();
 
@@ -272,8 +272,8 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("signInWithGoogle throws when idToken missing", async () => {
-    signInMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ idToken: null });
+    signInMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ idToken: null });
 
     await expect(signInWithGoogle()).rejects.toThrow(
       "Google Sign-In: missing idToken",
@@ -281,10 +281,10 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess: tokeninfo fetch throws (covers scopeInfo catch)", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
-    signInSilentlyMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: "access-789" });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
+    signInSilentlyMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: "access-789" });
 
     const fetchMock = jest.fn() as jest.MockedFunction<any>;
     global.fetch = fetchMock as any;
@@ -293,7 +293,7 @@ describe("useGoogleAuth – calendar helpers", () => {
     fetchMock.mockRejectedValueOnce(new Error("network"));
 
     // calendar verify OK
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       status: 200,
       json: async () => ({}),
@@ -308,22 +308,22 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess on 401 uses HTTP status fallback when response json throws", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
-    signInSilentlyMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: "access-401" });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
+    signInSilentlyMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: "access-401" });
 
     const fetchMock = jest.fn() as jest.MockedFunction<any>;
     global.fetch = fetchMock as any;
 
     // tokeninfo returns no calendar scope -> HasScope false
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       json: async () => ({ scope: "profile email" }),
     });
 
     // calendar verify !ok and json throws => errText = HTTP 401
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: false,
       status: 401,
       json: async () => {
@@ -342,8 +342,8 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("signOutGoogle signs out, clears storage, and re-configures default config", async () => {
-    signOutMock.mockResolvedValueOnce(undefined);
-    (auth.signOut as unknown as jest.MockedFunction<any>).mockResolvedValueOnce(
+    signOutMock.mockReturnValueOnce(undefined);
+    (auth.signOut as unknown as jest.MockedFunction<any>).mockReturnValueOnce(
       undefined,
     );
 
@@ -363,22 +363,22 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess: non-401/403 non-ok response parses Google error json but does not throw", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
-    signInSilentlyMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: "access-500" });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
+    signInSilentlyMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: "access-500" });
 
     const fetchMock = jest.fn() as jest.MockedFunction<any>;
     global.fetch = fetchMock as any;
 
     // tokeninfo ok (scope can be anything)
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       json: async () => ({ scope: "" }),
     });
 
     // calendar verify NOT ok, status 500 (or 400), json SUCCESS -> covers errText assembly branch
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: false,
       status: 500,
       json: async () => ({
@@ -400,22 +400,22 @@ describe("useGoogleAuth – calendar helpers", () => {
   });
 
   it("requestGoogleCalendarAccess: tokeninfo ok but calendar verify ok=false and json throws on non-401/403 uses HTTP fallback and still succeeds", async () => {
-    getCurrentUserMock.mockResolvedValueOnce({ user: { email: "a@b.com" } });
-    addScopesMock.mockResolvedValueOnce(undefined);
-    signInSilentlyMock.mockResolvedValueOnce(undefined);
-    getTokensMock.mockResolvedValueOnce({ accessToken: "access-400" });
+    getCurrentUserMock.mockReturnValueOnce({ user: { email: "a@b.com" } });
+    addScopesMock.mockReturnValueOnce(undefined);
+    signInSilentlyMock.mockReturnValueOnce(undefined);
+    getTokensMock.mockReturnValueOnce({ accessToken: "access-400" });
 
     const fetchMock = jest.fn() as jest.MockedFunction<any>;
     global.fetch = fetchMock as any;
 
     // tokeninfo ok
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: true,
       json: async () => ({ scope: "" }),
     });
 
     // calendar verify NOT ok, status 400, json throws -> covers errText = `HTTP ${status}` catch branch
-    fetchMock.mockResolvedValueOnce({
+    fetchMock.mockReturnValueOnce({
       ok: false,
       status: 400,
       json: async () => {
