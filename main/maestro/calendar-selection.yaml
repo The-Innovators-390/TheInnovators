@@ -48,6 +48,12 @@ appId: com.theinnovators.campusguide
       id: "calendarPickerModal"
     timeout: 10000
 
+# Wait until option is actually rendered
+- extendedWaitUntil:
+    visible:
+      id: "calendarOption-1"
+    timeout: 10000
+
 # Select another calendar
 - tapOn:
     id: "calendarOption-1"
