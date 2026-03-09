@@ -97,23 +97,23 @@ function renderContent({
   onPressDirections: (event: CalendarEvent) => void;
 }) {
   if (eventsLoading)
-      return <ActivityIndicator testID="eventsLoadingIndicator" />;
+    return <ActivityIndicator testID="eventsLoadingIndicator" />;
 
-    if (eventsError) {
-      return (
-        <Text testID="eventsErrorText" style={styles.emptyText}>
-          {eventsError}
-        </Text>
-      );
-    }
+  if (eventsError) {
+    return (
+      <Text testID="eventsErrorText" style={styles.emptyText}>
+        {eventsError}
+      </Text>
+    );
+  }
 
-    if (hasNoEvents) {
-      return (
-        <Text testID="noUpcomingEventsText" style={styles.emptyText}>
-          No upcoming events were found in your calendar.
-        </Text>
-      );
-    }
+  if (hasNoEvents) {
+    return (
+      <Text testID="noUpcomingEventsText" style={styles.emptyText}>
+        No upcoming events were found in your calendar.
+      </Text>
+    );
+  }
 
   return grouped.map((group) => (
     <EventGroup
