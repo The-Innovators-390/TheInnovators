@@ -1,0 +1,80 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Continue as guest if the welcome screen appears
+- runFlow:
+    when:
+      visible:
+        id: "guest-sign-in-button"
+    commands:
+      - tapOn:
+          id: "guest-sign-in-button"
+      - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible:
+            id: "campusMap-root"
+          timeout: 30000
+
+# Make sure the campus map is loaded
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 30000
+
+# Open route mode
+- tapOn:
+    id: "routeModeButton"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "routePanel"
+    timeout: 10000
+
+# Start = Administration Building (Loyola)
+- tapOn:
+    id: "routeStartRow"
+- inputText: "Administration"
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-LOY-loy-ad"
+    timeout: 15000
+- tapOn:
+    id: "routeSuggestion-LOY-loy-ad"
+
+# Destination = Henry F. Hall (SGW)
+- tapOn:
+    id: "routeDestRow"
+- inputText: "Henry"
+- extendedWaitUntil:
+    visible:
+      id: "routeSuggestion-SGW-sgw-h"
+    timeout: 15000
+- tapOn:
+    id: "routeSuggestion-SGW-sgw-h"
+
+# Wait for directions popup
+- extendedWaitUntil:
+    visible:
+      id: "travelPopup-handle"
+    timeout: 30000
+
+# Core transport modes should appear
+- assertVisible:
+    id: "mode-driving"
+- assertVisible:
+    id: "mode-walking"
+- assertVisible:
+    id: "mode-transit"
+
+# At least one route result should appear if available
+- runFlow:
+    when:
+      visible:
+        id: "route-driving-0"
+    commands:
+      - assertVisible:
+          id: "route-driving-0"
+
+- takeScreenshot: "m12-intercampus"
