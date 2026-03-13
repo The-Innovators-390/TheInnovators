@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, ScrollView, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  ScrollView,
+  Dimensions,
+} from "react-native";
 import Svg, { Line, Circle, Text as SvgText } from "react-native-svg";
 import { indoorPlan } from "@/components/indoors/indoorPlan";
 
@@ -37,9 +44,9 @@ export default function IndoorDebugScreen() {
   const edges: IndoorEdge[] = floorData.edges ?? [];
   const buildingId = floorData.meta?.buildingId ?? "Unknown";
 
-  const floors = [...new Set(nodes.map((node) => node.floor).filter(Boolean))].sort(
-    (a, b) => Number(a) - Number(b),
-  );
+  const floors = [
+    ...new Set(nodes.map((node) => node.floor).filter(Boolean)),
+  ].sort((a, b) => Number(a) - Number(b));
 
   const originalWidth = 1024;
   const originalHeight = 1024;
@@ -54,21 +61,29 @@ export default function IndoorDebugScreen() {
       <Text style={styles.meta}>
         Nodes: {nodes.length} | Edges: {edges.length}
       </Text>
-      <Text style={styles.meta}>
-        Floors detected: {floors.join(", ")}
-      </Text>
+      <Text style={styles.meta}>Floors detected: {floors.join(", ")}</Text>
 
-      <View style={[styles.mapWrapper, { width: MAP_WIDTH, height: mapHeight }]}>
+      <View
+        style={[styles.mapWrapper, { width: MAP_WIDTH, height: mapHeight }]}
+      >
         <Image
           source={floorImage}
           style={{ width: MAP_WIDTH, height: mapHeight, position: "absolute" }}
           resizeMode="contain"
         />
 
-        <Svg width={MAP_WIDTH} height={mapHeight} style={StyleSheet.absoluteFill}>
+        <Svg
+          width={MAP_WIDTH}
+          height={mapHeight}
+          style={StyleSheet.absoluteFill}
+        >
           {edges.map((edge, index) => {
-            const sourceNode = nodeMap.get(edge.source) as IndoorNode | undefined;
-            const targetNode = nodeMap.get(edge.target) as IndoorNode | undefined;
+            const sourceNode = nodeMap.get(edge.source) as
+              | IndoorNode
+              | undefined;
+            const targetNode = nodeMap.get(edge.target) as
+              | IndoorNode
+              | undefined;
 
             if (!sourceNode || !targetNode) return null;
 
