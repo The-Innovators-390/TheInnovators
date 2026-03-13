@@ -24,6 +24,7 @@ type Props = {
   onClose: () => void;
   onSheetChange?: (index: number) => void;
   onGetDirections: (destination: Building) => void;
+  onOpenIndoorMap: (building: Building) => void;
 };
 
 export default function BuildingPopup({
@@ -32,6 +33,7 @@ export default function BuildingPopup({
   onClose,
   onSheetChange,
   onGetDirections,
+  onOpenIndoorMap,
 }: Readonly<Props>) {
   const sheetRef = useRef<BottomSheet>(null);
 
@@ -177,15 +179,31 @@ export default function BuildingPopup({
               {building.address}
             </Text>
 
-            <Pressable
-              onPress={() => onGetDirections(building)}
-              style={[styles.directionsBtn, { borderColor: theme.cardBorder }]}
-              testID="directionsButton"
-            >
-              <Text style={[styles.directionsText, { color: theme.brand }]}>
-                Get Directions
-              </Text>
-            </Pressable>
+            <View style={styles.actionRow}>
+              <Pressable
+                onPress={() => onGetDirections(building)}
+                style={[
+                  styles.directionsBtn,
+                  { borderColor: theme.cardBorder, backgroundColor: "white" },
+                ]}
+                testID="directionsButton"
+              >
+                <Text style={[styles.directionsText, { color: theme.brand }]}>
+                  Get Directions
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => onOpenIndoorMap(building)}
+                style={[
+                  styles.indoorMapBtn,
+                  { backgroundColor: theme.brand },
+                ]}
+                testID="indoorMapButton"
+              >
+                <Text style={styles.indoorMapText}>Indoor Map</Text>
+              </Pressable>
+            </View>
           </View>
 
           {thumbSource ? (
@@ -209,7 +227,6 @@ export default function BuildingPopup({
           </View>
         ) : (
           <>
-            {/* Building Accessibility */}
             <View style={styles.card}>
               <Text style={styles.cardHeader}>Building Accessibility</Text>
 
@@ -238,7 +255,6 @@ export default function BuildingPopup({
               )}
             </View>
 
-            {/* Metro Accessibility (only if provided) */}
             {!!details.metro && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Metro Accessibility</Text>
@@ -250,7 +266,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Building Connectivity (only if provided) */}
             {!!details.connectivity && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Building Connectivity</Text>
@@ -262,7 +277,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Number of Entries (show if present and non-empty) */}
             {Array.isArray(details.entries) && details.entries.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Number of Entries</Text>
@@ -277,7 +291,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Other Services (only if provided) */}
             {Array.isArray(details.otherServices) &&
               details.otherServices.length > 0 && (
                 <View style={styles.card}>
@@ -293,7 +306,6 @@ export default function BuildingPopup({
                 </View>
               )}
 
-            {/* Building Overview (only if provided) */}
             {Array.isArray(details.overview) && details.overview.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Building Overview</Text>
@@ -305,7 +317,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Venues */}
             {Array.isArray(details.venues) && details.venues.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Venues</Text>
@@ -318,7 +329,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Departments */}
             {Array.isArray(details.departments) &&
               details.departments.length > 0 && (
                 <View style={styles.card}>
@@ -332,7 +342,6 @@ export default function BuildingPopup({
                 </View>
               )}
 
-            {/* Services */}
             {Array.isArray(details.services) && details.services.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Services</Text>
@@ -417,16 +426,34 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+
   directionsBtn: {
-    marginTop: 6,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 999,
     borderWidth: 1,
     alignSelf: "flex-start",
-    backgroundColor: "white",
   },
   directionsText: {
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  indoorMapBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+  },
+  indoorMapText: {
+    color: "white",
     fontSize: 12,
     fontWeight: "900",
   },

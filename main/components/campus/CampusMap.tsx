@@ -14,7 +14,7 @@ import {
   StyleSheet,
   InteractionManager,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
 import {
   getDeviceLocation,
@@ -677,6 +677,38 @@ export default function CampusMap() {
     setQuery("");
   };
 
+  const handleOpenIndoorMapFromPopup = useCallback((building: Building) => {
+  const normalizedCode = building.code.trim().toLowerCase();
+
+  const buildingCodeMap: Record<string, string> = {
+    mb: "mb",
+    ve: "ve",
+    vl: "vl",
+    cc: "cc",
+    hb: "hb",
+    h: "hb",
+  };
+
+  const indoorBuilding = buildingCodeMap[normalizedCode];
+
+  if (!indoorBuilding) {
+    alert("Indoor maps are not available for this building yet.");
+    return;
+  }
+
+  router.push({
+    pathname: "/indoor_test",
+    params: {
+      building: indoorBuilding,
+      floor: "1",
+    },
+  });
+
+  setSelected(null);
+  setPopupIndex(-1);
+  setQuery("");
+}, []);
+
   const focusRouteField = (field: "start" | "destination") => {
     nav.setActiveField(field);
     setQuery(field === "start" ? startText : destText);
@@ -1145,17 +1177,18 @@ export default function CampusMap() {
 
       {/* Popup only in normal mode */}
       {!nav.isRouteMode && selected && (
-        <BuildingPopup
-          building={selected}
-          campusTheme={focusedCampus}
-          onClose={() => {
-            setSelected(null);
-            setPopupIndex(-1);
-          }}
-          onSheetChange={(index: number) => setPopupIndex(index)}
-          onGetDirections={handleGetDirectionsFromPopup}
-        />
-      )}
+  <BuildingPopup
+    building={selected}
+    campusTheme={focusedCampus}
+    onClose={() => {
+      setSelected(null);
+      setPopupIndex(-1);
+    }}
+    onSheetChange={(index: number) => setPopupIndex(index)}
+    onGetDirections={handleGetDirectionsFromPopup}
+    onOpenIndoorMap={handleOpenIndoorMapFromPopup}
+  />
+)}
 
       {/* Travel options popup only in route mode */}
       {nav.isRouteMode && !routeNavigation.isNavigating && (
