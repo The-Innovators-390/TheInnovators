@@ -24,6 +24,7 @@ type Props = {
   onClose: () => void;
   onSheetChange?: (index: number) => void;
   onGetDirections: (destination: Building) => void;
+  onOpenIndoorMap: (building: Building) => void;
 };
 
 export default function BuildingPopup({
@@ -32,6 +33,7 @@ export default function BuildingPopup({
   onClose,
   onSheetChange,
   onGetDirections,
+  onOpenIndoorMap,
 }: Readonly<Props>) {
   const sheetRef = useRef<BottomSheet>(null);
 
@@ -56,7 +58,7 @@ export default function BuildingPopup({
         };
 
   const snapPoints = useMemo(() => {
-    const collapsed = Math.round(windowHeight * 0.19);
+    const collapsed = Math.round(windowHeight * 0.25);
     const topBuffer = insets.top - 6;
     const expanded = Math.max(300, windowHeight - topBuffer);
     return [collapsed, expanded];
@@ -177,15 +179,33 @@ export default function BuildingPopup({
               {building.address}
             </Text>
 
-            <Pressable
-              onPress={() => onGetDirections(building)}
-              style={[styles.directionsBtn, { borderColor: theme.cardBorder }]}
-              testID="directionsButton"
-            >
-              <Text style={[styles.directionsText, { color: theme.brand }]}>
-                Get Directions
-              </Text>
-            </Pressable>
+            <View style={styles.buttonRow}>
+              <Pressable
+                onPress={() => onGetDirections(building)}
+                style={[
+                  styles.actionBtn,
+                  styles.directionsBtn,
+                  { borderColor: theme.cardBorder },
+                ]}
+                testID="directionsButton"
+              >
+                <Text style={[styles.actionText, { color: theme.brand }]}>
+                  Directions
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => onOpenIndoorMap(building)}
+                style={[
+                  styles.actionBtn,
+                  styles.indoorMapBtn,
+                  { backgroundColor: theme.brand },
+                ]}
+                testID="indoorMapButton"
+              >
+                <Text style={styles.indoorMapText}>Indoor Map</Text>
+              </Pressable>
+            </View>
           </View>
 
           {thumbSource ? (
@@ -209,7 +229,6 @@ export default function BuildingPopup({
           </View>
         ) : (
           <>
-            {/* Building Accessibility */}
             <View style={styles.card}>
               <Text style={styles.cardHeader}>Building Accessibility</Text>
 
@@ -238,7 +257,6 @@ export default function BuildingPopup({
               )}
             </View>
 
-            {/* Metro Accessibility (only if provided) */}
             {!!details.metro && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Metro Accessibility</Text>
@@ -250,7 +268,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Building Connectivity (only if provided) */}
             {!!details.connectivity && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Building Connectivity</Text>
@@ -262,7 +279,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Number of Entries (show if present and non-empty) */}
             {Array.isArray(details.entries) && details.entries.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Number of Entries</Text>
@@ -277,7 +293,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Other Services (only if provided) */}
             {Array.isArray(details.otherServices) &&
               details.otherServices.length > 0 && (
                 <View style={styles.card}>
@@ -293,7 +308,6 @@ export default function BuildingPopup({
                 </View>
               )}
 
-            {/* Building Overview (only if provided) */}
             {Array.isArray(details.overview) && details.overview.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Building Overview</Text>
@@ -305,7 +319,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Venues */}
             {Array.isArray(details.venues) && details.venues.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Venues</Text>
@@ -318,7 +331,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Departments */}
             {Array.isArray(details.departments) &&
               details.departments.length > 0 && (
                 <View style={styles.card}>
@@ -332,7 +344,6 @@ export default function BuildingPopup({
                 </View>
               )}
 
-            {/* Services */}
             {Array.isArray(details.services) && details.services.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Services</Text>
@@ -417,18 +428,39 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  directionsBtn: {
-    marginTop: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+  buttonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+
+  actionBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     borderRadius: 999,
+    alignItems: "center",
+  justifyContent: "center",
+  },
+
+  directionsBtn: {
     borderWidth: 1,
-    alignSelf: "flex-start",
     backgroundColor: "white",
   },
-  directionsText: {
+
+  indoorMapBtn: {
+    borderWidth: 0,
+  },
+
+  actionText: {
     fontSize: 12,
     fontWeight: "900",
+  },
+
+  indoorMapText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "white",
   },
 
   thumb: {

@@ -15,6 +15,7 @@ import {
   InteractionManager,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
 import {
   getDeviceLocation,
@@ -1144,18 +1145,28 @@ export default function CampusMap() {
       </View>
 
       {/* Popup only in normal mode */}
-      {!nav.isRouteMode && selected && (
-        <BuildingPopup
-          building={selected}
-          campusTheme={focusedCampus}
-          onClose={() => {
-            setSelected(null);
-            setPopupIndex(-1);
-          }}
-          onSheetChange={(index: number) => setPopupIndex(index)}
-          onGetDirections={handleGetDirectionsFromPopup}
-        />
-      )}
+{!nav.isRouteMode && selected && (
+  <BuildingPopup
+    building={selected}
+    campusTheme={focusedCampus}
+    onClose={() => {
+      setSelected(null);
+      setPopupIndex(-1);
+    }}
+    onSheetChange={(index: number) => setPopupIndex(index)}
+    onGetDirections={handleGetDirectionsFromPopup}
+    onOpenIndoorMap={(building) =>
+  router.push({
+    pathname: "/indoor-map",
+    params: {
+      buildingName: building.name,
+      campus: focusedCampus,
+    },
+  })
+
+}
+  />
+)}
 
       {/* Travel options popup only in route mode */}
       {nav.isRouteMode && !routeNavigation.isNavigating && (
