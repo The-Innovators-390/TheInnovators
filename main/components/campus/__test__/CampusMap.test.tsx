@@ -42,7 +42,6 @@ jest.mock("@/components/Buildings/data/SGW_data.json", () => [
     latitude: 45.4978,
     longitude: -73.5795,
     campus: "SGW",
-    //  Must be visible at initial region so marker exists in tests
     zoomCategory: 1,
     aliases: ["nop", "no polygon"],
     polygon: [],
@@ -78,7 +77,6 @@ jest.mock("@/components/campus/TravelOptionsPopup", () => ({
 
 const mockGetDeviceLocation = jest.fn(async () => null);
 jest.mock("@/components/campus/helper_methods/locationUtils", () => ({
-  // Keep LocationError here so CampusMap's `instanceof LocationError` works in tests
   LocationError: class LocationError extends Error {
     code: string;
     constructor(code: string, message?: string) {
@@ -243,10 +241,9 @@ jest.mock("react-native-maps", () => {
   };
 });
 
-//  Import AFTER mocks
+// Import AFTER mocks
 jest.mock("expo-router", () => {
   const actual = jest.requireActual("expo-router");
-  // @ts-ignore
   return {
     __esModule: true,
     ...actual,
@@ -260,6 +257,24 @@ import {
   SGW_REGION,
   LOY_REGION,
 } from "@/components/campus/helper_methods/campusMap.constants";
+
+const getNodeText = (node: any): string => {
+  if (typeof node === "string") return node;
+  if (Array.isArray(node)) return node.join("");
+  return "";
+};
+
+const getRouteStartValue = (utils: any) => {
+  const input = utils.queryByTestId("routeStartInput");
+  if (input) return input.props.value;
+  return getNodeText(utils.getByTestId("routeStartText").props.children);
+};
+
+const getRouteDestValue = (utils: any) => {
+  const input = utils.queryByTestId("routeDestInput");
+  if (input) return input.props.value;
+  return getNodeText(utils.getByTestId("routeDestText").props.children);
+};
 
 // Flush microtasks so the async getDeviceLocation effect settles inside act()
 async function renderCampusMap() {
@@ -276,7 +291,6 @@ beforeEach(() => {
   mockOnLocationFound = null;
   (global as any).alert = jest.fn();
 
-  // Make Animated operations synchronous/no-op to reduce act warnings
   jest.spyOn(Animated, "timing").mockImplementation((): any => ({
     start: (cb?: any) => cb?.(),
   }));
@@ -403,7 +417,6 @@ describe("CampusMap - building selection + popup", () => {
   it("building with empty polygon still renders as marker and uses fixed deltas on select", async () => {
     const { getByTestId } = await renderCampusMap();
 
-    // ✅ Now NP is visible at initial zoom (zoomCategory=1), so marker exists
     expect(getByTestId("marker-45.4978--73.5795")).toBeTruthy();
 
     act(() => {
@@ -422,16 +435,14 @@ describe("CampusMap - building selection + popup", () => {
   });
 
   it("Directions from popup enters route mode, sets destination, auto-sets start (inside a building), and clears normal search UI", async () => {
-    const { getByTestId, queryByTestId, findByTestId } =
-      await renderCampusMap();
+    const utils = await renderCampusMap();
+    const { getByTestId, queryByTestId, findByTestId } = utils;
 
     act(() => {
       fireEvent.press(getByTestId("marker-45.458--73.64"));
     });
     expect(getByTestId("buildingPopup")).toBeTruthy();
 
-    // Device location inside SGW H polygon
-    // @ts-ignore
     mockGetDeviceLocation.mockResolvedValueOnce({
       latitude: 45.4975,
       longitude: -73.579,
@@ -445,12 +456,8 @@ describe("CampusMap - building selection + popup", () => {
     expect(queryByTestId("buildingPopup")).toBeNull();
 
     expect(await findByTestId("routePanel")).toBeTruthy();
-    expect(getByTestId("routeDestInput").props.value).toMatch(
-      /^AD - Administration Building/i,
-    );
-    expect(getByTestId("routeStartInput").props.value).toMatch(
-      /^H - Henry F\. Hall Building/i,
-    );
+    expect(getRouteDestValue(utils)).toMatch(/^AD - Administration Building/i);
+    expect(getRouteStartValue(utils)).toMatch(/^H - Henry F\. Hall Building/i);
   });
 
   it("Directions from popup shows permission alert when auto-setting start fails with PERMISSION_DENIED", async () => {

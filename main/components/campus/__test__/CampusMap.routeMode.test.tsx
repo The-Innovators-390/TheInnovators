@@ -178,12 +178,30 @@ jest.mock("react-native-maps", () => {
   };
 });
 
-//  Import AFTER mocks
+// Import AFTER mocks
 jest.mock("expo-router", () => ({
   __esModule: true,
   useLocalSearchParams: jest.fn(() => ({})),
 }));
 import CampusMap from "../CampusMap";
+
+const getNodeText = (node: any): string => {
+  if (typeof node === "string") return node;
+  if (Array.isArray(node)) return node.join("");
+  return "";
+};
+
+const getRouteStartValue = (utils: any) => {
+  const input = utils.queryByTestId("routeStartInput");
+  if (input) return input.props.value;
+  return getNodeText(utils.getByTestId("routeStartText").props.children);
+};
+
+const getRouteDestValue = (utils: any) => {
+  const input = utils.queryByTestId("routeDestInput");
+  if (input) return input.props.value;
+  return getNodeText(utils.getByTestId("routeDestText").props.children);
+};
 
 beforeEach(() => {
   mockAnimateToRegion.mockClear();
@@ -209,7 +227,6 @@ describe("CampusMap - Route mode integration", () => {
 
     fireEvent.press(getByTestId("routeModeButton"));
 
-    // Type into START -> suggestions should appear
     fireEvent.changeText(getByTestId("routeStartInput"), "hall");
     expect(await findByText(/H — Henry F\. Hall Building/i)).toBeTruthy();
     expect(getByTestId("route-suggestions")).toBeTruthy();
@@ -217,24 +234,22 @@ describe("CampusMap - Route mode integration", () => {
     fireEvent.press(getByTestId("routeDestRow"));
     expect(queryByTestId("route-suggestions")).toBeNull();
 
-    // Type into DEST -> Loyola suggestion appears
     fireEvent.changeText(getByTestId("routeDestInput"), "admin");
     expect(await findByText(/AD — Administration Building/i)).toBeTruthy();
     expect(getByTestId("route-suggestions")).toBeTruthy();
   });
 
   it("picking buildings in route mode sets start/destination and hides suggestions", async () => {
-    const { getByTestId, queryByTestId, findByText } = render(<CampusMap />);
+    const utils = render(<CampusMap />);
+    const { getByTestId, queryByTestId, findByText } = utils;
 
     fireEvent.press(getByTestId("routeModeButton"));
 
-    // ---- Pick START (SGW H) ----
     fireEvent.changeText(getByTestId("routeStartInput"), "hall");
     await findByText(/H — Henry F\. Hall Building/i);
 
     fireEvent.press(getByTestId(SGW_H));
 
-    // Your current implementation animates when picking in route mode.
     expect(mockAnimateToRegion).toHaveBeenCalledTimes(1);
     expect(mockAnimateToRegion).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -247,86 +262,74 @@ describe("CampusMap - Route mode integration", () => {
     );
 
     expect(queryByTestId("route-suggestions")).toBeNull();
-
-    expect(getByTestId("routeStartInput").props.value).toMatch(
-      /^H - Henry F\. Hall Building/i,
-    );
+    expect(getRouteStartValue(utils)).toMatch(/^H - Henry F\. Hall Building/i);
 
     mockAnimateToRegion.mockClear();
 
-    // ---- Pick DESTINATION (LOY AD) ----
     fireEvent.changeText(getByTestId("routeDestInput"), "admin");
     await findByText(/AD — Administration Building/i);
 
     fireEvent.press(getByTestId(LOY_AD));
 
     expect(queryByTestId("route-suggestions")).toBeNull();
-
-    expect(getByTestId("routeDestInput").props.value).toMatch(
-      /^AD - Administration Building/i,
-    );
+    expect(getRouteDestValue(utils)).toMatch(/^AD - Administration Building/i);
   });
 
   it("swap button swaps start and destination values", async () => {
-    const { getByTestId, findByText } = render(<CampusMap />);
+    const utils = render(<CampusMap />);
+    const { getByTestId, findByText } = utils;
 
     fireEvent.press(getByTestId("routeModeButton"));
 
-    // pick START = H
     fireEvent.changeText(getByTestId("routeStartInput"), "hall");
     await findByText(/H — Henry F\. Hall Building/i);
     fireEvent.press(getByTestId(SGW_H));
 
-    // pick DEST = AD
     fireEvent.changeText(getByTestId("routeDestInput"), "admin");
     await findByText(/AD — Administration Building/i);
     fireEvent.press(getByTestId(LOY_AD));
 
-    const startBefore = getByTestId("routeStartInput").props.value;
-    const destBefore = getByTestId("routeDestInput").props.value;
+    const startBefore = getRouteStartValue(utils);
+    const destBefore = getRouteDestValue(utils);
 
     fireEvent.press(getByTestId("routeSwapButton"));
 
-    expect(getByTestId("routeStartInput").props.value).toBe(destBefore);
-    expect(getByTestId("routeDestInput").props.value).toBe(startBefore);
+    expect(getRouteStartValue(utils)).toBe(destBefore);
+    expect(getRouteDestValue(utils)).toBe(startBefore);
   });
 
   it("clear buttons reset start/destination and hide their clear buttons", async () => {
-    const { getByTestId, queryByTestId, findByText } = render(<CampusMap />);
+    const utils = render(<CampusMap />);
+    const { getByTestId, queryByTestId, findByText } = utils;
 
     fireEvent.press(getByTestId("routeModeButton"));
 
-    // Set START
     fireEvent.changeText(getByTestId("routeStartInput"), "hall");
     await findByText(/H — Henry F\. Hall Building/i);
     fireEvent.press(getByTestId(SGW_H));
-    expect(getByTestId("routeStartInput").props.value).toMatch(
-      /^H - Henry F\. Hall Building/i,
-    );
+
+    expect(getRouteStartValue(utils)).toMatch(/^H - Henry F\. Hall Building/i);
     expect(getByTestId("clearStart")).toBeTruthy();
 
-    // Set DESTINATION
     fireEvent.changeText(getByTestId("routeDestInput"), "admin");
     await findByText(/AD — Administration Building/i);
     fireEvent.press(getByTestId(LOY_AD));
-    expect(getByTestId("routeDestInput").props.value).toMatch(
-      /^AD - Administration Building/i,
-    );
+
+    expect(getRouteDestValue(utils)).toMatch(/^AD - Administration Building/i);
     expect(getByTestId("clearDestination")).toBeTruthy();
 
-    // Clear START
     fireEvent.press(getByTestId("clearStart"));
-    expect(getByTestId("routeStartInput").props.value).toBe("");
+    expect(getRouteStartValue(utils)).toBe("");
     expect(queryByTestId("clearStart")).toBeNull();
 
-    // Clear DESTINATION
     fireEvent.press(getByTestId("clearDestination"));
-    expect(getByTestId("routeDestInput").props.value).toBe("");
+    expect(getRouteDestValue(utils)).toBe("");
     expect(queryByTestId("clearDestination")).toBeNull();
   });
 
   it("turning off route mode while in route mode clears start and destination", async () => {
-    const { getByTestId, queryByTestId, findByText } = render(<CampusMap />);
+    const utils = render(<CampusMap />);
+    const { getByTestId, queryByTestId, findByText } = utils;
 
     fireEvent.press(getByTestId("routeModeButton"));
     expect(getByTestId("routePanel")).toBeTruthy();
@@ -339,19 +342,15 @@ describe("CampusMap - Route mode integration", () => {
     await findByText(/AD — Administration Building/i);
     fireEvent.press(getByTestId(LOY_AD));
 
-    expect(getByTestId("routeStartInput").props.value).toMatch(
-      /^H - Henry F\. Hall Building/i,
-    );
-    expect(getByTestId("routeDestInput").props.value).toMatch(
-      /^AD - Administration Building/i,
-    );
+    expect(getRouteStartValue(utils)).toMatch(/^H - Henry F\. Hall Building/i);
+    expect(getRouteDestValue(utils)).toMatch(/^AD - Administration Building/i);
 
     fireEvent.press(getByTestId("routeModeButton"));
     expect(queryByTestId("routePanel")).toBeNull();
 
     fireEvent.press(getByTestId("routeModeButton"));
     expect(getByTestId("routePanel")).toBeTruthy();
-    expect(getByTestId("routeStartInput").props.value).toBe("");
-    expect(getByTestId("routeDestInput").props.value).toBe("");
+    expect(getRouteStartValue(utils)).toBe("");
+    expect(getRouteDestValue(utils)).toBe("");
   });
 });
