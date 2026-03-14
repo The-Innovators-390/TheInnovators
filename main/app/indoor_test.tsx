@@ -266,6 +266,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#f3efe9",
+    position: "relative",
   },
 
   header: {
@@ -334,6 +335,10 @@ const styles = StyleSheet.create({
   },
 
   floorBarWrapper: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 36,
     borderTopWidth: 6,
     paddingTop: 8,
     paddingBottom: 10,

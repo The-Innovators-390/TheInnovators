@@ -189,7 +189,7 @@ export default function BuildingPopup({
                 testID="directionsButton"
               >
                 <Text style={[styles.directionsText, { color: theme.brand }]}>
-                  Get Directions
+                  Directions
                 </Text>
               </Pressable>
 
@@ -427,36 +427,41 @@ const styles = StyleSheet.create({
   },
 
   actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 8,
-  },
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  marginTop: 8,
+},
 
   directionsBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    alignSelf: "flex-start",
+  flex: 1,
+  minWidth: 0,
+  paddingVertical: 7,
+  paddingHorizontal: 10,
+  borderRadius: 999,
+  borderWidth: 1,
+  alignItems: "center",
+  justifyContent: "center",
   },
   directionsText: {
-    fontSize: 12,
-    fontWeight: "900",
-  },
+  fontSize: 11,
+  fontWeight: "900",
+},
 
   indoorMapBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    alignSelf: "flex-start",
-  },
+  flex: 1,
+  minWidth: 0,
+  paddingVertical: 7,
+  paddingHorizontal: 10,
+  borderRadius: 999,
+  alignItems: "center",
+  justifyContent: "center",
+},
   indoorMapText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "900",
-  },
+  color: "white",
+  fontSize: 11,
+  fontWeight: "900",
+},
 
   thumb: {
     width: 88,
