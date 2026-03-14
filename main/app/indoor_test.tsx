@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,31 +6,19 @@ import {
   Image,
   Dimensions,
   Pressable,
+  ImageSourcePropType,
+  ScrollView,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import Svg, { Line, Circle, Text as SvgText } from "react-native-svg";
 import { indoorPlan } from "@/components/indoors/indoorPlan";
 
 type IndoorPlanKey = keyof typeof indoorPlan;
 
-type IndoorNode = {
-  id: string;
-  type: string;
-  buildingId?: string;
-  floor?: number;
-  x: number;
-  y: number;
-  label?: string;
-  accessible?: boolean;
-};
-
-type IndoorEdge = {
-  source: string;
-  target: string;
-  type?: string;
-  weight?: number;
-  accessible?: boolean;
-};
+type SvgFloorComponent = React.ComponentType<{
+  width?: number | string;
+  height?: number | string;
+  style?: any;
+}>;
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -63,11 +51,33 @@ function getBuildingDisplayName(building: string) {
   }
 }
 
+function getAvailableFloors(building: string): number[] {
+  switch (building) {
+    case "hb":
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    case "mb":
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+    case "ve":
+      return [1, 2];
+    case "vl":
+      return [1, 2];
+    case "cc":
+      return [1];
+    default:
+      return [];
+  }
+}
+
+function isImageAsset(value: unknown): value is ImageSourcePropType {
+  return typeof value === "number";
+}
+
+function isSvgComponent(value: unknown): value is SvgFloorComponent {
+  return typeof value === "function";
+}
+
 export default function IndoorDebugScreen() {
-  const params = useLocalSearchParams<{
-    building?: string;
-    floor?: string;
-  }>();
+  const params = useLocalSearchParams();
 
   const requestedBuilding =
     typeof params.building === "string" ? params.building.toLowerCase() : "mb";
@@ -78,18 +88,8 @@ export default function IndoorDebugScreen() {
       : "mb";
 
   const buildingConfig = indoorPlan[selectedBuilding];
-  const floorData = buildingConfig.graph;
 
-  const allNodes: IndoorNode[] = floorData.nodes ?? [];
-  const allEdges: IndoorEdge[] = floorData.edges ?? [];
-
-  const floors = [
-    ...new Set(
-      allNodes
-        .map((node) => node.floor)
-        .filter((floor): floor is number => typeof floor === "number"),
-    ),
-  ].sort((a, b) => a - b);
+  const floors = getAvailableFloors(selectedBuilding);
 
   const requestedFloor =
     typeof params.floor === "string" ? Number(params.floor) : NaN;
@@ -101,34 +101,10 @@ export default function IndoorDebugScreen() {
 
   const [currentFloor, setCurrentFloor] = useState<number>(initialFloor);
 
-  const floorImage =
+  const floorAsset =
     buildingConfig.floors[
       currentFloor as keyof (typeof buildingConfig)["floors"]
     ];
-
-  const nodes = useMemo(
-    () => allNodes.filter((node) => node.floor === currentFloor),
-    [allNodes, currentFloor],
-  );
-
-  const nodeIdsOnFloor = useMemo(
-    () => new Set(nodes.map((node) => node.id)),
-    [nodes],
-  );
-
-  const edges = useMemo(
-    () =>
-      allEdges.filter(
-        (edge) =>
-          nodeIdsOnFloor.has(edge.source) && nodeIdsOnFloor.has(edge.target),
-      ),
-    [allEdges, nodeIdsOnFloor],
-  );
-
-  const nodeMap = useMemo(
-    () => new Map(nodes.map((node) => [node.id, node])),
-    [nodes],
-  );
 
   const originalWidth = 1024;
   const originalHeight = 1024;
@@ -137,6 +113,47 @@ export default function IndoorDebugScreen() {
   const renderedMapHeight = originalHeight * scale;
 
   const headerColor = selectedBuilding === "vl" ? "#D4AF37" : "#9E1B32";
+
+  const renderFloor = () => {
+    if (!floorAsset) {
+      return (
+        <View style={styles.comingSoonContainer}>
+          <Text style={styles.comingSoonBadge}>Coming soon</Text>
+        </View>
+      );
+    }
+
+    if (isImageAsset(floorAsset)) {
+      return (
+        <Image
+          source={floorAsset}
+          style={{
+            width: renderedMapWidth,
+            height: renderedMapHeight,
+            position: "absolute",
+          }}
+          resizeMode="contain"
+        />
+      );
+    }
+
+    if (isSvgComponent(floorAsset)) {
+      const FloorSvg = floorAsset;
+      return (
+        <FloorSvg
+          width={renderedMapWidth}
+          height={renderedMapHeight}
+          style={styles.floorSvg}
+        />
+      );
+    }
+
+    return (
+      <View style={styles.comingSoonContainer}>
+        <Text style={styles.comingSoonBadge}>Coming soon</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.screen}>
@@ -155,83 +172,15 @@ export default function IndoorDebugScreen() {
       </View>
 
       <View style={styles.content}>
-        <View style={styles.mapFrame}>
-          {floorImage ? (
-            <>
-              <Image
-                source={floorImage}
-                style={{
-                  width: renderedMapWidth,
-                  height: renderedMapHeight,
-                  position: "absolute",
-                }}
-                resizeMode="contain"
-              />
-
-              <Svg
-                width={renderedMapWidth}
-                height={renderedMapHeight}
-                style={StyleSheet.absoluteFill}
-              >
-                {edges.map((edge, index) => {
-                  const sourceNode = nodeMap.get(edge.source);
-                  const targetNode = nodeMap.get(edge.target);
-
-                  if (!sourceNode || !targetNode) return null;
-
-                  return (
-                    <Line
-                      key={`edge-${index}`}
-                      x1={sourceNode.x * scale}
-                      y1={sourceNode.y * scale}
-                      x2={targetNode.x * scale}
-                      y2={targetNode.y * scale}
-                      stroke={edge.accessible ? "#2563eb" : "#888"}
-                      strokeWidth={2}
-                    />
-                  );
-                })}
-
-                {nodes.map((node) => {
-                  let color = "#16a34a";
-
-                  if (node.type === "room") color = "#dc2626";
-                  if (node.type?.includes("door")) color = "#f59e0b";
-                  if (node.type?.includes("hallway")) color = "#2563eb";
-
-                  return (
-                    <React.Fragment key={node.id}>
-                      <Circle
-                        cx={node.x * scale}
-                        cy={node.y * scale}
-                        r={4}
-                        fill={color}
-                      />
-                      {node.label ? (
-                        <SvgText
-                          x={node.x * scale + 5}
-                          y={node.y * scale - 5}
-                          fontSize="9"
-                          fill="#111"
-                        >
-                          {node.label}
-                        </SvgText>
-                      ) : null}
-                    </React.Fragment>
-                  );
-                })}
-              </Svg>
-            </>
-          ) : (
-            <View style={styles.comingSoonContainer}>
-              <Text style={styles.comingSoonBadge}>Coming soon</Text>
-            </View>
-          )}
-        </View>
+        <View style={styles.mapFrame}>{renderFloor()}</View>
       </View>
 
       <View style={[styles.floorBarWrapper, { borderTopColor: headerColor }]}>
-        <View style={styles.floorBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.floorBar}
+        >
           {floors.map((floor) => {
             const isActive = currentFloor === floor;
 
@@ -256,7 +205,7 @@ export default function IndoorDebugScreen() {
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
     </View>
   );
@@ -319,6 +268,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
+  floorSvg: {
+    position: "absolute",
+  },
+
   comingSoonContainer: {
     flex: 1,
     alignItems: "center",
@@ -347,9 +300,9 @@ const styles = StyleSheet.create({
   },
   floorBar: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
     gap: 8,
+    paddingHorizontal: 4,
   },
   floorButton: {
     width: 34,
