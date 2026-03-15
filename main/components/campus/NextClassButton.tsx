@@ -1,12 +1,22 @@
 import React from "react";
-import { Pressable, StyleSheet, Image } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  ViewStyle,
+  StyleProp,
+} from "react-native";
 import { router } from "expo-router";
 
-export function NextClassButton() {
+type Props = {
+  style?: StyleProp<ViewStyle>;
+};
+
+export function NextClassButton({ style }: Readonly<Props>) {
   return (
     <Pressable
       testID="nextClassButton"
-      style={styles.button}
+      style={[styles.button, style]}
       onPress={() => router.push("/(tabs)/calendar")}
     >
       <Image
@@ -19,20 +29,17 @@ export function NextClassButton() {
 
 const styles = StyleSheet.create({
   button: {
-    position: "absolute",
-    bottom: 110,
-    left: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "white",
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
   },
   icon: {
     width: 28,

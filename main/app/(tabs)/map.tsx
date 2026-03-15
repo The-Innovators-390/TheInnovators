@@ -1,13 +1,11 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import CampusMap from "@/components/campus/CampusMap";
-import { NextClassButton } from "../../components/campus/NextClassButton";
 
 export default function MapScreen() {
   return (
     <View style={styles.container}>
       <CampusMap />
-      <NextClassButton />
     </View>
   );
 }

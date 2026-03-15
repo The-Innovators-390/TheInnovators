@@ -12,6 +12,7 @@ import {
   Pressable,
   Platform,
   StyleSheet,
+  useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
@@ -52,7 +53,6 @@ import {
   getBuildingContainingPoint,
   makeUserLocationBuilding,
 } from "@/components/campus/helper_methods/campusMap.buildings";
-import { computeFloatingBottom } from "@/components/campus/helper_methods/campusMap.ui";
 import type { Region } from "react-native-maps";
 import TravelOptionsPopup from "@/components/campus/TravelOptionsPopup";
 import {
@@ -81,6 +81,7 @@ import {
   secondsToMinutesString,
 } from "@/components/campus/helper_methods/navigationFormat";
 import Compass from "@/components/campus/Compass";
+import { NextClassButton } from "@/components/campus/NextClassButton";
 import { resetMapDirectionToNorth } from "@/components/campus/helper_methods/mapCompass";
 
 // Re-export for backwards compatibility with tests
@@ -220,6 +221,7 @@ export default function CampusMap() {
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const [mapHeading, setMapHeading] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
 
   const { destBuildingId } = useLocalSearchParams<{ destBuildingId: string }>();
 
@@ -772,10 +774,29 @@ export default function CampusMap() {
     [routesByMode],
   );
 
-  const floatingBottom = useMemo(
-    () => computeFloatingBottom(!!selected, popupIndex),
-    [selected, popupIndex],
+  const hasBuildingPopup = !nav.isRouteMode && !!selected;
+  const hasTravelPopup =
+    nav.isRouteMode && !routeNavigation.isNavigating && travelPopupVisible;
+
+  const collapsedBuildingPopupHeight = Math.round(windowHeight * 0.19);
+  const collapsedTravelPopupHeight = Math.max(
+    260,
+    Math.round(windowHeight * 0.28),
   );
+
+  const floatingBottom = useMemo(() => {
+    if (hasBuildingPopup) return collapsedBuildingPopupHeight;
+    if (hasTravelPopup) return collapsedTravelPopupHeight;
+    return 120;
+  }, [
+    hasBuildingPopup,
+    hasTravelPopup,
+    collapsedBuildingPopupHeight,
+    collapsedTravelPopupHeight,
+  ]);
+
+  const shouldHideFloatingButtons =
+    (hasBuildingPopup && popupIndex > 0) || (hasTravelPopup && popupIndex > 0);
 
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
@@ -1123,7 +1144,7 @@ export default function CampusMap() {
       </View>
 
       <Compass
-        visible={shouldShowCompass}
+        visible={shouldShowCompass && !shouldHideFloatingButtons}
         rotationDegrees={-mapHeading}
         onPress={() =>
           resetCompassToNorth(
@@ -1138,50 +1159,61 @@ export default function CampusMap() {
                 },
           )
         }
-        style={compassStyles.button}
+        style={[
+          compassStyles.button,
+          { bottom: floatingBottom },
+          shouldHideFloatingButtons && { display: "none" },
+        ]}
       />
 
-      {/* FLOATING BUTTONS STACK (now dynamic bottom) */}
-      <View style={[floatingStyles.container, { bottom: floatingBottom }]}>
-        <CurrentLocationButton onLocationFound={handleLocationFound} />
-
-        {!routeNavigation.isNavigating && (
-          <RoutePlanner
-            isRouteMode={nav.isRouteMode}
-            onToggle={() => {
-              const nextMode = !nav.isRouteMode;
-
-              setSelected(null);
-              setPopupIndex(-1);
-
-              if (nextMode) {
-                nav.toggleRouteMode();
-                nav.setActiveField("destination");
-                setQuery(destText);
-                nav.setRouteError(null);
-                setStartToCurrentLocation();
-                return;
-              }
-
-              nav.setRouteStart(null);
-              nav.setRouteDest(null);
-              nav.setRouteError(null);
-              setStartText("");
-              setDestText("");
-              setQuery("");
-              setAllRouteCoords([]);
-              setShuttleSegmentCoords(null);
-
-              resetCompassToNorth({
-                latitude: region.latitude,
-                longitude: region.longitude,
-              });
-
-              nav.toggleRouteMode();
-            }}
+      {!shouldHideFloatingButtons && (
+        <>
+          <NextClassButton
+            style={[nextClassStyles.button, { bottom: floatingBottom }]}
           />
-        )}
-      </View>
+
+          <View style={[floatingStyles.container, { bottom: floatingBottom }]}>
+            <CurrentLocationButton onLocationFound={handleLocationFound} />
+
+            {!routeNavigation.isNavigating && (
+              <RoutePlanner
+                isRouteMode={nav.isRouteMode}
+                onToggle={() => {
+                  const nextMode = !nav.isRouteMode;
+
+                  setSelected(null);
+                  setPopupIndex(-1);
+
+                  if (nextMode) {
+                    nav.toggleRouteMode();
+                    nav.setActiveField("destination");
+                    setQuery(destText);
+                    nav.setRouteError(null);
+                    setStartToCurrentLocation();
+                    return;
+                  }
+
+                  nav.setRouteStart(null);
+                  nav.setRouteDest(null);
+                  nav.setRouteError(null);
+                  setStartText("");
+                  setDestText("");
+                  setQuery("");
+                  setAllRouteCoords([]);
+                  setShuttleSegmentCoords(null);
+
+                  resetCompassToNorth({
+                    latitude: region.latitude,
+                    longitude: region.longitude,
+                  });
+
+                  nav.toggleRouteMode();
+                }}
+              />
+            )}
+          </View>
+        </>
+      )}
 
       {/* Popup only in normal mode */}
       {!nav.isRouteMode && selected && (
@@ -1342,5 +1374,14 @@ const locationMarkerStyles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
+  },
+});
+
+const nextClassStyles = StyleSheet.create({
+  button: {
+    position: "absolute",
+    left: 16,
+    zIndex: 999,
+    elevation: 999,
   },
 });
