@@ -1252,7 +1252,11 @@ export default function CampusMap() {
           selectedRouteIndex={selectedRouteIndex}
           onSelectMode={handleSelectMode}
           onSelectRouteIndex={(index) => applySelection(selectedMode, index)}
-          onClose={() => setTravelPopupVisible(false)}
+          onClose={() => {
+            setTravelPopupVisible(false);
+            setPopupIndex(-1);
+          }}
+          onSheetChange={(index: number) => setPopupIndex(index)}
           onGo={handleGo}
           shuttleInfo={shuttleInfo}
         />
