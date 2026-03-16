@@ -53,7 +53,7 @@ jobs:
 
           cat > project_query.json <<EOF
           {
-            "query": "query{ organization(login:\"$OWNER\"){ projectV2(number:$PROJECT_NUMBER){ id }}}"
+            "query": "query { organization(login: \"$OWNER\") { projectV2(number: $PROJECT_NUMBER) { id title } } }"
           }
           EOF
 
@@ -63,11 +63,35 @@ jobs:
             --data @project_query.json \
             https://api.github.com/graphql)
 
-          PROJECT_ID=$(echo "$RAW" | jq -r '.data.organization.projectV2.id')
+          echo "Project query response:"
+          echo "$RAW"
+
+          PROJECT_ID=$(RAW_JSON="$RAW" python3 - <<'PY'
+          import json, os, sys
+          raw = os.environ["RAW_JSON"]
+          j = json.loads(raw)
+
+          if "errors" in j:
+              print(json.dumps(j["errors"], indent=2), file=sys.stderr)
+              raise SystemExit("GraphQL project query failed.")
+
+          org = (j.get("data") or {}).get("organization")
+          if not org:
+              raise SystemExit("No organization returned. Token may not have org project access.")
+
+          proj = org.get("projectV2")
+          if not proj:
+              raise SystemExit("No projectV2 returned. Check PROJECT_NUMBER.")
+
+          print(proj["id"])
+          PY
+          )
+
+          echo "Resolved PROJECT_ID=$PROJECT_ID"
 
           cat > items_query.json <<EOF
           {
-            "query": "query(\$id: ID!) { node(id: \$id) { ... on ProjectV2 { items(first: 100) { nodes { fieldValues(first: 50) { nodes { ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2FieldCommon { name } } } ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2FieldCommon { name } } } ... on ProjectV2ItemFieldTextValue { text field { ... on ProjectV2FieldCommon { name } } } } } } } } }",
+            "query": "query(\$id: ID!) { node(id: \$id) { ... on ProjectV2 { items(first: 100) { nodes { fieldValues(first: 50) { nodes { ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2FieldCommon { name } } } ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2FieldCommon { name } } } ... on ProjectV2ItemFieldTextValue { text field { ... on ProjectV2FieldCommon { name } } } } } } } } } }",
             "variables": {
               "id": "$PROJECT_ID"
             }
@@ -80,10 +104,27 @@ jobs:
             --data @items_query.json \
             https://api.github.com/graphql)
 
+          echo "Items query response:"
+          echo "$RESP"
+
           REMAINING=$(RESP_JSON="$RESP" python3 - <<'PY'
-          import os, json
+          import os, json, sys
 
           j = json.loads(os.environ["RESP_JSON"])
+
+          if "errors" in j:
+              print(json.dumps(j["errors"], indent=2), file=sys.stderr)
+              raise SystemExit("GraphQL items query failed.")
+
+          data = j.get("data")
+          if not data:
+              raise SystemExit("No data returned from items query.")
+
+          node = data.get("node")
+          if not node:
+              raise SystemExit("No project node returned from items query.")
+
+          items = (((node.get("items") or {}).get("nodes")) or [])
 
           POINT = os.environ["POINTS_FIELD_NAME"]
           STATUS = os.environ["STATUS_FIELD_NAME"]
@@ -93,38 +134,39 @@ jobs:
 
           remaining = 0.0
 
-          for item in j["data"]["node"]["items"]["nodes"]:
+          for item in items:
               pts = 0.0
               status = None
               sprint = None
 
-              for f in item["fieldValues"]["nodes"]:
-                  field_name = f["field"]["name"]
+              field_values = (((item.get("fieldValues") or {}).get("nodes")) or [])
+              for f in field_values:
+                  field = f.get("field") or {}
+                  field_name = field.get("name")
 
-                  if field_name == POINT and "number" in f and f["number"] is not None:
+                  if field_name == POINT and f.get("number") is not None:
                       pts = float(f["number"])
 
                   if field_name == STATUS:
-                      if "name" in f and f["name"] is not None:
+                      if f.get("name") is not None:
                           status = f["name"]
-                      elif "text" in f and f["text"] is not None:
+                      elif f.get("text") is not None:
                           status = f["text"]
 
                   if field_name == SPRINT:
-                      if "name" in f and f["name"] is not None:
+                      if f.get("name") is not None:
                           sprint = f["name"]
-                      elif "text" in f and f["text"] is not None:
+                      elif f.get("text") is not None:
                           sprint = f["text"]
 
               if sprint == SPRINT_NAME and status != DONE:
                   remaining += pts
 
-          if remaining.is_integer():
-              print(int(remaining))
-          else:
-              print(remaining)
+          print(int(remaining) if remaining.is_integer() else remaining)
           PY
           )
+
+          echo "Remaining points: $REMAINING"
 
           TODAY=$(date -u +%F)
 
@@ -151,7 +193,6 @@ jobs:
           csv_file = f"data/burndown_{safe}.csv"
 
           rows = list(csv.DictReader(open(csv_file)))
-
           actual_map = {row["date"]: float(row["remaining_points"]) for row in rows}
 
           dates = []
@@ -164,12 +205,12 @@ jobs:
               actual.append(actual_map.get(ds, None))
               d += datetime.timedelta(days=1)
 
-          existing_values = [v for v in actual if v is not None]
-          start_points = existing_values[0] if existing_values else 0.0
+          existing = [v for v in actual if v is not None]
+          start_points = existing[0] if existing else 0.0
 
           total_days = (end - start).days
           ideal = []
-          for i, _ in enumerate(dates):
+          for i in range(len(dates)):
               if total_days == 0:
                   ideal.append(start_points)
               else:
