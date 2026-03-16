@@ -7,16 +7,14 @@ on:
         description: "Sprint field value"
         required: true
         default: "Sprint 5"
-
       sprint_start:
         description: "Sprint start date (YYYY-MM-DD)"
         required: true
         default: "2026-03-08"
-
       sprint_end:
         description: "Sprint end date (YYYY-MM-DD)"
         required: true
-        default: "2026-03-23"
+        default: "2026-03-22"
 
   schedule:
     - cron: "0 3 * * *"
@@ -27,19 +25,18 @@ permissions:
 jobs:
   burndown:
     runs-on: ubuntu-latest
-
     env:
       GH_TOKEN: ${{ secrets.BURNDOWN_TOKEN }}
       OWNER: The-Innovators-390
       PROJECT_NUMBER: "1"
-
       POINTS_FIELD_NAME: "Estimate"
       STATUS_FIELD_NAME: "Status"
       DONE_STATUS_NAME: "Closed"
       SPRINT_FIELD_NAME: "Sprint"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Generate burndown
         env:
@@ -47,137 +44,180 @@ jobs:
           SPRINT_START: ${{ inputs.sprint_start }}
           SPRINT_END: ${{ inputs.sprint_end }}
         run: |
-
+          set -e
           mkdir -p data
 
           SAFE=$(echo "$SPRINT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /_/g')
-
           CSV="data/burndown_${SAFE}.csv"
           PNG="data/burndown_${SAFE}.png"
 
-          RAW=$(curl -s \
+          cat > project_query.json <<EOF
+          {
+            "query": "query{ organization(login:\"$OWNER\"){ projectV2(number:$PROJECT_NUMBER){ id }}}"
+          }
+          EOF
+
+          RAW=$(curl -sS \
             -H "Authorization: bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"query\":\"query{ organization(login:\\\"$OWNER\\\"){ projectV2(number:$PROJECT_NUMBER){ id }}}\"}" \
+            --data @project_query.json \
             https://api.github.com/graphql)
 
           PROJECT_ID=$(echo "$RAW" | jq -r '.data.organization.projectV2.id')
 
-          RESP=$(curl -s \
+          cat > items_query.json <<EOF
+          {
+            "query": "query(\$id: ID!) { node(id: \$id) { ... on ProjectV2 { items(first: 100) { nodes { fieldValues(first: 50) { nodes { ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2FieldCommon { name } } } ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2FieldCommon { name } } } ... on ProjectV2ItemFieldTextValue { text field { ... on ProjectV2FieldCommon { name } } } } } } } } }",
+            "variables": {
+              "id": "$PROJECT_ID"
+            }
+          }
+          EOF
+
+          RESP=$(curl -sS \
             -H "Authorization: bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"query\":\"query($id:ID!){ node(id:$id){ ... on ProjectV2 { items(first:100){ nodes{ fieldValues(first:50){ nodes{ ... on ProjectV2ItemFieldNumberValue{ number field{ name }} ... on ProjectV2ItemFieldSingleSelectValue{ name field{ name }} }}}}}}\",\"variables\":{\"id\":\"$PROJECT_ID\"}}" \
+            --data @items_query.json \
             https://api.github.com/graphql)
 
-          REMAINING=$(echo "$RESP" | python3 - << 'PY'
-import os,json,sys
+          REMAINING=$(RESP_JSON="$RESP" python3 - <<'PY'
+          import os, json
 
-j=json.load(sys.stdin)
+          j = json.loads(os.environ["RESP_JSON"])
 
-POINT=os.environ["POINTS_FIELD_NAME"]
-STATUS=os.environ["STATUS_FIELD_NAME"]
-DONE=os.environ["DONE_STATUS_NAME"]
-SPRINT=os.environ["SPRINT_FIELD_NAME"]
-SPRINT_NAME=os.environ["SPRINT_NAME"]
+          POINT = os.environ["POINTS_FIELD_NAME"]
+          STATUS = os.environ["STATUS_FIELD_NAME"]
+          DONE = os.environ["DONE_STATUS_NAME"]
+          SPRINT = os.environ["SPRINT_FIELD_NAME"]
+          SPRINT_NAME = os.environ["SPRINT_NAME"]
 
-remaining=0
+          remaining = 0.0
 
-for item in j["data"]["node"]["items"]["nodes"]:
-    pts=0
-    status=None
-    sprint=None
+          for item in j["data"]["node"]["items"]["nodes"]:
+              pts = 0.0
+              status = None
+              sprint = None
 
-    for f in item["fieldValues"]["nodes"]:
-        name=f["field"]["name"]
+              for f in item["fieldValues"]["nodes"]:
+                  field_name = f["field"]["name"]
 
-        if name==POINT and "number" in f:
-            pts=f["number"]
+                  if field_name == POINT and "number" in f and f["number"] is not None:
+                      pts = float(f["number"])
 
-        if name==STATUS and "name" in f:
-            status=f["name"]
+                  if field_name == STATUS:
+                      if "name" in f and f["name"] is not None:
+                          status = f["name"]
+                      elif "text" in f and f["text"] is not None:
+                          status = f["text"]
 
-        if name==SPRINT and "name" in f:
-            sprint=f["name"]
+                  if field_name == SPRINT:
+                      if "name" in f and f["name"] is not None:
+                          sprint = f["name"]
+                      elif "text" in f and f["text"] is not None:
+                          sprint = f["text"]
 
-    if sprint==SPRINT_NAME and status!=DONE:
-        remaining+=pts
+              if sprint == SPRINT_NAME and status != DONE:
+                  remaining += pts
 
-print(int(remaining))
-PY
-)
+          if remaining.is_integer():
+              print(int(remaining))
+          else:
+              print(remaining)
+          PY
+          )
 
           TODAY=$(date -u +%F)
 
           if [ ! -f "$CSV" ]; then
-            echo "date,remaining_points" > $CSV
+            echo "date,remaining_points" > "$CSV"
           fi
 
-          grep -v "^$TODAY," $CSV > tmp.csv || true
-          mv tmp.csv $CSV
+          grep -v "^$TODAY," "$CSV" > tmp.csv || true
+          mv tmp.csv "$CSV"
+          echo "$TODAY,$REMAINING" >> "$CSV"
 
-          echo "$TODAY,$REMAINING" >> $CSV
+          python3 - <<'PY'
+          import csv
+          import datetime
+          import json
+          import os
+          import urllib.parse
 
-          python3 - << 'PY'
-import csv,datetime,json,urllib.parse,os
+          sprint = os.environ["SPRINT_NAME"]
+          start = datetime.date.fromisoformat(os.environ["SPRINT_START"])
+          end = datetime.date.fromisoformat(os.environ["SPRINT_END"])
 
-SPRINT=os.environ["SPRINT_NAME"]
-START=datetime.date.fromisoformat(os.environ["SPRINT_START"])
-END=datetime.date.fromisoformat(os.environ["SPRINT_END"])
+          safe = sprint.lower().replace(" ", "_")
+          csv_file = f"data/burndown_{safe}.csv"
 
-safe=SPRINT.lower().replace(" ","_")
-CSV=f"data/burndown_{safe}.csv"
+          rows = list(csv.DictReader(open(csv_file)))
 
-rows=list(csv.DictReader(open(CSV)))
+          actual_map = {row["date"]: float(row["remaining_points"]) for row in rows}
 
-actual_dates=[r["date"] for r in rows]
-actual_vals=[float(r["remaining_points"]) for r in rows]
+          dates = []
+          actual = []
 
-total_days=(END-START).days
+          d = start
+          while d <= end:
+              ds = str(d)
+              dates.append(ds)
+              actual.append(actual_map.get(ds, None))
+              d += datetime.timedelta(days=1)
 
-if actual_vals:
-    start_points=actual_vals[0]
-else:
-    start_points=0
+          existing_values = [v for v in actual if v is not None]
+          start_points = existing_values[0] if existing_values else 0.0
 
-ideal=[]
-dates=[]
+          total_days = (end - start).days
+          ideal = []
+          for i, _ in enumerate(dates):
+              if total_days == 0:
+                  ideal.append(start_points)
+              else:
+                  ideal.append(max(0.0, start_points - (start_points / total_days) * i))
 
-for i in range(total_days+1):
-    d=START+datetime.timedelta(days=i)
-    dates.append(str(d))
+          config = {
+              "type": "line",
+              "data": {
+                  "labels": dates,
+                  "datasets": [
+                      {
+                          "label": "Actual Remaining",
+                          "data": actual,
+                          "spanGaps": False
+                      },
+                      {
+                          "label": "Ideal Burndown",
+                          "data": ideal
+                      }
+                  ]
+              },
+              "options": {
+                  "plugins": {
+                      "title": {
+                          "display": True,
+                          "text": f"Burndown - {sprint}"
+                      }
+                  },
+                  "scales": {
+                      "y": {
+                          "beginAtZero": True
+                      }
+                  }
+              }
+          }
 
-    if total_days==0:
-        ideal.append(start_points)
-    else:
-        ideal.append(max(0,start_points-(start_points/total_days)*i))
+          url = "https://quickchart.io/chart?c=" + urllib.parse.quote(json.dumps(config))
+          with open("data/chart_url.txt", "w") as f:
+              f.write(url)
+          PY
 
-config={
-"type":"line",
-"data":{
-"labels":dates,
-"datasets":[
-{"label":"Actual Remaining","data":actual_vals},
-{"label":"Ideal Burndown","data":ideal}
-]},
-"options":{
-"plugins":{"title":{"display":True,"text":f"Burndown - {SPRINT}"}},
-"scales":{"y":{"beginAtZero":True}}
-}
-}
-
-url="https://quickchart.io/chart?c="+urllib.parse.quote(json.dumps(config))
-
-open("data/chart_url.txt","w").write(url)
-PY
-
-          curl -s "$(cat data/chart_url.txt)" -o $PNG
+          curl -sS "$(cat data/chart_url.txt)" -o "$PNG"
 
       - name: Commit files
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
           git add data/
-
           git commit -m "Update burndown chart" || exit 0
           git push
