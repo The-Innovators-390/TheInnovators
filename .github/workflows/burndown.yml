@@ -4,11 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       sprint_name:
-        description: "Sprint field value to filter on (example: Sprint 5)"
+        description: "Sprint field value"
         required: true
         default: "Sprint 5"
 
-  # GitHub cron is UTC
+      sprint_start:
+        description: "Sprint start date (YYYY-MM-DD)"
+        required: true
+        default: "2026-03-08"
+
+      sprint_end:
+        description: "Sprint end date (YYYY-MM-DD)"
+        required: true
+        default: "2026-03-23"
+
   schedule:
     - cron: "0 3 * * *"
 
@@ -18,6 +27,7 @@ permissions:
 jobs:
   burndown:
     runs-on: ubuntu-latest
+
     env:
       GH_TOKEN: ${{ secrets.BURNDOWN_TOKEN }}
       OWNER: The-Innovators-390
@@ -31,309 +41,143 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate burndown snapshot + chart
-        id: generate
+      - name: Generate burndown
         env:
-          SPRINT_NAME: ${{ inputs.sprint_name || 'Sprint 5' }}
+          SPRINT_NAME: ${{ inputs.sprint_name }}
+          SPRINT_START: ${{ inputs.sprint_start }}
+          SPRINT_END: ${{ inputs.sprint_end }}
         run: |
-          set -e
-
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "ERROR: GH_TOKEN is empty. Set secrets.BURNDOWN_TOKEN to a valid PAT."
-            exit 1
-          fi
 
           mkdir -p data
 
-          SAFE_SPRINT_NAME=$(echo "$SPRINT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /_/g')
-          CSV_FILE="data/burndown_${SAFE_SPRINT_NAME}.csv"
-          PNG_FILE="data/burndown_${SAFE_SPRINT_NAME}.png"
+          SAFE=$(echo "$SPRINT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /_/g')
 
-          echo "Querying ProjectV2 id for org=$OWNER project=$PROJECT_NUMBER"
+          CSV="data/burndown_${SAFE}.csv"
+          PNG="data/burndown_${SAFE}.png"
 
-          RAW=$(curl -sS \
+          RAW=$(curl -s \
             -H "Authorization: bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"query\":\"query{ organization(login:\\\"$OWNER\\\"){ projectV2(number:$PROJECT_NUMBER){ id }}}\"}" \
             https://api.github.com/graphql)
 
-          echo "Raw response (first 500 chars):"
-          echo "$RAW" | head -c 500
-          echo ""
+          PROJECT_ID=$(echo "$RAW" | jq -r '.data.organization.projectV2.id')
 
-          PROJECT_ID=$(RAW_JSON="$RAW" python3 - <<'PY'
-          import os, json
+          RESP=$(curl -s \
+            -H "Authorization: bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"query($id:ID!){ node(id:$id){ ... on ProjectV2 { items(first:100){ nodes{ fieldValues(first:50){ nodes{ ... on ProjectV2ItemFieldNumberValue{ number field{ name }} ... on ProjectV2ItemFieldSingleSelectValue{ name field{ name }} }}}}}}\",\"variables\":{\"id\":\"$PROJECT_ID\"}}" \
+            https://api.github.com/graphql)
 
-          txt = os.environ.get("RAW_JSON", "").strip()
-          if not txt:
-              raise SystemExit("ERROR: Empty response from GraphQL (Project ID query).")
+          REMAINING=$(echo "$RESP" | python3 - << 'PY'
+import os,json,sys
 
-          j = json.loads(txt)
+j=json.load(sys.stdin)
 
-          if "errors" in j:
-              raise SystemExit("ERRORS from GraphQL (Project ID query): " + json.dumps(j["errors"], indent=2))
+POINT=os.environ["POINTS_FIELD_NAME"]
+STATUS=os.environ["STATUS_FIELD_NAME"]
+DONE=os.environ["DONE_STATUS_NAME"]
+SPRINT=os.environ["SPRINT_FIELD_NAME"]
+SPRINT_NAME=os.environ["SPRINT_NAME"]
 
-          org = j.get("data", {}).get("organization")
-          if not org:
-              raise SystemExit("ERROR: data.organization is null (wrong OWNER or no access).")
+remaining=0
 
-          p = org.get("projectV2")
-          if not p:
-              raise SystemExit("ERROR: projectV2 is null (wrong PROJECT_NUMBER or no access).")
+for item in j["data"]["node"]["items"]["nodes"]:
+    pts=0
+    status=None
+    sprint=None
 
-          print(p["id"])
-          PY
-          )
+    for f in item["fieldValues"]["nodes"]:
+        name=f["field"]["name"]
 
-          echo "PROJECT_ID: $PROJECT_ID"
-          export PROJECT_ID="$PROJECT_ID"
+        if name==POINT and "number" in f:
+            pts=f["number"]
 
-          RESP=$(python3 - <<'PY'
-          import os, json, subprocess, sys
+        if name==STATUS and "name" in f:
+            status=f["name"]
 
-          token = os.environ["GH_TOKEN"]
-          project_id = os.environ["PROJECT_ID"]
+        if name==SPRINT and "name" in f:
+            sprint=f["name"]
 
-          query = """
-          query($id: ID!, $after: String) {
-            node(id: $id) {
-              ... on ProjectV2 {
-                items(first: 100, after: $after) {
-                  pageInfo { hasNextPage endCursor }
-                  nodes {
-                    fieldValues(first: 50) {
-                      nodes {
-                        ... on ProjectV2ItemFieldNumberValue {
-                          number
-                          field { ... on ProjectV2FieldCommon { name } }
-                        }
-                        ... on ProjectV2ItemFieldSingleSelectValue {
-                          name
-                          field { ... on ProjectV2FieldCommon { name } }
-                        }
-                        ... on ProjectV2ItemFieldTextValue {
-                          text
-                          field { ... on ProjectV2FieldCommon { name } }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-          """
+    if sprint==SPRINT_NAME and status!=DONE:
+        remaining+=pts
 
-          def gql(after):
-              payload = {"query": query, "variables": {"id": project_id, "after": after}}
-              cmd = [
-                  "curl", "-sS",
-                  "-H", f"Authorization: bearer {token}",
-                  "-H", "Content-Type: application/json",
-                  "-d", json.dumps(payload),
-                  "https://api.github.com/graphql"
-              ]
-              p = subprocess.run(cmd, capture_output=True, text=True)
-              out = (p.stdout or "").strip()
-
-              if not out:
-                  err = (p.stderr or "").strip()
-                  print("ERROR: Empty response from GraphQL (items query).", file=sys.stderr)
-                  if err:
-                      print("curl stderr:", err, file=sys.stderr)
-                  sys.exit(1)
-
-              j = json.loads(out)
-              if "errors" in j:
-                  print("ERRORS from GraphQL (items query): " + json.dumps(j["errors"], indent=2), file=sys.stderr)
-                  sys.exit(1)
-
-              return j
-
-          all_nodes = []
-          after = None
-
-          while True:
-              j = gql(after)
-              node = (j.get("data") or {}).get("node") or {}
-              items = (node.get("items") or {})
-              nodes = items.get("nodes") or []
-              all_nodes.extend(nodes)
-
-              page = items.get("pageInfo") or {}
-              if not page.get("hasNextPage"):
-                  break
-              after = page.get("endCursor")
-              if not after:
-                  break
-
-          print(json.dumps({
-              "data": {
-                  "node": {
-                      "items": {
-                          "nodes": all_nodes
-                      }
-                  }
-              }
-          }))
-          PY
-          )
-
-          echo "Items query response (first 500 chars):"
-          echo "$RESP" | head -c 500
-          echo ""
-
-          REMAINING=$(RESP_JSON="$RESP" python3 - <<'PY'
-          import os, json
-
-          txt = os.environ.get("RESP_JSON", "").strip()
-          j = json.loads(txt)
-
-          node = j.get("data", {}).get("node", {}) or {}
-          items = (node.get("items", {}) or {}).get("nodes", []) or []
-
-          POINTS_FIELD = os.environ["POINTS_FIELD_NAME"]
-          STATUS_FIELD = os.environ["STATUS_FIELD_NAME"]
-          DONE = os.environ["DONE_STATUS_NAME"]
-          SPRINT_FIELD = os.environ["SPRINT_FIELD_NAME"]
-          SPRINT_FILTER = os.environ["SPRINT_NAME"]
-
-          remaining = 0.0
-
-          for it in items:
-              points = 0.0
-              status = None
-              sprint_value = None
-
-              for fv in ((it.get("fieldValues", {}) or {}).get("nodes", []) or []):
-                  field = ((fv.get("field") or {}).get("name"))
-
-                  if field == POINTS_FIELD and fv.get("number") is not None:
-                      points = float(fv["number"])
-
-                  if field == STATUS_FIELD:
-                      if fv.get("name") is not None:
-                          status = fv["name"]
-                      elif fv.get("text") is not None:
-                          status = fv["text"]
-
-                  if field == SPRINT_FIELD:
-                      if fv.get("name") is not None:
-                          sprint_value = fv["name"]
-                      elif fv.get("text") is not None:
-                          sprint_value = fv["text"]
-
-              if sprint_value == SPRINT_FILTER and status != DONE:
-                  remaining += points
-
-          if abs(remaining - round(remaining)) < 1e-9:
-              print(int(round(remaining)))
-          else:
-              print(remaining)
-          PY
-          )
-
-          echo "Remaining points for ${SPRINT_NAME}: $REMAINING"
+print(int(remaining))
+PY
+)
 
           TODAY=$(date -u +%F)
 
-          if [ ! -f "$CSV_FILE" ]; then
-            echo "date,remaining_points" > "$CSV_FILE"
+          if [ ! -f "$CSV" ]; then
+            echo "date,remaining_points" > $CSV
           fi
 
-          grep -v "^$TODAY," "$CSV_FILE" > data/tmp.csv || true
-          mv data/tmp.csv "$CSV_FILE"
-          echo "$TODAY,$REMAINING" >> "$CSV_FILE"
+          grep -v "^$TODAY," $CSV > tmp.csv || true
+          mv tmp.csv $CSV
 
-          python3 - <<'PY'
-          import os, csv, json, urllib.parse
-          from pathlib import Path
+          echo "$TODAY,$REMAINING" >> $CSV
 
-          sprint = os.environ["SPRINT_NAME"]
-          safe_sprint = sprint.lower().replace(" ", "_")
-          csv_path = f"data/burndown_{safe_sprint}.csv"
+          python3 - << 'PY'
+import csv,datetime,json,urllib.parse,os
 
-          rows = list(csv.DictReader(open(csv_path)))
+SPRINT=os.environ["SPRINT_NAME"]
+START=datetime.date.fromisoformat(os.environ["SPRINT_START"])
+END=datetime.date.fromisoformat(os.environ["SPRINT_END"])
 
-          labels = [r["date"] for r in rows]
-          actual = [float(r["remaining_points"]) for r in rows]
+safe=SPRINT.lower().replace(" ","_")
+CSV=f"data/burndown_{safe}.csv"
 
-          if len(actual) > 1:
-              start = actual[0]
-              steps = len(actual) - 1
-              ideal = [max(0.0, start - (start / steps) * i) for i in range(len(actual))]
-          else:
-              ideal = actual[:]
+rows=list(csv.DictReader(open(CSV)))
 
-          config = {
-              "type": "line",
-              "data": {
-                  "labels": labels,
-                  "datasets": [
-                      {"label": "Actual Remaining", "data": actual},
-                      {"label": "Ideal Burndown", "data": ideal}
-                  ]
-              },
-              "options": {
-                  "plugins": {
-                      "title": {
-                          "display": True,
-                          "text": f"Burndown - {sprint}"
-                      }
-                  },
-                  "scales": {
-                      "y": {
-                          "beginAtZero": True
-                      }
-                  }
-              }
-          }
+actual_dates=[r["date"] for r in rows]
+actual_vals=[float(r["remaining_points"]) for r in rows]
 
-          url = "https://quickchart.io/chart?c=" + urllib.parse.quote(json.dumps(config))
-          Path("data/burndown_url.txt").write_text(url)
-          PY
+total_days=(END-START).days
 
-          curl -fLsS "$(cat data/burndown_url.txt)" -o "$PNG_FILE"
+if actual_vals:
+    start_points=actual_vals[0]
+else:
+    start_points=0
 
-          if [ -f "$CSV_FILE" ] || [ -f "$PNG_FILE" ]; then
-            echo "should_commit=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_commit=false" >> "$GITHUB_OUTPUT"
-          fi
+ideal=[]
+dates=[]
 
-      - name: Commit updated burndown files
-        if: steps.generate.outputs.should_commit == 'true'
-        env:
-          SPRINT_NAME: ${{ inputs.sprint_name || 'Sprint 5' }}
+for i in range(total_days+1):
+    d=START+datetime.timedelta(days=i)
+    dates.append(str(d))
+
+    if total_days==0:
+        ideal.append(start_points)
+    else:
+        ideal.append(max(0,start_points-(start_points/total_days)*i))
+
+config={
+"type":"line",
+"data":{
+"labels":dates,
+"datasets":[
+{"label":"Actual Remaining","data":actual_vals},
+{"label":"Ideal Burndown","data":ideal}
+]},
+"options":{
+"plugins":{"title":{"display":True,"text":f"Burndown - {SPRINT}"}},
+"scales":{"y":{"beginAtZero":True}}
+}
+}
+
+url="https://quickchart.io/chart?c="+urllib.parse.quote(json.dumps(config))
+
+open("data/chart_url.txt","w").write(url)
+PY
+
+          curl -s "$(cat data/chart_url.txt)" -o $PNG
+
+      - name: Commit files
         run: |
-          set -e
+          git config user.name github-actions
+          git config user.email github-actions@github.com
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
 
-          SAFE_SPRINT_NAME=$(echo "$SPRINT_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /_/g')
-          CSV="data/burndown_${SAFE_SPRINT_NAME}.csv"
-          PNG="data/burndown_${SAFE_SPRINT_NAME}.png"
-
-          echo "Working directory: $(pwd)"
-          echo "Checking expected artifacts:"
-          ls -la data || true
-
-          TO_ADD=()
-          [ -f "$CSV" ] && TO_ADD+=("$CSV") || echo "Missing: $CSV"
-          [ -f "$PNG" ] && TO_ADD+=("$PNG") || echo "Missing: $PNG"
-
-          if [ ${#TO_ADD[@]} -eq 0 ]; then
-            echo "No burndown artifacts found to commit. Skipping."
-            exit 0
-          fi
-
-          git add "${TO_ADD[@]}"
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-
-          git commit -m "Update burndown (${SPRINT_NAME})"
+          git commit -m "Update burndown chart" || exit 0
           git push
