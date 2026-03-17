@@ -78,8 +78,8 @@ export default function IndoorDebugScreen() {
           style={StyleSheet.absoluteFill}
         >
           {edges.map((edge, index) => {
-            const sourceNode = nodeMap.get(edge.source)
-            const targetNode = nodeMap.get(edge.target)
+            const sourceNode = nodeMap.get(edge.source);
+            const targetNode = nodeMap.get(edge.target);
 
             if (!sourceNode || !targetNode) return null;
 
