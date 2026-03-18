@@ -96,7 +96,7 @@ export default function IndoorScreen({
 
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>
-            No indoor map data available for {buildingDisplayName}.
+            Indoor map coming soon for {buildingDisplayName}.
           </Text>
         </View>
       </SafeAreaView>
