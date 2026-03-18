@@ -7,6 +7,7 @@ import {
   Image,
   useWindowDimensions,
 } from "react-native";
+import { router } from "expo-router";
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetHandleProps,
@@ -184,6 +185,21 @@ export default function BuildingPopup({
             >
               <Text style={[styles.directionsText, { color: theme.brand }]}>
                 Get Directions
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/indoor",
+                  params: { building: building.code },
+                })
+              }
+              style={[styles.directionsBtn, { borderColor: theme.cardBorder }]}
+              testID="indoorMapButton"
+            >
+              <Text style={[styles.directionsText, { color: theme.brand }]}>
+                Indoor Map
               </Text>
             </Pressable>
           </View>
