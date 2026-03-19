@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
-import IndoorScreen from "./IndoorScreen";
+import IndoorScreen from "../IndoorScreen";
 
 jest.mock("react-native-safe-area-context", () => {
   const React = require("react");
