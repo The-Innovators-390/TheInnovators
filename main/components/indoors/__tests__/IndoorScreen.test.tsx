@@ -38,7 +38,7 @@ describe("IndoorScreen", () => {
   it("renders 'Building Not Found' when buildingId is invalid", () => {
     const { getByText } = render(<IndoorScreen buildingId="INVALID" />);
     expect(getByText("Building Not Found")).toBeTruthy();
-    expect(getByText(/No indoor map data available for INVALID/)).toBeTruthy();
+    expect(getByText(/Indoor map coming soon for INVALID/)).toBeTruthy();
   });
 
   it("renders the building name and map when buildingId is valid", () => {
