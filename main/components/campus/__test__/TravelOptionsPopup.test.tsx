@@ -1,12 +1,25 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
+import { View, Text } from "react-native";
 import type {
   DirectionRoute,
   TravelMode,
 } from "@/components/campus/helper_methods/googleDirections";
+
 // Mock PNG requires used inside TravelOptionsPopup
 jest.mock("../../../assets/icons/icon-subway.png", () => 1);
 jest.mock("../../../assets/icons/icon-bus.png", () => 1);
+
+// Optional: reduces noisy act warnings from icon internals in tests
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+
+  return {
+    MaterialIcons: ({ name }: { name: string }) => <Text>{name}</Text>,
+  };
+});
+
 const TravelOptionsPopup =
   require("@/components/campus/TravelOptionsPopup").default;
 
@@ -79,7 +92,6 @@ function buildModes(): ModeData[] {
         ),
       ],
     },
-
     {
       mode: "walking",
       routes: [
@@ -106,13 +118,11 @@ describe("TravelOptionsPopup", () => {
         onSelectMode={jest.fn()}
         onSelectRouteIndex={jest.fn()}
         onClose={jest.fn()}
+        onGo={jest.fn()}
       />,
     );
 
-    // bus chip label
     getByText("105");
-
-    // metro chip label
     getByText("2");
   });
 
@@ -127,6 +137,7 @@ describe("TravelOptionsPopup", () => {
         onSelectMode={jest.fn()}
         onSelectRouteIndex={jest.fn()}
         onClose={jest.fn()}
+        onGo={jest.fn()}
       />,
     );
 
@@ -144,6 +155,7 @@ describe("TravelOptionsPopup", () => {
         onSelectMode={jest.fn()}
         onSelectRouteIndex={jest.fn()}
         onClose={jest.fn()}
+        onGo={jest.fn()}
       />,
     );
 
@@ -164,6 +176,7 @@ describe("TravelOptionsPopup", () => {
         onSelectMode={onSelectMode}
         onSelectRouteIndex={jest.fn()}
         onClose={jest.fn()}
+        onGo={jest.fn()}
       />,
     );
 
@@ -185,6 +198,7 @@ describe("TravelOptionsPopup", () => {
         onSelectMode={jest.fn()}
         onSelectRouteIndex={onSelectRouteIndex}
         onClose={jest.fn()}
+        onGo={jest.fn()}
       />,
     );
 
@@ -195,6 +209,7 @@ describe("TravelOptionsPopup", () => {
 
   it("pressing GO does not trigger route selection", () => {
     const onSelectRouteIndex = jest.fn();
+    const onGo = jest.fn();
 
     const { getByTestId } = render(
       <TravelOptionsPopup
@@ -206,11 +221,15 @@ describe("TravelOptionsPopup", () => {
         onSelectMode={jest.fn()}
         onSelectRouteIndex={onSelectRouteIndex}
         onClose={jest.fn()}
+        onGo={onGo}
       />,
     );
 
     fireEvent.press(getByTestId("go-walking-1"));
+
     expect(onSelectRouteIndex).not.toHaveBeenCalled();
+    expect(onGo).toHaveBeenCalledTimes(1);
+    expect(onGo).toHaveBeenCalledWith("walking", 1);
   });
 
   it("pressing close calls onClose", () => {
@@ -226,6 +245,7 @@ describe("TravelOptionsPopup", () => {
         onSelectMode={jest.fn()}
         onSelectRouteIndex={jest.fn()}
         onClose={onClose}
+        onGo={jest.fn()}
       />,
     );
 

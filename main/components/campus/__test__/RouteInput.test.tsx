@@ -4,7 +4,25 @@ import { render, fireEvent } from "@testing-library/react-native";
 
 jest.mock("@/components/Buildings/types", () => ({}));
 
-import RouteInput from "@/components/campus/RouteInput"; // adjust path if needed
+import RouteInput from "@/components/campus/RouteInput";
+
+const getNodeText = (node: any): string => {
+  if (typeof node === "string") return node;
+  if (Array.isArray(node)) return node.join("");
+  return "";
+};
+
+const getStartValue = (utils: any) => {
+  const input = utils.queryByTestId("routeStartInput");
+  if (input) return input.props.value;
+  return getNodeText(utils.getByTestId("routeStartText").props.children);
+};
+
+const getDestValue = (utils: any) => {
+  const input = utils.queryByTestId("routeDestInput");
+  if (input) return input.props.value;
+  return getNodeText(utils.getByTestId("routeDestText").props.children);
+};
 
 describe("RouteInput", () => {
   const B1 = {
@@ -56,16 +74,16 @@ describe("RouteInput", () => {
   });
 
   it("shows typed text when no buildings are selected", () => {
-    const { getByTestId } = render(
+    const utils = render(
       <RouteInput {...baseProps} startText="start here" destText="go there" />,
     );
 
-    expect(getByTestId("routeStartInput").props.value).toBe("start here");
-    expect(getByTestId("routeDestInput").props.value).toBe("go there");
+    expect(getStartValue(utils)).toBe("start here");
+    expect(getDestValue(utils)).toBe("go there");
   });
 
   it("shows building label when buildings are selected", () => {
-    const { getByTestId } = render(
+    const utils = render(
       <RouteInput
         {...baseProps}
         start={B1}
@@ -75,10 +93,10 @@ describe("RouteInput", () => {
       />,
     );
 
-    expect(getByTestId("routeStartInput").props.value).toBe(
-      "H - Henry F. Hall",
-    );
-    expect(getByTestId("routeDestInput").props.value).toBe("MB - John Molson");
+    expect(getStartValue(utils)).toBe("H - Henry F. Hall");
+    expect(getDestValue(utils)).toBe("MB - John Molson");
+    expect(utils.getByTestId("routeStartText")).toBeTruthy();
+    expect(utils.getByTestId("routeDestText")).toBeTruthy();
   });
 
   it("calls onFocusField when pressing start/destination rows", () => {

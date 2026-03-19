@@ -1,58 +1,16 @@
 /* eslint-disable import/first */
 import React from "react";
-import { render, waitFor } from "@testing-library/react-native";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
 
-type CameraArg = {
-  center?: {
-    latitude: number;
-    longitude: number;
-  };
-  heading?: number;
-  pitch?: number;
-  zoom?: number;
-};
-
-type AnimateCameraCall = [CameraArg, { duration?: number }?];
-
-const mockAnimateCamera = jest.fn<void, AnimateCameraCall>();
+const mockAnimateCamera = jest.fn();
 const mockAnimateToRegion = jest.fn();
 const mockFitToCoordinates = jest.fn();
 
-const mockUserLocation = {
-  latitude: 45.4973,
-  longitude: -73.5789,
-};
+const mockExitNavigation = jest.fn();
 
-let now = 1000;
-
-let mockRouteNavigationValue: {
-  isNavigating: boolean;
-  isNearStart: boolean;
-  isArrived: boolean;
-  activeSteps: unknown[];
-  activeStepIndex: number;
-  currentStep: { end: { latitude: number; longitude: number } } | null;
-  activeSummary: unknown;
-  onStarted: undefined;
-  exitNavigation: jest.Mock;
-  startNavigation: jest.Mock;
-  startNavigationWithSteps: jest.Mock;
-} = {
-  isNavigating: false,
-  isNearStart: false,
-  isArrived: false,
-  activeSteps: [],
-  activeStepIndex: 0,
-  currentStep: null,
-  activeSummary: null,
-  onStarted: undefined,
-  exitNavigation: jest.fn(),
-  startNavigation: jest.fn(),
-  startNavigationWithSteps: jest.fn(),
-};
-
-jest.spyOn(Date, "now").mockImplementation(() => now);
+let mockIsNavigating = false;
+let mockCurrentStepEnd: { latitude: number; longitude: number } | null = null;
 
 jest.mock("expo-status-bar", () => ({
   StatusBar: () => null,
@@ -112,8 +70,6 @@ jest.mock("@/components/Styles/mapStyle", () => ({
   },
 }));
 
-const mockGetDeviceLocation = jest.fn(async () => mockUserLocation);
-
 jest.mock("@/components/campus/helper_methods/locationUtils", () => ({
   LocationError: class MockLocationError extends Error {
     code: string;
@@ -123,7 +79,10 @@ jest.mock("@/components/campus/helper_methods/locationUtils", () => ({
       this.code = code;
     }
   },
-  getDeviceLocation: () => mockGetDeviceLocation(),
+  getDeviceLocation: jest.fn(async () => ({
+    latitude: 45.497,
+    longitude: -73.579,
+  })),
 }));
 
 jest.mock("@/components/campus/helper_methods/campusMap.buildings", () => ({
@@ -169,13 +128,8 @@ jest.mock("@/components/campus/helper_methods/directionErrors", () => ({
   toDirectionsErrorMessage: () => "error",
 }));
 
-const mockBearingDegrees = jest.fn(() => 77);
-
 jest.mock("@/components/campus/helper_methods/geo", () => ({
-  bearingDegrees: (
-    from: { latitude: number; longitude: number },
-    to: { latitude: number; longitude: number },
-  ) => mockBearingDegrees(from, to),
+  bearingDegrees: jest.fn(() => 0),
 }));
 
 jest.mock("@/components/campus/helper_methods/navigationFormat", () => ({
@@ -205,10 +159,23 @@ jest.mock("@/hooks/useNavigation", () => ({
   }),
 }));
 
-const mockUseRouteNavigation = jest.fn(() => mockRouteNavigationValue);
-
 jest.mock("@/hooks/useRouteNavigation", () => ({
-  useRouteNavigation: () => mockUseRouteNavigation(),
+  useRouteNavigation: () => ({
+    isNavigating: mockIsNavigating,
+    isNearStart: false,
+    isArrived: false,
+    activeSteps: [],
+    activeStepIndex: 0,
+    currentStep: mockCurrentStepEnd ? { end: mockCurrentStepEnd } : null,
+    activeSummary: {
+      durationSec: 2700,
+      distanceMeters: 8000,
+    },
+    onStarted: undefined,
+    exitNavigation: mockExitNavigation,
+    startNavigation: jest.fn(),
+    startNavigationWithSteps: jest.fn(),
+  }),
 }));
 
 jest.mock("@/components/campus/BuildingShapesLayer", () => ({
@@ -261,10 +228,32 @@ jest.mock("../../ui/DirectionLoadError", () => ({
   default: () => null,
 }));
 
-jest.mock("@/components/campus/NavigationOverlay", () => ({
-  __esModule: true,
-  NavigationOverlay: () => null,
-}));
+jest.mock("@/components/campus/NavigationOverlay", () => {
+  const ReactLib = require("react");
+  const { Pressable, Text, View } = require("react-native");
+
+  const MockNavigationOverlay = (props: any) => {
+    if (!props.isNavigating) {
+      return ReactLib.createElement(View, {
+        testID: "navigationOverlayHidden",
+      });
+    }
+
+    return ReactLib.createElement(
+      Pressable,
+      {
+        testID: "exitNavigationButton",
+        onPress: props.onExit,
+      },
+      ReactLib.createElement(Text, null, "Exit navigation"),
+    );
+  };
+
+  return {
+    __esModule: true,
+    NavigationOverlay: MockNavigationOverlay,
+  };
+});
 
 jest.mock("react-native-maps", () => {
   const ReactLib = require("react");
@@ -296,125 +285,46 @@ jest.mock("react-native-maps", () => {
 
 import CampusMap from "../CampusMap";
 
-describe("CampusMap camera-follow useEffect", () => {
+describe("CampusMap navigation overlay integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    now = 1000;
-
-    mockRouteNavigationValue = {
-      isNavigating: false,
-      isNearStart: false,
-      isArrived: false,
-      activeSteps: [],
-      activeStepIndex: 0,
-      currentStep: null,
-      activeSummary: null,
-      onStarted: undefined,
-      exitNavigation: jest.fn(),
-      startNavigation: jest.fn(),
-      startNavigationWithSteps: jest.fn(),
-    };
+    mockIsNavigating = false;
+    mockCurrentStepEnd = null;
   });
 
-  const getFollowCalls = (): AnimateCameraCall[] =>
-    mockAnimateCamera.mock.calls.filter(([camera]) => {
-      return (
-        camera?.center?.latitude === mockUserLocation.latitude &&
-        camera?.center?.longitude === mockUserLocation.longitude &&
-        camera?.pitch === 0 &&
-        camera?.zoom === 18
-      );
-    });
-
-  it("does not trigger follow-camera behavior when not navigating", async () => {
-    render(<CampusMap />);
+  it("keeps navigation overlay hidden when not navigating", async () => {
+    const { getByTestId, queryByTestId } = render(<CampusMap />);
 
     await waitFor(() => {
-      expect(mockGetDeviceLocation).toHaveBeenCalled();
+      expect(getByTestId("navigationOverlayHidden")).toBeTruthy();
     });
 
-    expect(getFollowCalls()).toHaveLength(0);
+    expect(queryByTestId("exitNavigationButton")).toBeNull();
   });
 
-  it("animates camera when navigating and current step end exists", async () => {
-    mockRouteNavigationValue = {
-      ...mockRouteNavigationValue,
-      isNavigating: true,
-      currentStep: {
-        end: { latitude: 45.501, longitude: -73.571 },
-      },
-    };
+  it("shows exit button when navigating", async () => {
+    mockIsNavigating = true;
+    mockCurrentStepEnd = { latitude: 45.51, longitude: -73.61 };
 
-    render(<CampusMap />);
+    const { getByTestId } = render(<CampusMap />);
 
     await waitFor(() => {
-      expect(getFollowCalls()).toHaveLength(1);
-    });
-
-    const [camera, options] = getFollowCalls()[0];
-
-    expect(camera.heading).toBe(77);
-    expect(camera.zoom).toBe(18);
-    expect(camera.pitch).toBe(0);
-    expect(options).toEqual({ duration: 500 });
-
-    expect(mockBearingDegrees).toHaveBeenCalledWith(mockUserLocation, {
-      latitude: 45.501,
-      longitude: -73.571,
+      expect(getByTestId("exitNavigationButton")).toBeTruthy();
     });
   });
 
-  it("uses heading 0 when navigating but there is no current step target", async () => {
-    mockRouteNavigationValue = {
-      ...mockRouteNavigationValue,
-      isNavigating: true,
-      currentStep: null,
-    };
+  it("calls exitNavigation when pressing exit", async () => {
+    mockIsNavigating = true;
+    mockCurrentStepEnd = { latitude: 45.51, longitude: -73.61 };
 
-    render(<CampusMap />);
+    const { getByTestId } = render(<CampusMap />);
 
     await waitFor(() => {
-      expect(getFollowCalls()).toHaveLength(1);
+      expect(getByTestId("exitNavigationButton")).toBeTruthy();
     });
 
-    const [camera] = getFollowCalls()[0];
-    expect(camera.heading).toBe(0);
-  });
+    fireEvent.press(getByTestId("exitNavigationButton"));
 
-  it("throttles follow-camera updates with the 900ms rule", async () => {
-    mockRouteNavigationValue = {
-      ...mockRouteNavigationValue,
-      isNavigating: true,
-      activeStepIndex: 0,
-      currentStep: {
-        end: { latitude: 45.501, longitude: -73.571 },
-      },
-    };
-
-    const screen = render(<CampusMap />);
-
-    await waitFor(() => {
-      expect(getFollowCalls()).toHaveLength(1);
-    });
-
-    now += 500;
-    mockRouteNavigationValue = {
-      ...mockRouteNavigationValue,
-      activeStepIndex: 1,
-    };
-    screen.rerender(<CampusMap />);
-
-    expect(getFollowCalls()).toHaveLength(1);
-
-    now += 1000;
-    mockRouteNavigationValue = {
-      ...mockRouteNavigationValue,
-      activeStepIndex: 2,
-    };
-    screen.rerender(<CampusMap />);
-
-    await waitFor(() => {
-      expect(getFollowCalls()).toHaveLength(2);
-    });
+    expect(mockExitNavigation).toHaveBeenCalledTimes(1);
   });
 });

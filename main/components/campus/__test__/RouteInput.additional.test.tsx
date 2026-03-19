@@ -6,6 +6,18 @@ jest.mock("@/components/Buildings/types", () => ({}));
 
 import RouteInput from "@/components/campus/RouteInput";
 
+const getNodeText = (node: any): string => {
+  if (typeof node === "string") return node;
+  if (Array.isArray(node)) return node.join("");
+  return "";
+};
+
+const getStartValue = (utils: any) => {
+  const input = utils.queryByTestId("routeStartInput");
+  if (input) return input.props.value;
+  return getNodeText(utils.getByTestId("routeStartText").props.children);
+};
+
 describe("RouteInput – additional coverage", () => {
   const baseProps = {
     start: null,
@@ -99,10 +111,11 @@ describe("RouteInput – additional coverage", () => {
       longitude: -73.0,
     } as any;
 
-    const { getByTestId } = render(
+    const utils = render(
       <RouteInput {...baseProps} start={userLocationBuilding} />,
     );
 
-    expect(getByTestId("routeStartInput").props.value).toBe("Your Location");
+    expect(getStartValue(utils)).toBe("Your Location");
+    expect(utils.getByTestId("routeStartText")).toBeTruthy();
   });
 });

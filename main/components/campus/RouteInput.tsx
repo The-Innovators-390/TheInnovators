@@ -16,7 +16,6 @@ type Props = {
   disabled?: boolean;
   onClearStart: () => void;
   onClearDestination: () => void;
-  /** T-12.1: tap to detect GPS and fill the start field */
   onUseMyLocation?: () => void;
 };
 
@@ -35,27 +34,25 @@ export default function RouteInput({
   onClearDestination,
   onUseMyLocation,
 }: Readonly<Props>) {
-  // If a building is selected, show its label; otherwise show whatever user typed.
   let startValue = startText;
 
   if (start) {
     if (start.id === "USER_LOCATION") startValue = "Your Location";
     else startValue = `${start.code} - ${start.name}`;
   }
+
   const destValue = destination
     ? `${destination.code} - ${destination.name}`
     : destText;
 
   return (
     <View style={s.card} testID="routeCard">
-      {/* Left icon rail */}
       <View style={s.rail} pointerEvents="none">
         <MaterialIcons name="radio-button-checked" size={14} color="#111" />
         <View style={s.dots} />
         <MaterialIcons name="place" size={16} color="#D32F2F" />
       </View>
 
-      {/* Inputs */}
       <View style={s.inputs}>
         <Pressable
           onPress={() => onFocusField("start")}
@@ -63,18 +60,29 @@ export default function RouteInput({
           testID="routeStartRow"
         >
           <View style={s.inputWrapper}>
-            <TextInput
-              testID="routeStartInput"
-              value={startValue}
-              onChangeText={onChangeStartText}
-              placeholder="Enter your starting location"
-              placeholderTextColor="rgba(17,17,17,0.45)"
-              style={s.input}
-              editable={!disabled}
-              onFocus={() => onFocusField("start")}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
+            {start ? (
+              <Text
+                testID="routeStartText"
+                style={s.inputText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {startValue}
+              </Text>
+            ) : (
+              <TextInput
+                testID="routeStartInput"
+                value={startValue}
+                onChangeText={onChangeStartText}
+                placeholder="Enter your starting location"
+                placeholderTextColor="rgba(17,17,17,0.45)"
+                style={s.input}
+                editable={!disabled}
+                onFocus={() => onFocusField("start")}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+            )}
 
             {startValue.length > 0 ? (
               <Pressable
@@ -121,18 +129,29 @@ export default function RouteInput({
           testID="routeDestRow"
         >
           <View style={s.inputWrapper}>
-            <TextInput
-              testID="routeDestInput"
-              value={destValue}
-              onChangeText={onChangeDestText}
-              placeholder="Enter your destination"
-              placeholderTextColor="rgba(17,17,17,0.45)"
-              style={s.input}
-              editable={!disabled}
-              onFocus={() => onFocusField("destination")}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
+            {destination ? (
+              <Text
+                testID="routeDestText"
+                style={s.inputText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {destValue}
+              </Text>
+            ) : (
+              <TextInput
+                testID="routeDestInput"
+                value={destValue}
+                onChangeText={onChangeDestText}
+                placeholder="Enter your destination"
+                placeholderTextColor="rgba(17,17,17,0.45)"
+                style={s.input}
+                editable={!disabled}
+                onFocus={() => onFocusField("destination")}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+            )}
 
             {destValue.length > 0 && (
               <Pressable
@@ -151,7 +170,6 @@ export default function RouteInput({
         </Pressable>
       </View>
 
-      {/* Swap button */}
       <Pressable
         testID="routeSwapButton"
         onPress={onSwap}
@@ -186,6 +204,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginRight: 10,
   },
+
   dots: {
     width: 2,
     height: 22,
@@ -193,23 +212,47 @@ const s = StyleSheet.create({
     borderRadius: 1,
     backgroundColor: "rgba(17,17,17,0.25)",
   },
+
   inputs: {
     flex: 1,
+    minWidth: 0,
   },
+
   inputRow: {
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 8,
     backgroundColor: "rgba(17,17,17,0.04)",
   },
+
   inputRowActive: {
     backgroundColor: "rgba(17,17,17,0.07)",
   },
+
+  inputWrapper: {
+    position: "relative",
+    width: "100%",
+    minWidth: 0,
+    justifyContent: "center",
+  },
+
   input: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 15,
     color: "#111",
     padding: 0,
+    paddingRight: 28,
   },
+
+  inputText: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    color: "#111",
+    paddingRight: 28,
+  },
+
   divider: {
     height: 8,
   },
@@ -220,18 +263,18 @@ const s = StyleSheet.create({
     justifyContent: "center",
     marginLeft: 10,
   },
+
   swapText: {
     fontSize: 18,
     color: "#111",
     fontWeight: "800",
   },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
 
   clearButton: {
-    marginLeft: "auto",
+    position: "absolute",
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   clearIcon: {

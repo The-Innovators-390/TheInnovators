@@ -12,10 +12,15 @@ import {
   Pressable,
   Platform,
   StyleSheet,
-  InteractionManager,
+  useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
+import MapView, {
+  PROVIDER_GOOGLE,
+  Marker,
+  Polyline,
+  LatLng,
+} from "react-native-maps";
 import {
   getDeviceLocation,
   LocationError,
@@ -45,7 +50,7 @@ import { styles } from "@/components/Styles/mapStyle";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useRouteNavigation } from "@/hooks/useRouteNavigation";
 import { useUserRole, isShuttleEligible } from "@/hooks/useUserRole";
-import RoutePlanner from "@/components/campus/RoutePlanner"; // diamond button only
+import RoutePlanner from "@/components/campus/RoutePlanner";
 import RouteInput from "@/components/campus/RouteInput";
 import {
   buildAllBuildings,
@@ -53,7 +58,6 @@ import {
   getBuildingContainingPoint,
   makeUserLocationBuilding,
 } from "@/components/campus/helper_methods/campusMap.buildings";
-import { computeFloatingBottom } from "@/components/campus/helper_methods/campusMap.ui";
 import type { Region } from "react-native-maps";
 import TravelOptionsPopup from "@/components/campus/TravelOptionsPopup";
 import {
@@ -81,6 +85,9 @@ import {
   metersToKmString,
   secondsToMinutesString,
 } from "@/components/campus/helper_methods/navigationFormat";
+import Compass from "@/components/campus/Compass";
+import { NextClassButton } from "@/components/campus/NextClassButton";
+import { resetMapDirectionToNorth } from "@/components/campus/helper_methods/mapCompass";
 
 // Re-export for backwards compatibility with tests
 export {
@@ -218,6 +225,8 @@ export default function CampusMap() {
   const nav = useNavigation();
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
+  const [mapHeading, setMapHeading] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
 
   const { destBuildingId } = useLocalSearchParams<{ destBuildingId: string }>();
 
@@ -274,6 +283,15 @@ export default function CampusMap() {
     shuttle: { latitude: number; longitude: number }[];
     walkToDestination: { latitude: number; longitude: number }[];
   }>(null);
+
+  const NORTH_ANIMATION_DURATION = 350;
+
+  const resetCompassToNorth = useCallback((center?: LatLng) => {
+    resetMapDirectionToNorth(mapRef, center, NORTH_ANIMATION_DURATION);
+    setMapHeading(0);
+  }, []);
+
+  const shouldShowCompass = popupIndex < 1;
 
   // Keep tracksViewChanges=true for 500 ms after building changes, then stop.
   // Using a timer (not onLoad) ensures the image is fully painted before we
@@ -333,6 +351,11 @@ export default function CampusMap() {
     setUserLocation(location);
     setIsFollowingUser(true);
 
+    resetCompassToNorth({
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+
     if (!routeNavigation.isNavigating) {
       mapRef.current?.animateToRegion(
         {
@@ -352,6 +375,10 @@ export default function CampusMap() {
     setPopupIndex(-1);
 
     const nextRegion = campus === "SGW" ? SGW_REGION : LOY_REGION;
+    resetCompassToNorth({
+      latitude: nextRegion.latitude,
+      longitude: nextRegion.longitude,
+    });
     mapRef.current?.animateToRegion(nextRegion, 500);
   };
 
@@ -569,8 +596,16 @@ export default function CampusMap() {
     if (now - lastCameraUpdateRef.current < 900) return;
     lastCameraUpdateRef.current = now;
 
-    const target = routeNavigation.currentStep?.end;
-    const heading = target ? bearingDegrees(userLocation, target) : 0;
+    const calculateCameraHeading = (
+      userLoc: LatLng,
+      target?: LatLng,
+    ): number => (target ? bearingDegrees(userLoc, target) : 0);
+
+    const heading = calculateCameraHeading(
+      userLocation,
+      routeNavigation.currentStep?.end,
+    );
+    setMapHeading(heading);
 
     mapRef.current?.animateCamera(
       {
@@ -750,10 +785,36 @@ export default function CampusMap() {
     [routesByMode],
   );
 
-  const floatingBottom = useMemo(
-    () => computeFloatingBottom(!!selected, popupIndex),
-    [selected, popupIndex],
+  const hasBuildingPopup = !nav.isRouteMode && !!selected;
+  const hasTravelPopup =
+    nav.isRouteMode && !routeNavigation.isNavigating && travelPopupVisible;
+
+  const collapsedBuildingPopupHeight = Math.round(windowHeight * 0.19);
+  const collapsedTravelPopupHeight = Math.max(
+    260,
+    Math.round(windowHeight * 0.28),
   );
+
+  let floatingBottom = 120;
+
+  if (hasBuildingPopup) {
+    floatingBottom = collapsedBuildingPopupHeight;
+  } else if (hasTravelPopup) {
+    floatingBottom = collapsedTravelPopupHeight;
+  }
+
+  const shouldHideFloatingButtons =
+    popupIndex > 0 && (hasBuildingPopup || hasTravelPopup);
+
+  const resetCenter = userLocation
+    ? {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      }
+    : {
+        latitude: region?.latitude ?? INITIAL_REGION?.latitude ?? 0,
+        longitude: region?.longitude ?? INITIAL_REGION?.longitude ?? 0,
+      };
 
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
@@ -834,6 +895,38 @@ export default function CampusMap() {
       routeNavigation,
     ],
   );
+
+  const handleToggleRoutePlanner = useCallback(() => {
+    const nextMode = !nav.isRouteMode;
+
+    setSelected(null);
+    setPopupIndex(-1);
+
+    if (nextMode) {
+      nav.toggleRouteMode();
+      nav.setActiveField("destination");
+      setQuery(destText);
+      nav.setRouteError(null);
+      setStartToCurrentLocation();
+      return;
+    }
+
+    nav.setRouteStart(null);
+    nav.setRouteDest(null);
+    nav.setRouteError(null);
+    setStartText("");
+    setDestText("");
+    setQuery("");
+    setAllRouteCoords([]);
+    setShuttleSegmentCoords(null);
+
+    resetCompassToNorth({
+      latitude: region.latitude,
+      longitude: region.longitude,
+    });
+
+    nav.toggleRouteMode();
+  }, [nav, destText, setStartToCurrentLocation, region, resetCompassToNorth]);
 
   return (
     <View style={styles.container} testID="campusMap-root">
@@ -929,7 +1022,6 @@ export default function CampusMap() {
         )}
 
         {nav.routeStart && (
-          // anchor y: size=48 → pinHeight=72, PAD=4 → container 80px tall, image bottom at 76px → 76/80
           <Marker
             testID="startPin"
             coordinate={{
@@ -1052,7 +1144,6 @@ export default function CampusMap() {
                   setStartText(destText);
                   setDestText(startText);
 
-                  // keep suggestions synced to active field
                   setQuery(nav.activeField === "start" ? destText : startText);
                 }}
                 startText={startText}
@@ -1102,46 +1193,35 @@ export default function CampusMap() {
         )}
       </View>
 
-      {/* FLOATING BUTTONS STACK (now dynamic bottom) */}
-      <View style={[floatingStyles.container, { bottom: floatingBottom }]}>
-        <CurrentLocationButton onLocationFound={handleLocationFound} />
+      <Compass
+        visible={shouldShowCompass && !shouldHideFloatingButtons}
+        rotationDegrees={-mapHeading}
+        onPress={() => resetCompassToNorth(resetCenter)}
+        style={[
+          compassStyles.button,
+          { bottom: floatingBottom },
+          shouldHideFloatingButtons && { display: "none" },
+        ]}
+      />
 
-        {!routeNavigation.isNavigating && (
-          <RoutePlanner
-            isRouteMode={nav.isRouteMode}
-            onToggle={() => {
-              const nextMode = !nav.isRouteMode;
-
-              // Always close popup UI when switching modes
-              setSelected(null);
-              setPopupIndex(-1);
-
-              if (nextMode) {
-                // entering route mode
-                nav.toggleRouteMode();
-                nav.setActiveField("destination");
-                setQuery(destText); // keep your behavior (destination focused)
-                nav.setRouteError(null);
-                // T-12.1: auto-populate start with current location (fire-and-forget)
-                setStartToCurrentLocation();
-                return;
-              }
-
-              // leaving route mode: clear route state BEFORE leaving UI
-              nav.setRouteStart(null);
-              nav.setRouteDest(null);
-              nav.setRouteError(null);
-              setStartText("");
-              setDestText("");
-              setQuery("");
-              setAllRouteCoords([]);
-              setShuttleSegmentCoords(null);
-
-              nav.toggleRouteMode();
-            }}
+      {!shouldHideFloatingButtons && (
+        <>
+          <NextClassButton
+            style={[nextClassStyles.button, { bottom: floatingBottom }]}
           />
-        )}
-      </View>
+
+          <View style={[floatingStyles.container, { bottom: floatingBottom }]}>
+            <CurrentLocationButton onLocationFound={handleLocationFound} />
+
+            {!routeNavigation.isNavigating && (
+              <RoutePlanner
+                isRouteMode={nav.isRouteMode}
+                onToggle={handleToggleRoutePlanner}
+              />
+            )}
+          </View>
+        </>
+      )}
 
       {/* Popup only in normal mode */}
       {!nav.isRouteMode && selected && (
@@ -1167,7 +1247,6 @@ export default function CampusMap() {
             { mode: "transit", routes: routesByMode.transit },
             { mode: "walking", routes: routesByMode.walking },
             { mode: "bicycling", routes: routesByMode.bicycling },
-            // T-9.1 / T-9.2 / T-9.3: shuttle chip only for SGW ↔ Loyola AND eligible roles
             ...(shuttleDirection !== null && shuttleEligible
               ? [
                   {
@@ -1181,7 +1260,11 @@ export default function CampusMap() {
           selectedRouteIndex={selectedRouteIndex}
           onSelectMode={handleSelectMode}
           onSelectRouteIndex={(index) => applySelection(selectedMode, index)}
-          onClose={() => setTravelPopupVisible(false)}
+          onClose={() => {
+            setTravelPopupVisible(false);
+            setPopupIndex(-1);
+          }}
+          onSheetChange={(index: number) => setPopupIndex(index)}
           onGo={handleGo}
           shuttleInfo={shuttleInfo}
         />
@@ -1234,6 +1317,8 @@ export default function CampusMap() {
           routeNavigation.exitNavigation();
           setAllRouteCoords([]);
           setShuttleSegmentCoords(null);
+
+          resetCompassToNorth(resetCenter);
         }}
       />
 
@@ -1256,11 +1341,20 @@ const routeStyles = StyleSheet.create({
   },
 });
 
+const compassStyles = StyleSheet.create({
+  button: {
+    position: "absolute",
+    right: 18,
+    top: 225,
+    zIndex: 998,
+    elevation: 998,
+  },
+});
+
 const floatingStyles = StyleSheet.create({
   container: {
     position: "absolute",
     right: 16,
-    // bottom is now dynamic via inline style
     gap: 30,
     alignItems: "center",
     zIndex: 999,
@@ -1282,5 +1376,14 @@ const locationMarkerStyles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
+  },
+});
+
+const nextClassStyles = StyleSheet.create({
+  button: {
+    position: "absolute",
+    left: 16,
+    zIndex: 999,
+    elevation: 999,
   },
 });
