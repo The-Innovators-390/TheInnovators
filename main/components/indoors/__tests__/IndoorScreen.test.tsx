@@ -150,9 +150,7 @@ describe("IndoorScreen", () => {
     );
 
     expect(getByText("Building Not Found")).toBeTruthy();
-    expect(
-      getByText("Indoor map coming soon for UNKNOWN."),
-    ).toBeTruthy();
+    expect(getByText("Indoor map coming soon for UNKNOWN.")).toBeTruthy();
     expect(queryByText("IndoorMapViewerMock")).toBeNull();
   });
 
@@ -165,7 +163,9 @@ describe("IndoorScreen", () => {
     expect(getByText("2")).toBeTruthy();
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
+      indoorMapViewerMock.mock.calls[
+        indoorMapViewerMock.mock.calls.length - 1
+      ][0];
 
     expect(lastCall.imageSource).toBe("hall-floor-1");
     expect(lastCall.nodes).toEqual([
@@ -194,7 +194,9 @@ describe("IndoorScreen", () => {
     expect(getByText("Hall Building")).toBeTruthy();
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
+      indoorMapViewerMock.mock.calls[
+        indoorMapViewerMock.mock.calls.length - 1
+      ][0];
 
     expect(lastCall.imageSource).toBe("hall-floor-1");
   });
@@ -205,7 +207,9 @@ describe("IndoorScreen", () => {
     fireEvent.press(getByText("2"));
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
+      indoorMapViewerMock.mock.calls[
+        indoorMapViewerMock.mock.calls.length - 1
+      ][0];
 
     expect(lastCall.imageSource).toBe("hall-floor-2");
     expect(lastCall.nodes).toEqual([
@@ -236,7 +240,9 @@ describe("IndoorScreen", () => {
     expect(getByText("1")).toBeTruthy();
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
+      indoorMapViewerMock.mock.calls[
+        indoorMapViewerMock.mock.calls.length - 1
+      ][0];
 
     expect(lastCall.imageSource).toBe("mb-floor-s2");
     expect(lastCall.nodes).toEqual([
