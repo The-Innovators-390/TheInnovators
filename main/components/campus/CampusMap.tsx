@@ -806,6 +806,16 @@ export default function CampusMap() {
   const shouldHideFloatingButtons =
     popupIndex > 0 && (hasBuildingPopup || hasTravelPopup);
 
+  const resetCenter = userLocation
+    ? {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      }
+    : {
+        latitude: region?.latitude ?? INITIAL_REGION?.latitude ?? 0,
+        longitude: region?.longitude ?? INITIAL_REGION?.longitude ?? 0,
+      };
+
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
       if (mode === "shuttle") {
@@ -1154,19 +1164,7 @@ export default function CampusMap() {
       <Compass
         visible={shouldShowCompass && !shouldHideFloatingButtons}
         rotationDegrees={-mapHeading}
-        onPress={() =>
-          resetCompassToNorth(
-            userLocation
-              ? {
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                }
-              : {
-                  latitude: region.latitude,
-                  longitude: region.longitude,
-                },
-          )
-        }
+        onPress={() => resetCompassToNorth(resetCenter)}
         style={[
           compassStyles.button,
           { bottom: floatingBottom },
@@ -1318,17 +1316,7 @@ export default function CampusMap() {
           setAllRouteCoords([]);
           setShuttleSegmentCoords(null);
 
-          resetCompassToNorth(
-            userLocation
-              ? {
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                }
-              : {
-                  latitude: region.latitude,
-                  longitude: region.longitude,
-                },
-          );
+          resetCompassToNorth(resetCenter);
         }}
       />
 
