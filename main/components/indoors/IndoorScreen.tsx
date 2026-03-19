@@ -133,7 +133,7 @@ export default function IndoorScreen({
 
       <View style={styles.content}>
         <IndoorMapViewer
-          SvgComponent={currentFloorMap ?? undefined}
+          imageSource={currentFloorMap}
           nodes={floorNodes}
           edges={floorEdges}
         />
