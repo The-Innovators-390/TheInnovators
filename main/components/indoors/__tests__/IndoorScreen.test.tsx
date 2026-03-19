@@ -1,9 +1,11 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
-import { Text, View } from "react-native";
 import IndoorScreen from "../IndoorScreen";
 
 jest.mock("react-native-safe-area-context", () => {
+  const React = require("react");
+  const { View } = jest.requireActual("react-native");
+
   const MockSafeAreaView = ({
     children,
   }: {
@@ -17,7 +19,10 @@ jest.mock("react-native-safe-area-context", () => {
   };
 });
 
-jest.mock("../ui/HeaderBackButton", () => {
+jest.mock("../../ui/HeaderBackButton", () => {
+  const React = require("react");
+  const { Text } = jest.requireActual("react-native");
+
   const MockHeaderBackButton = ({
     color,
   }: {
@@ -34,6 +39,9 @@ jest.mock("../ui/HeaderBackButton", () => {
 const indoorMapViewerMock = jest.fn();
 
 jest.mock("../IndoorMapViewer", () => {
+  const React = require("react");
+  const { View, Text } = jest.requireActual("react-native");
+
   const MockIndoorMapViewer = (props: unknown): React.JSX.Element => {
     indoorMapViewerMock(props);
     return (
@@ -136,14 +144,14 @@ jest.mock("../indoorData", () => ({
   },
 }));
 
-jest.mock("../Buildings/SGW/SGWBuildings", () => ({
+jest.mock("../../Buildings/SGW/SGWBuildings", () => ({
   SGW_BUILDINGS: [
     { code: "H", name: "Hall Building", campus: "SGW" },
     { code: "MB", name: "John Molson Building", campus: "SGW" },
   ],
 }));
 
-jest.mock("../Buildings/Loyola/LoyolaBuildings", () => ({
+jest.mock("../../Buildings/Loyola/LoyolaBuildings", () => ({
   LOYOLA_BUILDINGS: [{ code: "CC", name: "CC Building", campus: "LOY" }],
 }));
 
