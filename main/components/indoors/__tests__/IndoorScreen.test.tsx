@@ -1,87 +1,253 @@
 import React from "react";
-import { render, fireEvent } from "@testing-library/react-native";
-import IndoorScreen from "../IndoorScreen";
+import { fireEvent, render } from "@testing-library/react-native";
+import IndoorScreen from "./IndoorScreen";
 
-// Mock child component to avoid gesture/reanimated complexities in this test
-jest.mock("../IndoorMapViewer", () => {
+jest.mock("react-native-safe-area-context", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+
+  return {
+    SafeAreaView: ({ children }: { children: React.ReactNode }) => (
+      <View>{children}</View>
+    ),
+  };
+});
+
+jest.mock("../ui/HeaderBackButton", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+
+  return {
+    HeaderBackButton: ({ color }: { color: string }) => (
+      <Text>{`BackButton-${color}`}</Text>
+    ),
+  };
+});
+
+const indoorMapViewerMock = jest.fn();
+
+jest.mock("./IndoorMapViewer", () => {
+  const React = require("react");
   const { View, Text } = require("react-native");
-  return function MockIndoorMapViewer({ nodes }: any) {
+
+  return (props: any) => {
+    indoorMapViewerMock(props);
     return (
-      <View testID="map-viewer">
-        <Text>Nodes: {nodes.length}</Text>
+      <View>
+        <Text>IndoorMapViewerMock</Text>
       </View>
     );
   };
 });
 
-// Mock Buildings data
-jest.mock("../../Buildings/SGW/SGWBuildings", () => ({
+jest.mock("./floorMaps", () => ({
+  floorMaps: {
+    H: {
+      "1": "hall-floor-1",
+      "2": "hall-floor-2",
+    },
+    MB: {
+      "-2": "mb-floor-s2",
+      "1": "mb-floor-1",
+    },
+  },
+}));
+
+jest.mock("./indoorData", () => ({
+  indoorData: {
+    H: {
+      meta: { buildingId: "H" },
+      nodes: [
+        {
+          id: "n1",
+          type: "room",
+          buildingId: "H",
+          floor: 1,
+          x: 10,
+          y: 20,
+        },
+        {
+          id: "n2",
+          type: "room",
+          buildingId: "H",
+          floor: 2,
+          x: 30,
+          y: 40,
+        },
+      ],
+      edges: [
+        {
+          source: "n1",
+          target: "n1",
+          type: "path",
+          weight: 1,
+        },
+        {
+          source: "n2",
+          target: "n2",
+          type: "path",
+          weight: 2,
+        },
+      ],
+    },
+    MB: {
+      meta: { buildingId: "MB" },
+      nodes: [
+        {
+          id: "mbs2",
+          type: "room",
+          buildingId: "MB",
+          floor: -2,
+          x: 1,
+          y: 2,
+        },
+        {
+          id: "mb1",
+          type: "room",
+          buildingId: "MB",
+          floor: 1,
+          x: 3,
+          y: 4,
+        },
+      ],
+      edges: [
+        {
+          source: "mbs2",
+          target: "mbs2",
+          type: "path",
+          weight: 1,
+        },
+        {
+          source: "mb1",
+          target: "mb1",
+          type: "path",
+          weight: 1,
+        },
+      ],
+    },
+  },
+}));
+
+jest.mock("../Buildings/SGW/SGWBuildings", () => ({
   SGW_BUILDINGS: [
     { code: "H", name: "Hall Building", campus: "SGW" },
     { code: "MB", name: "John Molson Building", campus: "SGW" },
   ],
 }));
 
-jest.mock("../../Buildings/Loyola/LoyolaBuildings", () => ({
-  LOYOLA_BUILDINGS: [{ code: "VE", name: "Vanier Extension", campus: "LOY" }],
+jest.mock("../Buildings/Loyola/LoyolaBuildings", () => ({
+  LOYOLA_BUILDINGS: [{ code: "CC", name: "CC Building", campus: "LOY" }],
 }));
 
-// Mock HeaderBackButton
-jest.mock("../../ui/HeaderBackButton", () => {
-  const { View } = require("react-native");
-  return {
-    HeaderBackButton: () => <View testID="back-button" />,
-  };
-});
-
 describe("IndoorScreen", () => {
-  it("renders 'Building Not Found' when buildingId is invalid", () => {
-    const { getByText } = render(<IndoorScreen buildingId="INVALID" />);
+  beforeEach(() => {
+    indoorMapViewerMock.mockClear();
+  });
+
+  it("renders not found state when graph data is missing", () => {
+    const { getByText, queryByText } = render(
+      <IndoorScreen buildingId="UNKNOWN" />,
+    );
+
     expect(getByText("Building Not Found")).toBeTruthy();
-    expect(getByText(/Indoor map coming soon for INVALID/)).toBeTruthy();
+    expect(
+      getByText("Indoor map coming soon for UNKNOWN."),
+    ).toBeTruthy();
+    expect(queryByText("IndoorMapViewerMock")).toBeNull();
   });
 
-  it("renders the building name and map when buildingId is valid", () => {
-    const { getByText, getByTestId } = render(<IndoorScreen buildingId="H" />);
-    expect(getByText("Hall Building")).toBeTruthy();
-    expect(getByTestId("map-viewer")).toBeTruthy();
-  });
-
-  it("displays floor selector with available floors", () => {
+  it("renders building name and default first floor for a normal building", () => {
     const { getByText } = render(<IndoorScreen buildingId="H" />);
-    // Hall has 1, 2, 8, 9 according to data/hall/hall_plans.json or floorMaps
-    // Actually, IndoorScreen gets floors from indoorData[buildingId].nodes
+
+    expect(getByText("Hall Building")).toBeTruthy();
+    expect(getByText("IndoorMapViewerMock")).toBeTruthy();
     expect(getByText("1")).toBeTruthy();
     expect(getByText("2")).toBeTruthy();
-    expect(getByText("8")).toBeTruthy();
-    expect(getByText("9")).toBeTruthy();
+
+    const lastCall =
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
+
+    expect(lastCall.imageSource).toBe("hall-floor-1");
+    expect(lastCall.nodes).toEqual([
+      {
+        id: "n1",
+        type: "room",
+        buildingId: "H",
+        floor: 1,
+        x: 10,
+        y: 20,
+      },
+    ]);
+    expect(lastCall.edges).toEqual([
+      {
+        source: "n1",
+        target: "n1",
+        type: "path",
+        weight: 1,
+      },
+    ]);
   });
 
-  it("changes selected floor when a floor button is pressed", () => {
+  it("trims buildingId before lookup", () => {
+    const { getByText } = render(<IndoorScreen buildingId="  H  " />);
+
+    expect(getByText("Hall Building")).toBeTruthy();
+
+    const lastCall =
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
+
+    expect(lastCall.imageSource).toBe("hall-floor-1");
+  });
+
+  it("changes floor when a floor button is pressed", () => {
     const { getByText } = render(<IndoorScreen buildingId="H" />);
 
-    // Hall Building has floors 1, 2, 8, 9
-    // Initial floor should be 1
-    expect(getByText(/Nodes: \d+/)).toBeTruthy();
+    fireEvent.press(getByText("2"));
 
-    // Press floor 8
-    fireEvent.press(getByText("8"));
+    const lastCall =
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
 
-    // Should still show some nodes (actual count depends on real data)
-    expect(getByText(/Nodes: \d+/)).toBeTruthy();
+    expect(lastCall.imageSource).toBe("hall-floor-2");
+    expect(lastCall.nodes).toEqual([
+      {
+        id: "n2",
+        type: "room",
+        buildingId: "H",
+        floor: 2,
+        x: 30,
+        y: 40,
+      },
+    ]);
+    expect(lastCall.edges).toEqual([
+      {
+        source: "n2",
+        target: "n2",
+        type: "path",
+        weight: 2,
+      },
+    ]);
   });
 
-  it("handles MB special floors (S2)", () => {
+  it("uses MB special floors and displays S2", () => {
     const { getByText } = render(<IndoorScreen buildingId="MB" />);
+
+    expect(getByText("John Molson Building")).toBeTruthy();
     expect(getByText("S2")).toBeTruthy();
     expect(getByText("1")).toBeTruthy();
-  });
 
-  it("applies SGW styling for SGW buildings", () => {
-    const { getByText } = render(<IndoorScreen buildingId="H" />);
-    const header = getByText("Hall Building").parent;
-    // In react-native-testing-library, checking styles can be tricky depending on how it's rendered.
-    // But we can check if it exists and has the expected text.
-    expect(header).toBeTruthy();
+    const lastCall =
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
+
+    expect(lastCall.imageSource).toBe("mb-floor-s2");
+    expect(lastCall.nodes).toEqual([
+      {
+        id: "mbs2",
+        type: "room",
+        buildingId: "MB",
+        floor: -2,
+        x: 1,
+        y: 2,
+      },
+    ]);
   });
 });

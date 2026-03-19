@@ -1,80 +1,89 @@
 import React from "react";
 import { render } from "@testing-library/react-native";
 import IndoorMapViewer from "../IndoorMapViewer";
-import { View, Text } from "react-native";
-
-// Mock dependencies
-jest.mock("react-native-gesture-handler", () => {
-  return {
-    Gesture: {
-      Pinch: () => ({
-        onUpdate: jest.fn().mockReturnThis(),
-        onEnd: jest.fn().mockReturnThis(),
-      }),
-      Pan: () => ({
-        onUpdate: jest.fn().mockReturnThis(),
-        onEnd: jest.fn().mockReturnThis(),
-      }),
-      Simultaneous: jest.fn(),
-    },
-    GestureDetector: ({ children }: any) => children,
-    GestureHandlerRootView: ({ children }: any) => children,
-  };
-});
 
 jest.mock("react-native-reanimated", () => {
   const Reanimated = require("react-native-reanimated/mock");
-  Reanimated.default.call = () => {};
+
+  Reanimated.useSharedValue = (value: unknown) => ({ value });
+  Reanimated.useAnimatedStyle = (updater: () => unknown) => updater();
+
+  return Reanimated;
+});
+
+jest.mock("react-native-gesture-handler", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+
+  type MockGestureChain = {
+    onUpdate: jest.Mock;
+    onEnd: jest.Mock;
+    numberOfTaps: jest.Mock;
+  };
+
+  const createGesture = (): MockGestureChain => {
+    const chain = {} as MockGestureChain;
+
+    chain.onUpdate = jest.fn(() => chain);
+    chain.onEnd = jest.fn(() => chain);
+    chain.numberOfTaps = jest.fn(() => chain);
+
+    return chain;
+  };
+
   return {
-    ...Reanimated,
-    useSharedValue: (val: any) => ({ value: val }),
-    useAnimatedStyle: (cb: any) => cb(),
+    GestureHandlerRootView: ({ children }: { children: React.ReactNode }) => (
+      <View>{children}</View>
+    ),
+    GestureDetector: ({ children }: { children: React.ReactNode }) => (
+      <View>{children}</View>
+    ),
+    Gesture: {
+      Pinch: jest.fn(() => createGesture()),
+      Pan: jest.fn(() => createGesture()),
+      Tap: jest.fn(() => createGesture()),
+      Simultaneous: jest.fn((...gestures) => gestures),
+    },
   };
 });
 
-const MockSvg = (props: any) => (
-  <View {...props} testID="mock-svg">
-    <Text>SVG Content</Text>
-  </View>
-);
-
 describe("IndoorMapViewer", () => {
-  const mockNodes = [
-    { id: "1", type: "room", buildingId: "H", floor: 1, x: 10, y: 10 },
+  const nodes = [
+    {
+      id: "n1",
+      type: "room",
+      buildingId: "H",
+      floor: 1,
+      x: 100,
+      y: 100,
+    },
   ];
-  const mockEdges = [{ source: "1", target: "2", type: "path", weight: 1 }];
 
-  it("renders the SVG component when provided", () => {
-    const { getByTestId } = render(
-      <IndoorMapViewer
-        SvgComponent={MockSvg}
-        nodes={mockNodes}
-        edges={mockEdges}
-      />,
+  const edges = [
+    {
+      source: "n1",
+      target: "n1",
+      type: "path",
+      weight: 1,
+    },
+  ];
+
+  it("renders placeholder when imageSource is missing", () => {
+    const { getByText } = render(
+      <IndoorMapViewer nodes={nodes} edges={edges} />,
     );
-    expect(getByTestId("mock-svg")).toBeTruthy();
+
+    expect(getByText("Image could not be loaded")).toBeTruthy();
   });
 
-  it("renders a placeholder when SvgComponent is missing", () => {
-    const { getByText } = render(
-      <IndoorMapViewer nodes={mockNodes} edges={mockEdges} />,
+  it("renders image when imageSource is provided", () => {
+    const { UNSAFE_getByType, queryByText } = render(
+      <IndoorMapViewer imageSource={1} nodes={nodes} edges={edges} />,
     );
-    expect(getByText("SVG could not be loaded")).toBeTruthy();
-  });
 
-  it("renders a placeholder when SvgComponent is a number (invalid load)", () => {
-    // Suppress console.warn for this test
-    const spy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const { Image } = require("react-native");
 
-    const { getByText } = render(
-      <IndoorMapViewer
-        SvgComponent={123 as any}
-        nodes={mockNodes}
-        edges={mockEdges}
-      />,
-    );
-    expect(getByText("SVG could not be loaded")).toBeTruthy();
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+    expect(UNSAFE_getByType(Image)).toBeTruthy();
+    expect(queryByText("Image could not be loaded")).toBeNull();
   });
 });
