@@ -597,7 +597,10 @@ export default function CampusMap() {
     lastCameraUpdateRef.current = now;
 
     const target = routeNavigation.currentStep?.end;
-    const heading = target ? bearingDegrees(userLocation, target) : 0;
+const calculateCameraHeading = (userLoc: LatLng, target?: LatLng): number => 
+  target ? bearingDegrees(userLoc, target) : 0;
+
+const heading = calculateCameraHeading(userLocation, routeNavigation.currentStep?.end);```
     setMapHeading(heading);
 
     mapRef.current?.animateCamera(
