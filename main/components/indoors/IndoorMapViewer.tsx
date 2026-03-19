@@ -1,6 +1,12 @@
-import React, { ComponentType } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { SvgProps } from "react-native-svg";
+import React from "react";
+import {
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  Image,
+  ImageSourcePropType,
+} from "react-native";
 import { IndoorEdge, IndoorNode } from "./types";
 import {
   Gesture,
@@ -13,13 +19,15 @@ import Animated, {
 } from "react-native-reanimated";
 
 interface IndoorMapViewerProps {
-  SvgComponent?: ComponentType<SvgProps>;
+  imageSource?: ImageSourcePropType;
   nodes: IndoorNode[];
   edges: IndoorEdge[];
 }
 
+const AnimatedImage = Animated.createAnimatedComponent(Image);
+
 export default function IndoorMapViewer({
-  SvgComponent,
+  imageSource,
   nodes,
   edges,
 }: Readonly<IndoorMapViewerProps>) {
@@ -27,6 +35,7 @@ export default function IndoorMapViewer({
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
+
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
@@ -50,6 +59,8 @@ export default function IndoorMapViewer({
       savedTranslateY.value = translateY.value;
     });
 
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
@@ -58,18 +69,10 @@ export default function IndoorMapViewer({
     ],
   }));
 
-  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
-
-  if (!SvgComponent || typeof SvgComponent === "number") {
-    console.warn(
-      `IndoorMapViewer: SvgComponent is ${typeof SvgComponent}. Check Metro config and imports.`,
-    );
-
+  if (!imageSource) {
     return (
       <View style={styles.container}>
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>SVG could not be loaded</Text>
-        </View>
+        <Text style={styles.placeholderText}>Image could not be loaded</Text>
       </View>
     );
   }
@@ -79,22 +82,15 @@ export default function IndoorMapViewer({
   return (
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={composedGesture}>
-        <Animated.View
-          style={[
-            styles.svgWrapper,
-            animatedStyle,
-            {
-              width: width,
-              height: availableHeight,
-            },
-          ]}
-        >
-          <SvgComponent
-            width="100%"
-            height="100%"
-            preserveAspectRatio="xMidYMid meet"
-          />
-        </Animated.View>
+        <View style={[styles.viewport, { width, height: availableHeight }]}>
+          <Animated.View style={[styles.imageWrapper, animatedStyle]}>
+            <AnimatedImage
+              source={imageSource}
+              style={[styles.image, { width, height: availableHeight }]}
+              resizeMode="contain"
+            />
+          </Animated.View>
+        </View>
       </GestureDetector>
     </GestureHandlerRootView>
   );
@@ -103,26 +99,25 @@ export default function IndoorMapViewer({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: "100%",
     backgroundColor: "#f9f9f9",
+  },
+  viewport: {
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
   },
-  svgWrapper: {
+  imageWrapper: {
     justifyContent: "center",
     alignItems: "center",
   },
-  placeholder: {
-    flex: 1,
-    width: "100%",
-    backgroundColor: "#eee",
-    justifyContent: "center",
-    alignItems: "center",
+  image: {
+    alignSelf: "center",
   },
   placeholderText: {
     fontSize: 16,
     color: "#444",
     fontWeight: "600",
+    textAlign: "center",
+    marginTop: 40,
   },
 });

@@ -1,5 +1,4 @@
-import { ComponentType } from "react";
-import { SvgProps } from "react-native-svg";
+import { ImageSourcePropType } from "react-native";
 
 export interface IndoorNode {
   id: string;
@@ -30,7 +29,7 @@ export interface IndoorGraphData {
 
 export interface FloorSVGMapping {
   [buildingId: string]: {
-    [floor: string]: ComponentType<SvgProps>;
+    [floor: string]: ImageSourcePropType;
   };
 }
 

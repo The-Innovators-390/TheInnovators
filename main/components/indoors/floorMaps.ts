@@ -1,19 +1,19 @@
 import { FloorSVGMapping } from "./types";
 
-import Hall1 from "../../assets/indoor_floors/hall/Hall-1.svg";
-import Hall2 from "../../assets/indoor_floors/hall/Hall-2.svg";
-import Hall8 from "../../assets/indoor_floors/hall/Hall-8.svg";
-import Hall9 from "../../assets/indoor_floors/hall/Hall-9.svg";
-import CC1 from "../../assets/indoor_floors/cc/CC1.svg";
+import Hall1 from "../../assets/indoor_floors/hall/H1.png";
+import Hall2 from "../../assets/indoor_floors/hall/H2.png";
+import Hall8 from "../../assets/indoor_floors/hall/H8.png";
+import Hall9 from "../../assets/indoor_floors/hall/H9.png";
+import CC1 from "../../assets/indoor_floors/cc/CC1.png";
 
-import MB1 from "../../assets/indoor_floors/mb/MB-1.svg";
-import MBS2 from "../../assets/indoor_floors/mb/MB-S2.svg";
+import MB1 from "../../assets/indoor_floors/mb/mb_1.png";
+import MBS2 from "../../assets/indoor_floors/mb/mb_s2.png";
 
-import VE1 from "../../assets/indoor_floors/ve/VE-1.svg";
-import VE2 from "../../assets/indoor_floors/ve/VE-2.svg";
+import VE1 from "../../assets/indoor_floors/ve/ve1.png";
+import VE2 from "../../assets/indoor_floors/ve/ve2.png";
 
-import VL1 from "../../assets/indoor_floors/vl/VL-1.svg";
-import VL2 from "../../assets/indoor_floors/vl/VL-2.svg";
+import VL1 from "../../assets/indoor_floors/vl/vl_1.png";
+import VL2 from "../../assets/indoor_floors/vl/vl_2.png";
 
 export const floorMaps: FloorSVGMapping = {
   H: {
