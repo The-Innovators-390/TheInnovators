@@ -28,7 +28,7 @@ export function resetMapDirectionToNorth(
 
   map.animateCamera(
     {
-      center,
+      ...(center ? { center } : {}),
       heading: 0,
       pitch: 0,
     },
