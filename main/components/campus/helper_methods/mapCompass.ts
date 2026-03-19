@@ -1,15 +1,11 @@
 import type React from "react";
 import type MapView from "react-native-maps";
-
-type MapCenter = {
-  latitude: number;
-  longitude: number;
-};
+import type { LatLng } from "@/components/campus/helper_methods/googleDirections";
 
 type CameraCapableMap = MapView & {
   animateCamera?: (
     camera: {
-      center?: MapCenter;
+      center?: LatLng;
       heading?: number;
       pitch?: number;
     },
@@ -19,7 +15,7 @@ type CameraCapableMap = MapView & {
 
 export function resetMapDirectionToNorth(
   mapRef: React.RefObject<MapView | null>,
-  center?: MapCenter,
+  center?: LatLng,
   duration = 350,
 ) {
   const map = mapRef.current as CameraCapableMap | null;
