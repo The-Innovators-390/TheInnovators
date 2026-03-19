@@ -896,6 +896,38 @@ export default function CampusMap() {
     ],
   );
 
+  const handleToggleRoutePlanner = useCallback(() => {
+    const nextMode = !nav.isRouteMode;
+
+    setSelected(null);
+    setPopupIndex(-1);
+
+    if (nextMode) {
+      nav.toggleRouteMode();
+      nav.setActiveField("destination");
+      setQuery(destText);
+      nav.setRouteError(null);
+      setStartToCurrentLocation();
+      return;
+    }
+
+    nav.setRouteStart(null);
+    nav.setRouteDest(null);
+    nav.setRouteError(null);
+    setStartText("");
+    setDestText("");
+    setQuery("");
+    setAllRouteCoords([]);
+    setShuttleSegmentCoords(null);
+
+    resetCompassToNorth({
+      latitude: region.latitude,
+      longitude: region.longitude,
+    });
+
+    nav.toggleRouteMode();
+  }, [nav, destText, setStartToCurrentLocation, region, resetCompassToNorth]);
+
   return (
     <View style={styles.container} testID="campusMap-root">
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -1184,37 +1216,7 @@ export default function CampusMap() {
             {!routeNavigation.isNavigating && (
               <RoutePlanner
                 isRouteMode={nav.isRouteMode}
-                onToggle={() => {
-                  const nextMode = !nav.isRouteMode;
-
-                  setSelected(null);
-                  setPopupIndex(-1);
-
-                  if (nextMode) {
-                    nav.toggleRouteMode();
-                    nav.setActiveField("destination");
-                    setQuery(destText);
-                    nav.setRouteError(null);
-                    setStartToCurrentLocation();
-                    return;
-                  }
-
-                  nav.setRouteStart(null);
-                  nav.setRouteDest(null);
-                  nav.setRouteError(null);
-                  setStartText("");
-                  setDestText("");
-                  setQuery("");
-                  setAllRouteCoords([]);
-                  setShuttleSegmentCoords(null);
-
-                  resetCompassToNorth({
-                    latitude: region.latitude,
-                    longitude: region.longitude,
-                  });
-
-                  nav.toggleRouteMode();
-                }}
+                onToggle={handleToggleRoutePlanner}
               />
             )}
           </View>
