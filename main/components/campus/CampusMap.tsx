@@ -15,7 +15,12 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
+import MapView, {
+  PROVIDER_GOOGLE,
+  Marker,
+  Polyline,
+  LatLng,
+} from "react-native-maps";
 import {
   getDeviceLocation,
   LocationError,
@@ -279,13 +284,12 @@ export default function CampusMap() {
     walkToDestination: { latitude: number; longitude: number }[];
   }>(null);
 
-  const resetCompassToNorth = useCallback(
-    (center?: { latitude: number; longitude: number }) => {
-      resetMapDirectionToNorth(mapRef, center, 350);
-      setMapHeading(0);
-    },
-    [],
-  );
+  const NORTH_ANIMATION_DURATION = 350;
+
+  const resetCompassToNorth = useCallback((center?: LatLng) => {
+    resetMapDirectionToNorth(mapRef, center, NORTH_ANIMATION_DURATION);
+    setMapHeading(0);
+  }, []);
 
   const shouldShowCompass = popupIndex < 1;
 
@@ -592,8 +596,15 @@ export default function CampusMap() {
     if (now - lastCameraUpdateRef.current < 900) return;
     lastCameraUpdateRef.current = now;
 
-    const target = routeNavigation.currentStep?.end;
-    const heading = target ? bearingDegrees(userLocation, target) : 0;
+    const calculateCameraHeading = (
+      userLoc: LatLng,
+      target?: LatLng,
+    ): number => (target ? bearingDegrees(userLoc, target) : 0);
+
+    const heading = calculateCameraHeading(
+      userLocation,
+      routeNavigation.currentStep?.end,
+    );
     setMapHeading(heading);
 
     mapRef.current?.animateCamera(
@@ -784,19 +795,26 @@ export default function CampusMap() {
     Math.round(windowHeight * 0.28),
   );
 
-  const floatingBottom = useMemo(() => {
-    if (hasBuildingPopup) return collapsedBuildingPopupHeight;
-    if (hasTravelPopup) return collapsedTravelPopupHeight;
-    return 120;
-  }, [
-    hasBuildingPopup,
-    hasTravelPopup,
-    collapsedBuildingPopupHeight,
-    collapsedTravelPopupHeight,
-  ]);
+  let floatingBottom = 120;
+
+  if (hasBuildingPopup) {
+    floatingBottom = collapsedBuildingPopupHeight;
+  } else if (hasTravelPopup) {
+    floatingBottom = collapsedTravelPopupHeight;
+  }
 
   const shouldHideFloatingButtons =
-    (hasBuildingPopup && popupIndex > 0) || (hasTravelPopup && popupIndex > 0);
+    popupIndex > 0 && (hasBuildingPopup || hasTravelPopup);
+
+  const resetCenter = userLocation
+    ? {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      }
+    : {
+        latitude: region?.latitude ?? INITIAL_REGION?.latitude ?? 0,
+        longitude: region?.longitude ?? INITIAL_REGION?.longitude ?? 0,
+      };
 
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
@@ -877,6 +895,38 @@ export default function CampusMap() {
       routeNavigation,
     ],
   );
+
+  const handleToggleRoutePlanner = useCallback(() => {
+    const nextMode = !nav.isRouteMode;
+
+    setSelected(null);
+    setPopupIndex(-1);
+
+    if (nextMode) {
+      nav.toggleRouteMode();
+      nav.setActiveField("destination");
+      setQuery(destText);
+      nav.setRouteError(null);
+      setStartToCurrentLocation();
+      return;
+    }
+
+    nav.setRouteStart(null);
+    nav.setRouteDest(null);
+    nav.setRouteError(null);
+    setStartText("");
+    setDestText("");
+    setQuery("");
+    setAllRouteCoords([]);
+    setShuttleSegmentCoords(null);
+
+    resetCompassToNorth({
+      latitude: region.latitude,
+      longitude: region.longitude,
+    });
+
+    nav.toggleRouteMode();
+  }, [nav, destText, setStartToCurrentLocation, region, resetCompassToNorth]);
 
   return (
     <View style={styles.container} testID="campusMap-root">
@@ -1146,19 +1196,7 @@ export default function CampusMap() {
       <Compass
         visible={shouldShowCompass && !shouldHideFloatingButtons}
         rotationDegrees={-mapHeading}
-        onPress={() =>
-          resetCompassToNorth(
-            userLocation
-              ? {
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                }
-              : {
-                  latitude: region.latitude,
-                  longitude: region.longitude,
-                },
-          )
-        }
+        onPress={() => resetCompassToNorth(resetCenter)}
         style={[
           compassStyles.button,
           { bottom: floatingBottom },
@@ -1178,37 +1216,7 @@ export default function CampusMap() {
             {!routeNavigation.isNavigating && (
               <RoutePlanner
                 isRouteMode={nav.isRouteMode}
-                onToggle={() => {
-                  const nextMode = !nav.isRouteMode;
-
-                  setSelected(null);
-                  setPopupIndex(-1);
-
-                  if (nextMode) {
-                    nav.toggleRouteMode();
-                    nav.setActiveField("destination");
-                    setQuery(destText);
-                    nav.setRouteError(null);
-                    setStartToCurrentLocation();
-                    return;
-                  }
-
-                  nav.setRouteStart(null);
-                  nav.setRouteDest(null);
-                  nav.setRouteError(null);
-                  setStartText("");
-                  setDestText("");
-                  setQuery("");
-                  setAllRouteCoords([]);
-                  setShuttleSegmentCoords(null);
-
-                  resetCompassToNorth({
-                    latitude: region.latitude,
-                    longitude: region.longitude,
-                  });
-
-                  nav.toggleRouteMode();
-                }}
+                onToggle={handleToggleRoutePlanner}
               />
             )}
           </View>
@@ -1310,17 +1318,7 @@ export default function CampusMap() {
           setAllRouteCoords([]);
           setShuttleSegmentCoords(null);
 
-          resetCompassToNorth(
-            userLocation
-              ? {
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                }
-              : {
-                  latitude: region.latitude,
-                  longitude: region.longitude,
-                },
-          );
+          resetCompassToNorth(resetCenter);
         }}
       />
 
