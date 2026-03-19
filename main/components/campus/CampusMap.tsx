@@ -795,16 +795,13 @@ export default function CampusMap() {
     Math.round(windowHeight * 0.28),
   );
 
-  const floatingBottom = useMemo(() => {
-    if (hasBuildingPopup) return collapsedBuildingPopupHeight;
-    if (hasTravelPopup) return collapsedTravelPopupHeight;
-    return 120;
-  }, [
-    hasBuildingPopup,
-    hasTravelPopup,
-    collapsedBuildingPopupHeight,
-    collapsedTravelPopupHeight,
-  ]);
+  let floatingBottom = 120;
+
+  if (hasBuildingPopup) {
+    floatingBottom = collapsedBuildingPopupHeight;
+  } else if (hasTravelPopup) {
+    floatingBottom = collapsedTravelPopupHeight;
+  }
 
   const shouldHideFloatingButtons =
     (hasBuildingPopup && popupIndex > 0) || (hasTravelPopup && popupIndex > 0);
