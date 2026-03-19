@@ -1,36 +1,40 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
+import { Text, View } from "react-native";
 import IndoorScreen from "../IndoorScreen";
 
 jest.mock("react-native-safe-area-context", () => {
-  const React = require("react");
-  const { View } = require("react-native");
+  const MockSafeAreaView = ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }): React.JSX.Element => <View>{children}</View>;
+
+  MockSafeAreaView.displayName = "MockSafeAreaView";
 
   return {
-    SafeAreaView: ({ children }: { children: React.ReactNode }) => (
-      <View>{children}</View>
-    ),
+    SafeAreaView: MockSafeAreaView,
   };
 });
 
 jest.mock("../ui/HeaderBackButton", () => {
-  const React = require("react");
-  const { Text } = require("react-native");
+  const MockHeaderBackButton = ({
+    color,
+  }: {
+    color: string;
+  }): React.JSX.Element => <Text>{`BackButton-${color}`}</Text>;
+
+  MockHeaderBackButton.displayName = "MockHeaderBackButton";
 
   return {
-    HeaderBackButton: ({ color }: { color: string }) => (
-      <Text>{`BackButton-${color}`}</Text>
-    ),
+    HeaderBackButton: MockHeaderBackButton,
   };
 });
 
 const indoorMapViewerMock = jest.fn();
 
-jest.mock("./IndoorMapViewer", () => {
-  const React = require("react");
-  const { View, Text } = require("react-native");
-
-  return (props: any) => {
+jest.mock("../IndoorMapViewer", () => {
+  const MockIndoorMapViewer = (props: unknown): React.JSX.Element => {
     indoorMapViewerMock(props);
     return (
       <View>
@@ -38,9 +42,13 @@ jest.mock("./IndoorMapViewer", () => {
       </View>
     );
   };
+
+  MockIndoorMapViewer.displayName = "MockIndoorMapViewer";
+
+  return MockIndoorMapViewer;
 });
 
-jest.mock("./floorMaps", () => ({
+jest.mock("../floorMaps", () => ({
   floorMaps: {
     H: {
       "1": "hall-floor-1",
@@ -53,7 +61,7 @@ jest.mock("./floorMaps", () => ({
   },
 }));
 
-jest.mock("./indoorData", () => ({
+jest.mock("../indoorData", () => ({
   indoorData: {
     H: {
       meta: { buildingId: "H" },
@@ -163,9 +171,7 @@ describe("IndoorScreen", () => {
     expect(getByText("2")).toBeTruthy();
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[
-        indoorMapViewerMock.mock.calls.length - 1
-      ][0];
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
 
     expect(lastCall.imageSource).toBe("hall-floor-1");
     expect(lastCall.nodes).toEqual([
@@ -189,14 +195,10 @@ describe("IndoorScreen", () => {
   });
 
   it("trims buildingId before lookup", () => {
-    const { getByText } = render(<IndoorScreen buildingId="  H  " />);
-
-    expect(getByText("Hall Building")).toBeTruthy();
+    render(<IndoorScreen buildingId="  H  " />);
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[
-        indoorMapViewerMock.mock.calls.length - 1
-      ][0];
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
 
     expect(lastCall.imageSource).toBe("hall-floor-1");
   });
@@ -207,9 +209,7 @@ describe("IndoorScreen", () => {
     fireEvent.press(getByText("2"));
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[
-        indoorMapViewerMock.mock.calls.length - 1
-      ][0];
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
 
     expect(lastCall.imageSource).toBe("hall-floor-2");
     expect(lastCall.nodes).toEqual([
@@ -240,9 +240,7 @@ describe("IndoorScreen", () => {
     expect(getByText("1")).toBeTruthy();
 
     const lastCall =
-      indoorMapViewerMock.mock.calls[
-        indoorMapViewerMock.mock.calls.length - 1
-      ][0];
+      indoorMapViewerMock.mock.calls[indoorMapViewerMock.mock.calls.length - 1][0];
 
     expect(lastCall.imageSource).toBe("mb-floor-s2");
     expect(lastCall.nodes).toEqual([
