@@ -15,7 +15,12 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
+import MapView, {
+  PROVIDER_GOOGLE,
+  Marker,
+  Polyline,
+  LatLng,
+} from "react-native-maps";
 import {
   getDeviceLocation,
   LocationError,
@@ -279,13 +284,12 @@ export default function CampusMap() {
     walkToDestination: { latitude: number; longitude: number }[];
   }>(null);
 
-  const resetCompassToNorth = useCallback(
-    (center?: { latitude: number; longitude: number }) => {
-      resetMapDirectionToNorth(mapRef, center, 350);
-      setMapHeading(0);
-    },
-    [],
-  );
+  const NORTH_ANIMATION_DURATION = 350;
+
+  const resetCompassToNorth = useCallback((center?: LatLng) => {
+    resetMapDirectionToNorth(mapRef, center, NORTH_ANIMATION_DURATION);
+    setMapHeading(0);
+  }, []);
 
   const shouldShowCompass = popupIndex < 1;
 
