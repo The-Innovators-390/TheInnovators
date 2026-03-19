@@ -804,7 +804,7 @@ export default function CampusMap() {
   }
 
   const shouldHideFloatingButtons =
-    (hasBuildingPopup && popupIndex > 0) || (hasTravelPopup && popupIndex > 0);
+    popupIndex > 0 && (hasBuildingPopup || hasTravelPopup);
 
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
