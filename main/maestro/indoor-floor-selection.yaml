@@ -62,10 +62,18 @@ appId: com.theinnovators.campusguide
 - tapOn:
     id: "indoor-floor-8"
 - waitForAnimationToEnd
-- assertVisible: "Floor: 8"
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 8"
+    timeout: 10000
 
 - tapOn:
     id: "indoor-floor-2"
 - waitForAnimationToEnd
-- assertVisible: "Floor: 2"
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 2"
+    timeout: 10000
 
