@@ -76,4 +76,3 @@ appId: com.theinnovators.campusguide
       id: "indoor-current-floor"
       text: "Floor: 2"
     timeout: 10000
-

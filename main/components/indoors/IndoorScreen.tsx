@@ -139,9 +139,12 @@ export default function IndoorScreen({
         />
       </View>
 
-      <View style={styles.floorSelectorContainer} testID="indoor-floor-selector">
+      <View
+        style={styles.floorSelectorContainer}
+        testID="indoor-floor-selector"
+      >
         <Text style={styles.hiddenFloorTestHook} testID="indoor-current-floor">
-          Floor: {selectedFloor === -2 ? "S2" : selectedFloor ?? "-"}
+          Floor: {selectedFloor === -2 ? "S2" : (selectedFloor ?? "-")}
         </Text>
         <ScrollView
           horizontal
