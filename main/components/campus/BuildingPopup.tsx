@@ -217,150 +217,150 @@ export default function BuildingPopup({
         showsVerticalScrollIndicator={false}
       >
         {details ? (
-            <>
-                {/* Building Accessibility */}
-                <View style={styles.card}>
-                    <Text style={styles.cardHeader}>Building Accessibility</Text>
-
-                    {hasAccessibility ? (
-                        details.accessibility!.map((item) => (
-                            <IconRow
-                                key={item.title}
-                                iconKey={item.icon as keyof typeof BUILDING_ICONS}
-                                title={item.title}
-                                description={item.description}
-                            />
-                        ))
-                    ) : (
-                        <View
-                            style={[
-                                styles.messageBox,
-                                {borderColor: theme.revealingBorder},
-                            ]}
-                        >
-                            <Text style={styles.messageText}>
-                                This building is not accessible. It is not equipped with an
-                                accessibility ramp, automated door, elevator or wheelchair
-                                lift.
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Metro Accessibility (only if provided) */}
-                {!!details.metro && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardHeader}>Metro Accessibility</Text>
-                        <SimpleRow
-                            iconKey="metro"
-                            title={details.metro?.title}
-                            description={details.metro?.description}
-                        />
-                    </View>
-                )}
-
-                {/* Building Connectivity (only if provided) */}
-                {!!details.connectivity && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardHeader}>Building Connectivity</Text>
-                        <SimpleRow
-                            iconKey="connectedBuildings"
-                            title={details.connectivity?.title}
-                            description={details.connectivity?.description}
-                        />
-                    </View>
-                )}
-
-                {/* Number of Entries (show if present and non-empty) */}
-                {Array.isArray(details.entries) && details.entries.length > 0 && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardHeader}>Number of Entries</Text>
-                        {details.entries.map((e, idx) => (
-                            <SimpleRow
-                                key={`${e.title}-${idx}`}
-                                iconKey="entry"
-                                title={e.title}
-                                description={e.description}
-                            />
-                        ))}
-                    </View>
-                )}
-
-                {/* Other Services (only if provided) */}
-                {Array.isArray(details.otherServices) &&
-                    details.otherServices.length > 0 && (
-                        <View style={styles.card}>
-                            <Text style={styles.cardHeader}>Other services</Text>
-                            {details.otherServices.map((item) => (
-                                <IconRow
-                                    key={item.title}
-                                    iconKey={item.icon as keyof typeof BUILDING_ICONS}
-                                    title={item.title}
-                                    description={item.description}
-                                />
-                            ))}
-                        </View>
-                    )}
-
-                {/* Building Overview (only if provided) */}
-                {Array.isArray(details.overview) && details.overview.length > 0 && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardHeader}>Building Overview</Text>
-                        {details.overview.map((p, idx) => (
-                            <Text key={idx} style={styles.paragraph}>
-                                {p}
-                            </Text>
-                        ))}
-                    </View>
-                )}
-
-                {/* Venues */}
-                {Array.isArray(details.venues) && details.venues.length > 0 && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardHeader}>Venues</Text>
-                        {details.venues.map((v) => (
-                            <View key={v} style={styles.bulletRow}>
-                                <Text style={styles.bullet}>•</Text>
-                                <Text style={styles.bulletText}>{v}</Text>
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                {/* Departments */}
-                {Array.isArray(details.departments) &&
-                    details.departments.length > 0 && (
-                        <View style={styles.card}>
-                            <Text style={styles.cardHeader}>Departments</Text>
-                            {details.departments.map((d) => (
-                                <View key={d} style={styles.bulletRow}>
-                                    <Text style={styles.bullet}>•</Text>
-                                    <Text style={styles.bulletText}>{d}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    )}
-
-                {/* Services */}
-                {Array.isArray(details.services) && details.services.length > 0 && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardHeader}>Services</Text>
-                        {details.services.map((s) => (
-                            <View key={s} style={styles.bulletRow}>
-                                <Text style={styles.bullet}>•</Text>
-                                <Text style={styles.bulletText}>{s}</Text>
-                            </View>
-                        ))}
-                    </View>
-                )}
-            </>
-        ) : (
+          <>
+            {/* Building Accessibility */}
             <View style={styles.card}>
-                <Text style={styles.cardHeader}>Details coming soon</Text>
-                <Text style={styles.cardText}>
-                    We’ll add the expanded info for this building next.
-                </Text>
+              <Text style={styles.cardHeader}>Building Accessibility</Text>
+
+              {hasAccessibility ? (
+                details.accessibility!.map((item) => (
+                  <IconRow
+                    key={item.title}
+                    iconKey={item.icon as keyof typeof BUILDING_ICONS}
+                    title={item.title}
+                    description={item.description}
+                  />
+                ))
+              ) : (
+                <View
+                  style={[
+                    styles.messageBox,
+                    { borderColor: theme.revealingBorder },
+                  ]}
+                >
+                  <Text style={styles.messageText}>
+                    This building is not accessible. It is not equipped with an
+                    accessibility ramp, automated door, elevator or wheelchair
+                    lift.
+                  </Text>
+                </View>
+              )}
             </View>
+
+            {/* Metro Accessibility (only if provided) */}
+            {!!details.metro && (
+              <View style={styles.card}>
+                <Text style={styles.cardHeader}>Metro Accessibility</Text>
+                <SimpleRow
+                  iconKey="metro"
+                  title={details.metro?.title}
+                  description={details.metro?.description}
+                />
+              </View>
+            )}
+
+            {/* Building Connectivity (only if provided) */}
+            {!!details.connectivity && (
+              <View style={styles.card}>
+                <Text style={styles.cardHeader}>Building Connectivity</Text>
+                <SimpleRow
+                  iconKey="connectedBuildings"
+                  title={details.connectivity?.title}
+                  description={details.connectivity?.description}
+                />
+              </View>
+            )}
+
+            {/* Number of Entries (show if present and non-empty) */}
+            {Array.isArray(details.entries) && details.entries.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardHeader}>Number of Entries</Text>
+                {details.entries.map((e, idx) => (
+                  <SimpleRow
+                    key={`${e.title}-${idx}`}
+                    iconKey="entry"
+                    title={e.title}
+                    description={e.description}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* Other Services (only if provided) */}
+            {Array.isArray(details.otherServices) &&
+              details.otherServices.length > 0 && (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeader}>Other services</Text>
+                  {details.otherServices.map((item) => (
+                    <IconRow
+                      key={item.title}
+                      iconKey={item.icon as keyof typeof BUILDING_ICONS}
+                      title={item.title}
+                      description={item.description}
+                    />
+                  ))}
+                </View>
+              )}
+
+            {/* Building Overview (only if provided) */}
+            {Array.isArray(details.overview) && details.overview.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardHeader}>Building Overview</Text>
+                {details.overview.map((p, idx) => (
+                  <Text key={idx} style={styles.paragraph}>
+                    {p}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Venues */}
+            {Array.isArray(details.venues) && details.venues.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardHeader}>Venues</Text>
+                {details.venues.map((v) => (
+                  <View key={v} style={styles.bulletRow}>
+                    <Text style={styles.bullet}>•</Text>
+                    <Text style={styles.bulletText}>{v}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Departments */}
+            {Array.isArray(details.departments) &&
+              details.departments.length > 0 && (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeader}>Departments</Text>
+                  {details.departments.map((d) => (
+                    <View key={d} style={styles.bulletRow}>
+                      <Text style={styles.bullet}>•</Text>
+                      <Text style={styles.bulletText}>{d}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+            {/* Services */}
+            {Array.isArray(details.services) && details.services.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardHeader}>Services</Text>
+                {details.services.map((s) => (
+                  <View key={s} style={styles.bulletRow}>
+                    <Text style={styles.bullet}>•</Text>
+                    <Text style={styles.bulletText}>{s}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardHeader}>Details coming soon</Text>
+            <Text style={styles.cardText}>
+              We’ll add the expanded info for this building next.
+            </Text>
+          </View>
         )}
 
         <View style={{ height: 32 }} />

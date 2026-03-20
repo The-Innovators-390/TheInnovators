@@ -63,25 +63,25 @@ function mapCalendarItemToEvent(
 }
 
 async function safeJson(res: Response): Promise<unknown> {
-    try {
-        return await res.json();
-    } catch {
-        return null;
-    }
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 async function googleFetchJson(
-    url: string,
-    token: string,
+  url: string,
+  token: string,
 ): Promise<{ res: Response; json: unknown; errText: string }> {
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-    });
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
-    const json = await safeJson(res);
-    const errText = buildGoogleErrText(json);
+  const json = await safeJson(res);
+  const errText = buildGoogleErrText(json);
 
-    return { res, json, errText };
+  return { res, json, errText };
 }
 
 export async function fetchUserCalendars(): Promise<GoogleCalendarListItem[]> {

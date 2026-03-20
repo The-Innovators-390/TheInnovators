@@ -34,11 +34,11 @@ export function IconSymbol({
   color,
   style,
 }: Readonly<{
-    name: IconSymbolName;
-    size?: number;
-    color: string | OpaqueColorValue;
-    style?: StyleProp<TextStyle>;
-    weight?: SymbolWeight;
+  name: IconSymbolName;
+  size?: number;
+  color: string | OpaqueColorValue;
+  style?: StyleProp<TextStyle>;
+  weight?: SymbolWeight;
 }>) {
   return (
     <MaterialIcons

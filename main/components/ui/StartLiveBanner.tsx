@@ -7,7 +7,11 @@ type Props = {
   onExit: () => void;
 };
 
-export function StartLiveBanner({ visible, bottomOffset, onExit }: Readonly<Props>) {
+export function StartLiveBanner({
+  visible,
+  bottomOffset,
+  onExit,
+}: Readonly<Props>) {
   if (!visible) return null;
 
   return (
