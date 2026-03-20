@@ -20,7 +20,7 @@ export default function MonthCalendarCard({
   todayKey,
   eventDaySet,
   styles,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <View style={styles.calendarCard}>
       <View style={styles.calendarCardTop}>

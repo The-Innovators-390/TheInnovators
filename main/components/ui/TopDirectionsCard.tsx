@@ -14,7 +14,7 @@ export function TopDirectionsCard({
   distanceText,
   streetText,
   onPress,
-}: Props) {
+}: Readonly<Props>) {
   if (!visible) return null;
 
   return (
