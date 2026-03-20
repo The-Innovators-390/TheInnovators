@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   Pressable,
+  Keyboard,
   Platform,
   StyleSheet,
   useWindowDimensions,
@@ -719,6 +720,8 @@ export default function CampusMap() {
   };
 
   const handlePickBuilding = (b: Building) => {
+    Keyboard.dismiss();
+
     if (nav.isRouteMode) {
       // set start/destination based on activeField
       nav.setFieldFromBuilding(b);

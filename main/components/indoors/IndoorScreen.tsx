@@ -57,8 +57,8 @@ export default function IndoorScreen({
   }, [availableFloors, selectedFloor]);
 
   const currentFloorMap = useMemo(() => {
-    if (selectedFloor === null) return null;
-    return floorMaps[trimmedBuildingId]?.[selectedFloor.toString()] || null;
+    if (selectedFloor === null) return undefined;
+    return floorMaps[trimmedBuildingId]?.[selectedFloor.toString()];
   }, [trimmedBuildingId, selectedFloor]);
 
   const floorData = useMemo(() => {
@@ -86,7 +86,7 @@ export default function IndoorScreen({
         </View>
 
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>
+          <Text style={styles.errorText} testID="indoor-unavailable-message">
             Indoor map coming soon for {buildingDisplayName}.
           </Text>
         </View>
@@ -121,7 +121,13 @@ export default function IndoorScreen({
         />
       </View>
 
-      <View style={styles.floorSelectorContainer}>
+      <View
+        style={styles.floorSelectorContainer}
+        testID="indoor-floor-selector"
+      >
+        <Text style={styles.hiddenFloorTestHook} testID="indoor-current-floor">
+          Floor: {selectedFloor === -2 ? "S2" : (selectedFloor ?? "-")}
+        </Text>
         <FloorSelector
           floors={availableFloors}
           selectedFloor={selectedFloor}
@@ -176,5 +182,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderTopColor: "#eee",
+  },
+  hiddenFloorTestHook: {
+    fontSize: 1,
+    lineHeight: 1,
+    color: "transparent",
+    textAlign: "center",
+    marginTop: 1,
   },
 });

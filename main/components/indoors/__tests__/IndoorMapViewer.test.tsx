@@ -13,7 +13,6 @@ jest.mock("react-native-reanimated", () => {
 
 // Mock Gesture Handler
 jest.mock("react-native-gesture-handler", () => {
-  const React = require("react");
   const { View } = require("react-native");
 
   type MockGestureChain = {

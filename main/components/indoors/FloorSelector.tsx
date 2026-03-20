@@ -35,6 +35,7 @@ export const FloorSelector: React.FC<FloorSelectorProps> = ({
       {floors.map((floor) => (
         <TouchableOpacity
           key={floor}
+          testID={`indoor-floor-${floor === -2 ? "S2" : floor}`}
           style={[styles.floorButton, getFloorButtonStyle(floor)]}
           onPress={() => onSelectFloor(floor)}
         >

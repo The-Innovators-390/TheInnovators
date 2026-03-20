@@ -1,0 +1,78 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Welcome Screen -> Guest
+- runFlow:
+    when:
+      visible:
+        id: "guest-sign-in-button"
+    commands:
+      - tapOn:
+          id: "guest-sign-in-button"
+
+# Map loaded
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 30000
+- assertVisible:
+    id: "campusToggle"
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+# Open Hall building popup via search
+- tapOn:
+    id: "searchInput"
+- eraseText
+- inputText: "Henry"
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "suggestion-SGW-SGW-H"
+- waitForAnimationToEnd
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Indoor button is shown in the initial popup state; no expansion needed
+- extendedWaitUntil:
+    visible:
+      text: "Indoor Map"
+    timeout: 20000
+- tapOn:
+    text: "Indoor Map"
+
+# Indoor screen shows floor selector and default floor label
+- extendedWaitUntil:
+    visible:
+      id: "indoor-floor-selector"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+    timeout: 10000
+
+# Switch floors and verify selection state + label update
+- tapOn:
+    id: "indoor-floor-8"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 8"
+    timeout: 10000
+
+- tapOn:
+    id: "indoor-floor-2"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 2"
+    timeout: 10000

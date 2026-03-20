@@ -5,7 +5,6 @@ import IndoorScreen from "../IndoorScreen";
 const mockIndoorMapViewer = jest.fn();
 
 jest.mock("react-native-safe-area-context", () => {
-  const React = jest.requireActual("react");
   const { View } = jest.requireActual("react-native");
 
   const MockSafeAreaView = ({
@@ -22,7 +21,6 @@ jest.mock("react-native-safe-area-context", () => {
 });
 
 jest.mock("../../ui/HeaderBackButton", () => {
-  const React = jest.requireActual("react");
   const { Text } = jest.requireActual("react-native");
 
   const MockHeaderBackButton = ({
@@ -39,7 +37,6 @@ jest.mock("../../ui/HeaderBackButton", () => {
 });
 
 jest.mock("../IndoorMapViewer", () => {
-  const React = jest.requireActual("react");
   const { View, Text } = jest.requireActual("react-native");
 
   const MockIndoorMapViewer = (props: unknown): React.JSX.Element => {
@@ -143,7 +140,6 @@ jest.mock("../indoorData", () => ({
     },
   },
 }));
-
 jest.mock("../../Buildings/SGW/SGWBuildings", () => ({
   SGW_BUILDINGS: [
     { code: "H", name: "Hall Building", campus: "SGW" },
