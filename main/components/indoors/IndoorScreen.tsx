@@ -140,7 +140,7 @@ export default function IndoorScreen({
       </View>
 
       <View style={styles.floorSelectorContainer} testID="indoor-floor-selector">
-        <Text style={styles.currentFloorLabel} testID="indoor-current-floor">
+        <Text style={styles.hiddenFloorTestHook} testID="indoor-current-floor">
           Floor: {selectedFloor === -2 ? "S2" : selectedFloor ?? "-"}
         </Text>
         <ScrollView
@@ -229,12 +229,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#eee",
   },
-  currentFloorLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
+  hiddenFloorTestHook: {
+    fontSize: 1,
+    lineHeight: 1,
+    color: "transparent",
     textAlign: "center",
-    marginTop: 6,
+    marginTop: 1,
   },
   floorSelectorScroll: {
     paddingHorizontal: 16,

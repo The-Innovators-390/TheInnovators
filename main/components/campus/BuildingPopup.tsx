@@ -57,7 +57,7 @@ export default function BuildingPopup({
         };
 
   const snapPoints = useMemo(() => {
-    const collapsed = Math.round(windowHeight * 0.28);
+    const collapsed = Math.round(windowHeight * 0.19);
     const topBuffer = insets.top - 6;
     const expanded = Math.max(300, windowHeight - topBuffer);
     return [collapsed, expanded];
