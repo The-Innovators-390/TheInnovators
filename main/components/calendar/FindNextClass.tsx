@@ -54,7 +54,7 @@ function formatDateShort(iso: string): string {
 export default function FindNextClass({
   calendarId,
   onPressDirections,
-}: Props) {
+}: Readonly<Props>) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [event, setEvent] = useState<CalendarEvent | null>(null);

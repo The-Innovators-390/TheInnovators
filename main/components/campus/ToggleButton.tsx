@@ -45,7 +45,7 @@ interface ToggleButtonProps {
 export default function ToggleButton({
   focusedCampus,
   onCampusChange,
-}: ToggleButtonProps) {
+}: Readonly<ToggleButtonProps>) {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const toggleWidth = useRef(0);
   const focusedCampusRef = useRef<Campus>(focusedCampus);

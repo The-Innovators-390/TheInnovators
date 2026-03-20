@@ -7,6 +7,7 @@ import {
   Image,
   useWindowDimensions,
 } from "react-native";
+import { router } from "expo-router";
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetHandleProps,
@@ -186,6 +187,21 @@ export default function BuildingPopup({
                 Get Directions
               </Text>
             </Pressable>
+
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/indoor",
+                  params: { building: building.code },
+                })
+              }
+              style={[styles.directionsBtn, { borderColor: theme.cardBorder }]}
+              testID="indoorMapButton"
+            >
+              <Text style={[styles.directionsText, { color: theme.brand }]}>
+                Indoor Map
+              </Text>
+            </Pressable>
           </View>
 
           {thumbSource ? (
@@ -200,20 +216,22 @@ export default function BuildingPopup({
         contentContainerStyle={[styles.content, styles.hiddenAtFirst]}
         showsVerticalScrollIndicator={false}
       >
-        {!details ? (
-          <View style={styles.card}>
-            <Text style={styles.cardHeader}>Details coming soon</Text>
-            <Text style={styles.cardText}>
-              We’ll add the expanded info for this building next.
-            </Text>
-          </View>
-        ) : (
+        {details ? (
           <>
             {/* Building Accessibility */}
             <View style={styles.card}>
               <Text style={styles.cardHeader}>Building Accessibility</Text>
 
-              {!hasAccessibility ? (
+              {hasAccessibility ? (
+                details.accessibility!.map((item) => (
+                  <IconRow
+                    key={item.title}
+                    iconKey={item.icon as keyof typeof BUILDING_ICONS}
+                    title={item.title}
+                    description={item.description}
+                  />
+                ))
+              ) : (
                 <View
                   style={[
                     styles.messageBox,
@@ -226,15 +244,6 @@ export default function BuildingPopup({
                     lift.
                   </Text>
                 </View>
-              ) : (
-                details.accessibility!.map((item) => (
-                  <IconRow
-                    key={item.title}
-                    iconKey={item.icon as keyof typeof BUILDING_ICONS}
-                    title={item.title}
-                    description={item.description}
-                  />
-                ))
               )}
             </View>
 
@@ -345,6 +354,13 @@ export default function BuildingPopup({
               </View>
             )}
           </>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardHeader}>Details coming soon</Text>
+            <Text style={styles.cardText}>
+              We’ll add the expanded info for this building next.
+            </Text>
+          </View>
         )}
 
         <View style={{ height: 32 }} />

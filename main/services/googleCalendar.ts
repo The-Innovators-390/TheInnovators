@@ -62,7 +62,7 @@ function mapCalendarItemToEvent(
   };
 }
 
-async function safeJson(res: Response): Promise<any | null> {
+async function safeJson(res: Response): Promise<unknown> {
   try {
     return await res.json();
   } catch {
@@ -73,7 +73,7 @@ async function safeJson(res: Response): Promise<any | null> {
 async function googleFetchJson(
   url: string,
   token: string,
-): Promise<{ res: Response; json: any | null; errText: string }> {
+): Promise<{ res: Response; json: unknown; errText: string }> {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
