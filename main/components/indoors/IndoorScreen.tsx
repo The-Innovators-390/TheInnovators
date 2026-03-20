@@ -72,8 +72,8 @@ export default function IndoorScreen({
   }, [availableFloors, selectedFloor]);
 
   const currentFloorMap = useMemo(() => {
-    if (selectedFloor === null) return null;
-    return floorMaps[trimmedBuildingId]?.[selectedFloor.toString()] || null;
+    if (selectedFloor === null) return undefined;
+    return floorMaps[trimmedBuildingId]?.[selectedFloor.toString()];
   }, [trimmedBuildingId, selectedFloor]);
 
   if (!graphData) {
@@ -95,7 +95,7 @@ export default function IndoorScreen({
         </View>
 
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>
+          <Text style={styles.errorText} testID="indoor-unavailable-message">
             Indoor map coming soon for {buildingDisplayName}.
           </Text>
         </View>
@@ -139,7 +139,10 @@ export default function IndoorScreen({
         />
       </View>
 
-      <View style={styles.floorSelectorContainer}>
+      <View style={styles.floorSelectorContainer} testID="indoor-floor-selector">
+        <Text style={styles.currentFloorLabel} testID="indoor-current-floor">
+          Floor: {selectedFloor === -2 ? "S2" : selectedFloor ?? "-"}
+        </Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -161,6 +164,7 @@ export default function IndoorScreen({
             return (
               <TouchableOpacity
                 key={floor}
+                testID={`indoor-floor-${floor}`}
                 style={[styles.floorButton, selectedStyle]}
                 onPress={() => setSelectedFloor(floor)}
               >
@@ -224,6 +228,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderTopColor: "#eee",
+  },
+  currentFloorLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+    marginTop: 6,
   },
   floorSelectorScroll: {
     paddingHorizontal: 16,

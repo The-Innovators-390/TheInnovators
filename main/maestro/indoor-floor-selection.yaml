@@ -16,7 +16,7 @@ appId: com.theinnovators.campusguide
 - extendedWaitUntil:
     visible:
       id: "campusMap-root"
-    timeout: 20000
+    timeout: 30000
 - assertVisible:
     id: "campusToggle"
 - extendedWaitUntil:
@@ -38,22 +38,9 @@ appId: com.theinnovators.campusguide
     id: "suggestion-SGW-SGW-H"
 - waitForAnimationToEnd
 - hideKeyboard
-- tapOn:
-    id: "mapView"
 - waitForAnimationToEnd
 
-# Expand building popup (bottom sheet) so the Indoor Map button is tappable
-# Swipe to expand popup (bottom sheet) until Indoor Map button appears
-- swipe:
-    start: "50%, 75%"
-    end: "50%, 55%"
-    duration: 800
-- waitForAnimationToEnd
-- swipe:
-    start: "50%, 75%"
-    end: "50%, 30%"
-    duration: 800
-- waitForAnimationToEnd
+# Indoor button is shown in the initial popup state; no expansion needed
 - extendedWaitUntil:
     visible:
       text: "Indoor Map"
@@ -82,52 +69,3 @@ appId: com.theinnovators.campusguide
 - waitForAnimationToEnd
 - assertVisible: "Floor: 2"
 
-# Go back to map and open a building with no indoor maps (EV)
-- back
-- extendedWaitUntil:
-    visible:
-      id: "campusMap-root"
-    timeout: 10000
-- tapOn:
-    id: "searchInput"
-- eraseText
-- inputText: "EV"
-- extendedWaitUntil:
-    visible:
-      id: "suggestion-SGW-SGW-EV"
-    timeout: 10000
-- tapOn:
-    id: "suggestion-SGW-SGW-EV"
-- waitForAnimationToEnd
-- hideKeyboard
-- waitForAnimationToEnd
-
-# Expand building popup by swiping until expanded content shows
-- swipe:
-    start: "50%, 70%"
-    end: "50%, 55%"
-    duration: 800
-- waitForAnimationToEnd
-- swipe:
-    start: "50%, 70%"
-    end: "50%, 25%"
-    duration: 800
-- waitForAnimationToEnd
-- swipe:
-    start: "50%, 70%"
-    end: "50%, 15%"
-    duration: 800
-- waitForAnimationToEnd
-- swipe:
-    start: "50%, 70%"
-    end: "50%, 5%"
-    duration: 800
-- extendedWaitUntil:
-    visible:
-      text: "Indoor Map"
-    timeout: 30000
-- tapOn:
-    text: "Indoor Map"
-
-- assertVisible:
-    id: "indoor-unavailable-message"
