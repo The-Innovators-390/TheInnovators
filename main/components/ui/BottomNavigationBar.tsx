@@ -17,7 +17,7 @@ export function BottomNavigationBar({
   durationMinText,
   distanceKmText,
   onExit,
-}: Props) {
+}: Readonly<Props>) {
   if (!visible) return null;
 
   return (
@@ -46,7 +46,7 @@ export function BottomNavigationBar({
   );
 }
 
-function Metric({ value, label }: { value: string; label: string }) {
+function Metric({ value, label }: Readonly<{ value: string; label: string }>) {
   return (
     <View style={styles.metric}>
       <Text style={styles.value}>{value}</Text>

@@ -23,7 +23,7 @@ export function StepsDropdown({
   activeIndex,
   onClose,
   maxVisible = 8,
-}: Props) {
+}: Readonly<Props>) {
   if (!visible) return null;
 
   const slice = steps.slice(activeIndex);

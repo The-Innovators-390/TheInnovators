@@ -77,7 +77,7 @@ export function decodePolyline(encoded: string): LatLng[] {
     let result = 0;
 
     do {
-      b = encoded.charCodeAt(index++) - 63;
+      b = (encoded.codePointAt(index++) ?? 0) - 63;
       result |= (b & 0x1f) << shift;
       shift += 5;
     } while (b >= 0x20);
@@ -89,7 +89,7 @@ export function decodePolyline(encoded: string): LatLng[] {
     result = 0;
 
     do {
-      b = encoded.charCodeAt(index++) - 63;
+      b = (encoded.codePointAt(index++) ?? 0) - 63;
       result |= (b & 0x1f) << shift;
       shift += 5;
     } while (b >= 0x20);
