@@ -181,7 +181,7 @@ export function parseLocationDetails(location?: string): LocationDetails {
   }
 
   // 2) Extract Room
-  const roomMatch = raw.match(/\bRm\s*([A-Za-z0-9.-]+)\b/i);
+  const roomMatch = new RegExp(/\bRm\s*([A-Za-z0-9.-]+)\b/i).exec(raw);
   const room = roomMatch?.[1];
 
   // 3) Extract building candidate text
@@ -190,11 +190,11 @@ export function parseLocationDetails(location?: string): LocationDetails {
   const baseQuery = removeParenthesizedText(between ?? raw)
     .replace(/\bRm\b.*$/i, "")
     .replace(/\broom\b.*$/i, "")
-    .replace(/\s+/g, " ")
+    .replaceAll(/\s+/g, " ")
     .trim();
 
   const cleaned = baseQuery
-    .replace(/\b(campus|sir george|sgw|loyola)\b/gi, "")
+    .replaceAll(/\b(campus|sir george|sgw|loyola)\b/gi, "")
     .trim();
 
   // Build a list of queries to try (most → least likely)
