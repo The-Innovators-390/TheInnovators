@@ -61,6 +61,10 @@ export default function IndoorScreen({
     return floorMaps[trimmedBuildingId]?.[selectedFloor.toString()] || null;
   }, [trimmedBuildingId, selectedFloor]);
 
+  const floorData = useMemo(() => {
+    return getFloorData(graphData, selectedFloor);
+  }, [graphData, selectedFloor]);
+
   if (!graphData) {
     return (
       <SafeAreaView style={styles.container}>
@@ -89,10 +93,6 @@ export default function IndoorScreen({
       </SafeAreaView>
     );
   }
-
-  const floorData = useMemo(() => {
-    return getFloorData(graphData, selectedFloor);
-  }, [graphData, selectedFloor]);
 
   return (
     <SafeAreaView style={styles.container}>
