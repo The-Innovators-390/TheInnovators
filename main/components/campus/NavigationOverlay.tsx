@@ -61,7 +61,7 @@ export function NavigationOverlay({
   distanceKmText,
 
   onExit,
-}: Props) {
+}: Readonly<Props>) {
   if (!isNavigating) return null;
 
   return (

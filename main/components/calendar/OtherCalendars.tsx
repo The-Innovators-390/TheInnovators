@@ -41,7 +41,7 @@ export default function OtherCalendars({
   activeCalendarId,
   onSelectCalendar,
   styles,
-}: Props) {
+}: Readonly<Props>) {
   const hasNoCalendars = calendars.length === 0;
   const isSameCalendar = pendingCalendarId === activeCalendarId;
 

@@ -7,7 +7,7 @@ import {
   Image,
   ImageSourcePropType,
 } from "react-native";
-import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Text as SvgText } from "react-native-svg";
 import { IndoorEdge, IndoorNode } from "./types";
 import { INDOOR_LAYOUT } from "./indoor.constants";
 import {
