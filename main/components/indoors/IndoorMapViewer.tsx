@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,9 @@ import {
   Image,
   ImageSourcePropType,
 } from "react-native";
+import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
 import { IndoorEdge, IndoorNode } from "./types";
+import { INDOOR_LAYOUT } from "./indoor.constants";
 import {
   Gesture,
   GestureDetector,
@@ -25,6 +27,7 @@ interface IndoorMapViewerProps {
 }
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
+const AnimatedView = Animated.createAnimatedComponent(View);
 
 export default function IndoorMapViewer({
   imageSource,
@@ -32,10 +35,57 @@ export default function IndoorMapViewer({
   edges,
 }: Readonly<IndoorMapViewerProps>) {
   const { width, height } = useWindowDimensions();
+  const availableHeight = height - INDOOR_LAYOUT.AVAILABLE_HEIGHT_OFFSET;
 
+  // State to store the actual image dimensions
+  const [imgSize, setImgSize] = useState({ w: 1, h: 1 });
+
+  useEffect(() => {
+    if (imageSource) {
+      const asset = Image.resolveAssetSource(imageSource);
+      if (asset && asset.uri) {
+        Image.getSize(
+          asset.uri,
+          (w, h) => {
+            setImgSize({ w, h });
+          },
+          (error) => {
+            console.error("Failed to get image size:", error);
+          },
+        );
+      }
+    }
+  }, [imageSource]);
+
+  // Calculate the actual scale and offsets used by "contain"
+  const layoutInfo = useMemo(() => {
+    const containerRatio = width / availableHeight;
+    const imageRatio = imgSize.w / imgSize.h;
+
+    let renderedWidth, renderedHeight, offsetX, offsetY;
+
+    if (imageRatio > containerRatio) {
+      // Image is wider than container ratio (Width-constrained)
+      renderedWidth = width;
+      renderedHeight = width / imageRatio;
+      offsetX = 0;
+      offsetY = (availableHeight - renderedHeight) / 2;
+    } else {
+      // Image is taller than container ratio (Height-constrained)
+      renderedWidth = availableHeight * imageRatio;
+      renderedHeight = availableHeight;
+      offsetX = (width - renderedWidth) / 2;
+      offsetY = 0;
+    }
+
+    const scale = renderedWidth / imgSize.w;
+
+    return { scale, offsetX, offsetY, renderedWidth, renderedHeight };
+  }, [imgSize, width, availableHeight]);
+
+  // Gesture State
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
-
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
@@ -77,19 +127,90 @@ export default function IndoorMapViewer({
     );
   }
 
-  const availableHeight = height - 160;
-
   return (
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={composedGesture}>
         <View style={[styles.viewport, { width, height: availableHeight }]}>
-          <Animated.View style={[styles.imageWrapper, animatedStyle]}>
+          <AnimatedView
+            style={[
+              styles.imageWrapper,
+              animatedStyle,
+              { width, height: availableHeight },
+            ]}
+          >
+            {/* The Floor Plan Image */}
             <AnimatedImage
               source={imageSource}
               style={[styles.image, { width, height: availableHeight }]}
               resizeMode="contain"
             />
-          </Animated.View>
+
+            {/* SVG Overlay centered on the image pixels */}
+            <View
+              style={{
+                position: "absolute",
+                left: layoutInfo.offsetX,
+                top: layoutInfo.offsetY,
+                width: layoutInfo.renderedWidth,
+                height: layoutInfo.renderedHeight,
+              }}
+            >
+              <Svg
+                width={layoutInfo.renderedWidth}
+                height={layoutInfo.renderedHeight}
+              >
+                {/* Uncomment the following block to display the edges */}
+                {/*
+                {edges.map((edge, index) => {
+                  const startNode = nodes.find((n) => n.id === edge.source);
+                  const endNode = nodes.find((n) => n.id === edge.target);
+                  if (!startNode || !endNode) return null;
+
+                  return (
+                    <Line
+                      key={`edge-${index}`}
+                      x1={startNode.x * layoutInfo.scale}
+                      y1={startNode.y * layoutInfo.scale}
+                      x2={endNode.x * layoutInfo.scale}
+                      y2={endNode.y * layoutInfo.scale}
+                      stroke={edge.accessible ? "#2563eb" : "#999"}
+                      strokeWidth="2"
+                      strokeOpacity={0.6}
+                    />
+                  );
+                })}
+                */}
+
+                {nodes.map((node) => {
+                  let color = "#16a34a";
+                  if (node.type === "room") color = "#dc2626";
+                  if (node.type?.includes("door")) color = "#f59e0b";
+
+                  return (
+                    <React.Fragment key={node.id}>
+                      <Circle
+                        cx={node.x * layoutInfo.scale}
+                        cy={node.y * layoutInfo.scale}
+                        r="4"
+                        fill={color}
+                      />
+                      {node.label && (
+                        <SvgText
+                          x={node.x * layoutInfo.scale + 6}
+                          y={node.y * layoutInfo.scale - 6}
+                          fontSize="10"
+                          fill="#333"
+                          fontWeight="bold"
+                        >
+                          {node.label}
+                        </SvgText>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </Svg>
+            </View>
+          </AnimatedView>
         </View>
       </GestureDetector>
     </GestureHandlerRootView>
