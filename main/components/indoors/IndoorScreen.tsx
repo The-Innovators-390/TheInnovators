@@ -36,10 +36,14 @@ export default function IndoorScreen({
   const campusTheme = useMemo(() => getCampusTheme(campus), [campus]);
 
   const [startNode, setStartNode] = useState<IndoorNode | null>(null);
-  const [destinationNode, setDestinationNode] = useState<IndoorNode | null>(null);
+  const [destinationNode, setDestinationNode] = useState<IndoorNode | null>(
+    null,
+  );
   const [startText, setStartText] = useState("");
   const [destText, setDestText] = useState("");
-  const [activeField, setActiveField] = useState<"start" | "destination">("start");
+  const [activeField, setActiveField] = useState<"start" | "destination">(
+    "start",
+  );
 
   const graphData = useMemo(() => {
     return indoorData[trimmedBuildingId];
@@ -68,12 +72,12 @@ export default function IndoorScreen({
 
   // For same-floor navigation only, start/dest shouldnt reset for multi-floor
   useEffect(() => {
-  setStartNode(null);
-  setDestinationNode(null);
-  setStartText("");
-  setDestText("");
-  setActiveField("start");
-}, [selectedFloor]);
+    setStartNode(null);
+    setDestinationNode(null);
+    setStartText("");
+    setDestText("");
+    setActiveField("start");
+  }, [selectedFloor]);
 
   const currentFloorMap = useMemo(() => {
     if (selectedFloor === null) return undefined;
@@ -85,52 +89,51 @@ export default function IndoorScreen({
   }, [graphData, selectedFloor]);
 
   const suggestions = useMemo(() => {
-  const query = activeField === "start" ? startText : destText;
-  const normalizedQuery = query.trim().toLowerCase();
+    const query = activeField === "start" ? startText : destText;
+    const normalizedQuery = query.trim().toLowerCase();
 
-  const selectedNode =
-    activeField === "start" ? startNode : destinationNode;
+    const selectedNode = activeField === "start" ? startNode : destinationNode;
 
-  if (!normalizedQuery || selectedNode) {
-    return [];
-  }
+    if (!normalizedQuery || selectedNode) {
+      return [];
+    }
 
-  return floorData.nodes
-    .filter((node) => node.type === "room" && !!node.label)
-    .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
-    .slice(0, 8);
-}, [
-  activeField,
-  startText,
-  destText,
-  startNode,
-  destinationNode,
-  floorData.nodes,
-]);
-
-const routeResult = useMemo(() => {
-  if (!startNode || !destinationNode) {
-    return null;
-  }
-
-  return findShortestIndoorPath(
+    return floorData.nodes
+      .filter((node) => node.type === "room" && !!node.label)
+      .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
+      .slice(0, 8);
+  }, [
+    activeField,
+    startText,
+    destText,
+    startNode,
+    destinationNode,
     floorData.nodes,
-    floorData.edges,
-    startNode.id,
-    destinationNode.id,
-  );
-}, [startNode, destinationNode, floorData.nodes, floorData.edges]);
+  ]);
 
-function handlePickIndoorNode(node: IndoorNode) {
-  if (activeField === "start") {
-    setStartNode(node);
-    setStartText(node.label ?? "");
-    setActiveField("destination");
-  } else {
-    setDestinationNode(node);
-    setDestText(node.label ?? "");
+  const routeResult = useMemo(() => {
+    if (!startNode || !destinationNode) {
+      return null;
+    }
+
+    return findShortestIndoorPath(
+      floorData.nodes,
+      floorData.edges,
+      startNode.id,
+      destinationNode.id,
+    );
+  }, [startNode, destinationNode, floorData.nodes, floorData.edges]);
+
+  function handlePickIndoorNode(node: IndoorNode) {
+    if (activeField === "start") {
+      setStartNode(node);
+      setStartText(node.label ?? "");
+      setActiveField("destination");
+    } else {
+      setDestinationNode(node);
+      setDestText(node.label ?? "");
+    }
   }
-}
 
   if (!graphData) {
     return (
@@ -219,7 +222,7 @@ function handlePickIndoorNode(node: IndoorNode) {
             setActiveField("destination");
           }}
         />
-            <IndoorSuggestionsList
+        <IndoorSuggestionsList
           suggestions={suggestions}
           onPick={handlePickIndoorNode}
         />
@@ -301,19 +304,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 1,
   },
-routePanelContainer: {
-  paddingHorizontal: 12,
-  paddingTop: 12,
-  paddingBottom: 0,
-  backgroundColor: "#fff",
-},
-routeSummary: {
-  paddingHorizontal: 12,
-  paddingBottom: 8,
-  backgroundColor: "#fff",
-},
-routeSummaryText: {
-  fontSize: 13,
-  color: "#374151",
-},
+  routePanelContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 0,
+    backgroundColor: "#fff",
+  },
+  routeSummary: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    backgroundColor: "#fff",
+  },
+  routeSummaryText: {
+    fontSize: 13,
+    color: "#374151",
+  },
 });

@@ -20,7 +20,6 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 
-
 interface IndoorMapViewerProps {
   imageSource?: ImageSourcePropType;
   nodes: IndoorNode[];
@@ -95,14 +94,16 @@ export default function IndoorMapViewer({
   const savedTranslateY = useSharedValue(0);
 
   const pathPoints = useMemo(() => {
-  if (!path || path.length < 2) {
-    return "";
-  }
+    if (!path || path.length < 2) {
+      return "";
+    }
 
-  return path
-    .map((node) => `${node.x * layoutInfo.scale},${node.y * layoutInfo.scale}`)
-    .join(" ");
-}, [path, layoutInfo.scale]);
+    return path
+      .map(
+        (node) => `${node.x * layoutInfo.scale},${node.y * layoutInfo.scale}`,
+      )
+      .join(" ");
+  }, [path, layoutInfo.scale]);
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
@@ -173,15 +174,15 @@ export default function IndoorMapViewer({
                 height={layoutInfo.renderedHeight}
               >
                 {pathPoints.length > 0 && (
-                        <Polyline
-                          points={pathPoints}
-                          fill="none"
-                          stroke="#1A73E8"
-                          strokeWidth={8}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      )}
+                  <Polyline
+                    points={pathPoints}
+                    fill="none"
+                    stroke="#1A73E8"
+                    strokeWidth={8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
                 {/* Uncomment the following block to display the edges */}
                 {/*
                 {edges.map((edge, index) => {

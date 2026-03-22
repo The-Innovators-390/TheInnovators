@@ -12,7 +12,10 @@ function buildNodeMap(nodes: IndoorNode[]): Map<string, IndoorNode> {
 function buildAdjacencyList(
   edges: IndoorEdge[],
 ): Map<string, Array<{ nodeId: string; weight: number }>> {
-  const adjacency = new Map<string, Array<{ nodeId: string; weight: number }>>();
+  const adjacency = new Map<
+    string,
+    Array<{ nodeId: string; weight: number }>
+  >();
 
   for (const edge of edges) {
     if (!adjacency.has(edge.source)) {
