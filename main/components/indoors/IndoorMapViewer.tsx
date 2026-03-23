@@ -7,7 +7,7 @@ import {
   Image,
   ImageSourcePropType,
 } from "react-native";
-import Svg, { Circle, Text as SvgText } from "react-native-svg";
+import Svg, { Polyline, Circle, Text as SvgText } from "react-native-svg";
 import { IndoorEdge, IndoorNode } from "./types";
 import { INDOOR_LAYOUT } from "./indoor.constants";
 import {
@@ -24,6 +24,7 @@ interface IndoorMapViewerProps {
   imageSource?: ImageSourcePropType;
   nodes: IndoorNode[];
   edges: IndoorEdge[];
+  path?: IndoorNode[];
 }
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
@@ -33,6 +34,7 @@ export default function IndoorMapViewer({
   imageSource,
   nodes,
   edges,
+  path = [],
 }: Readonly<IndoorMapViewerProps>) {
   const { width, height } = useWindowDimensions();
   const availableHeight = height - INDOOR_LAYOUT.AVAILABLE_HEIGHT_OFFSET;
@@ -90,6 +92,18 @@ export default function IndoorMapViewer({
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
+
+  const pathPoints = useMemo(() => {
+    if (!path || path.length < 2) {
+      return null;
+    }
+
+    return path
+      .map(
+        (node) => `${node.x * layoutInfo.scale},${node.y * layoutInfo.scale}`,
+      )
+      .join(" ");
+  }, [path, layoutInfo.scale]);
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
@@ -159,6 +173,16 @@ export default function IndoorMapViewer({
                 width={layoutInfo.renderedWidth}
                 height={layoutInfo.renderedHeight}
               >
+                {pathPoints !== null && (
+                  <Polyline
+                    points={pathPoints}
+                    fill="none"
+                    stroke="#1A73E8"
+                    strokeWidth={8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
                 {/* Uncomment the following block to display the edges */}
                 {/*
                 {edges.map((edge, index) => {

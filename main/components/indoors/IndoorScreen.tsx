@@ -11,6 +11,10 @@ import { getCampusTheme } from "./campusTheme";
 import { getFloorData } from "./floorFiltering";
 import { BUILDING_FLOORS, INDOOR_LAYOUT } from "./indoor.constants";
 import { FloorSelector } from "./FloorSelector";
+import IndoorRouteInput from "./IndoorRouteInput";
+import IndoorSuggestionsList from "./IndoorSuggestionsList";
+import { findShortestIndoorPath } from "./pathfinding";
+import type { IndoorNode } from "./types";
 
 interface IndoorScreenProps {
   buildingId: string;
@@ -30,6 +34,16 @@ export default function IndoorScreen({
   const campus = building?.campus;
 
   const campusTheme = useMemo(() => getCampusTheme(campus), [campus]);
+
+  const [startNode, setStartNode] = useState<IndoorNode | null>(null);
+  const [destinationNode, setDestinationNode] = useState<IndoorNode | null>(
+    null,
+  );
+  const [startText, setStartText] = useState("");
+  const [destText, setDestText] = useState("");
+  const [activeField, setActiveField] = useState<"start" | "destination">(
+    "start",
+  );
 
   const graphData = useMemo(() => {
     return indoorData[trimmedBuildingId];
@@ -56,6 +70,15 @@ export default function IndoorScreen({
     }
   }, [availableFloors, selectedFloor]);
 
+  // For same-floor navigation only, start/dest shouldnt reset for multi-floor
+  useEffect(() => {
+    setStartNode(null);
+    setDestinationNode(null);
+    setStartText("");
+    setDestText("");
+    setActiveField("start");
+  }, [selectedFloor]);
+
   const currentFloorMap = useMemo(() => {
     if (selectedFloor === null) return undefined;
     return floorMaps[trimmedBuildingId]?.[selectedFloor.toString()];
@@ -64,6 +87,94 @@ export default function IndoorScreen({
   const floorData = useMemo(() => {
     return getFloorData(graphData, selectedFloor);
   }, [graphData, selectedFloor]);
+
+  const suggestions = useMemo(() => {
+    const query = activeField === "start" ? startText : destText;
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const selectedNode = activeField === "start" ? startNode : destinationNode;
+
+    if (!normalizedQuery || selectedNode) {
+      return [];
+    }
+
+    return floorData.nodes
+      .filter((node) => node.type === "room" && !!node.label)
+      .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
+      .slice(0, 8);
+  }, [
+    activeField,
+    startText,
+    destText,
+    startNode,
+    destinationNode,
+    floorData.nodes,
+  ]);
+
+  const routeResult = useMemo(() => {
+    if (!startNode || !destinationNode) {
+      return null;
+    }
+
+    return findShortestIndoorPath(
+      floorData.nodes,
+      floorData.edges,
+      startNode.id,
+      destinationNode.id,
+    );
+  }, [startNode, destinationNode, floorData.nodes, floorData.edges]);
+
+  const handleSwapRouteFields = () => {
+    const previousStart = startNode;
+    const previousDestination = destinationNode;
+
+    setStartNode(previousDestination);
+    setDestinationNode(previousStart);
+
+    setStartText(previousDestination?.label ?? destText);
+    setDestText(previousStart?.label ?? startText);
+  };
+
+  const handleChangeStartText = (text: string) => {
+    setActiveField("start");
+    setStartText(text);
+
+    if (startNode) {
+      setStartNode(null);
+    }
+  };
+
+  const handleChangeDestText = (text: string) => {
+    setActiveField("destination");
+    setDestText(text);
+
+    if (destinationNode) {
+      setDestinationNode(null);
+    }
+  };
+
+  const handleClearStart = () => {
+    setStartText("");
+    setStartNode(null);
+    setActiveField("start");
+  };
+
+  const handleClearDestination = () => {
+    setDestText("");
+    setDestinationNode(null);
+    setActiveField("destination");
+  };
+
+  function handlePickIndoorNode(node: IndoorNode) {
+    if (activeField === "start") {
+      setStartNode(node);
+      setStartText(node.label ?? "");
+      setActiveField("destination");
+    } else {
+      setDestinationNode(node);
+      setDestText(node.label ?? "");
+    }
+  }
 
   if (!graphData) {
     return (
@@ -113,14 +224,33 @@ export default function IndoorScreen({
         <View style={styles.placeholder} />
       </View>
 
+      <View style={styles.routePanelContainer}>
+        <IndoorRouteInput
+          start={startNode}
+          destination={destinationNode}
+          activeField={activeField}
+          onFocusField={setActiveField}
+          onSwap={handleSwapRouteFields}
+          startText={startText}
+          destText={destText}
+          onChangeStartText={handleChangeStartText}
+          onChangeDestText={handleChangeDestText}
+          onClearStart={handleClearStart}
+          onClearDestination={handleClearDestination}
+        />
+        <IndoorSuggestionsList
+          suggestions={suggestions}
+          onPick={handlePickIndoorNode}
+        />
+      </View>
       <View style={styles.content}>
         <IndoorMapViewer
           imageSource={currentFloorMap}
           nodes={floorData.nodes}
           edges={floorData.edges}
+          path={routeResult?.path ?? []}
         />
       </View>
-
       <View
         style={styles.floorSelectorContainer}
         testID="indoor-floor-selector"
@@ -189,5 +319,20 @@ const styles = StyleSheet.create({
     color: "transparent",
     textAlign: "center",
     marginTop: 1,
+  },
+  routePanelContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 0,
+    backgroundColor: "#fff",
+  },
+  routeSummary: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    backgroundColor: "#fff",
+  },
+  routeSummaryText: {
+    fontSize: 13,
+    color: "#374151",
   },
 });
