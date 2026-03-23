@@ -1,13 +1,9 @@
-/* eslint-disable import/first */
 import React from "react";
-import { render, fireEvent } from "@testing-library/react-native";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import { Image } from "react-native";
 import { router } from "expo-router";
 
-// ---- Mocks ----
-
-const mockSnapToIndex = jest.fn();
-const mockClose = jest.fn();
+import BuildingPopup from "@/components/campus/BuildingPopup";
 
 jest.mock("expo-router", () => ({
   router: {
@@ -15,17 +11,23 @@ jest.mock("expo-router", () => ({
   },
 }));
 
-jest.mock("@/components/campus/BuildingPin", () => {
-  const React = require("react");
-  const { Text } = require("react-native");
+const mockSnapToIndex = jest.fn();
+const mockClose = jest.fn();
 
-  return function MockBuildingPin(props: any) {
-    return React.createElement(
-      Text,
+jest.mock("@/components/campus/BuildingPin", () => {
+  const ReactActual = jest.requireActual("react");
+  const RN = jest.requireActual("react-native");
+  const { Text: MockText } = RN;
+
+  function MockBuildingPin(props: any) {
+    return ReactActual.createElement(
+      MockText,
       { testID: "buildingPin" },
       `Pin-${props.code}-${props.campus}-${props.variant}`,
     );
-  };
+  }
+
+  return MockBuildingPin;
 });
 
 jest.mock("@/components/Buildings/details/buildingImages", () => ({
@@ -54,7 +56,7 @@ jest.mock("react-native-safe-area-context", () => ({
 jest.mock("@gorhom/bottom-sheet", () => {
   const ReactActual = jest.requireActual("react");
   const RN = jest.requireActual("react-native");
-  const { View: RNView, ScrollView } = RN;
+  const { View: MockView, ScrollView: MockScrollView } = RN;
 
   const BottomSheet = ReactActual.forwardRef((props: any, ref: any) => {
     ReactActual.useImperativeHandle(ref, () => ({
@@ -68,19 +70,19 @@ jest.mock("@gorhom/bottom-sheet", () => {
       },
     }));
 
-    const Handle = props.handleComponent ? props.handleComponent({}) : null;
+    const handle = props.handleComponent ? props.handleComponent({}) : null;
 
     return ReactActual.createElement(
-      RNView,
+      MockView,
       { testID: "bottomSheet" },
-      Handle,
+      handle,
       props.children,
     );
   });
 
   const BottomSheetScrollView = ({ children, ...rest }: any) =>
     ReactActual.createElement(
-      ScrollView,
+      MockScrollView,
       { testID: "bottomSheetScrollView", ...rest },
       children,
     );
@@ -91,8 +93,6 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetScrollView,
   };
 });
-
-import BuildingPopup from "@/components/campus/BuildingPopup";
 
 describe("BuildingPopup", () => {
   const baseBuilding = {
@@ -154,7 +154,7 @@ describe("BuildingPopup", () => {
     expect(images.length).toBe(0);
   });
 
-  it("pressing handle expands sheet and triggers onSheetChange", () => {
+  it("pressing handle expands sheet and triggers onSheetChange", async () => {
     const onSheetChange = jest.fn();
 
     const { getByTestId } = render(
@@ -169,11 +169,13 @@ describe("BuildingPopup", () => {
 
     fireEvent.press(getByTestId("buildingPopup-handle"));
 
-    expect(mockSnapToIndex).toHaveBeenCalledWith(1);
-    expect(onSheetChange).toHaveBeenCalledWith(1);
+    await waitFor(() => {
+      expect(mockSnapToIndex).toHaveBeenCalledWith(1);
+      expect(onSheetChange).toHaveBeenCalledWith(1);
+    });
   });
 
-  it("pressing close calls BottomSheet.close and onClose", () => {
+  it("pressing close calls BottomSheet.close and onClose", async () => {
     const onClose = jest.fn();
 
     const { getByTestId } = render(
@@ -187,8 +189,10 @@ describe("BuildingPopup", () => {
 
     fireEvent.press(getByTestId("buildingPopup-close"));
 
-    expect(mockClose).toHaveBeenCalledTimes(1);
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockClose).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("pressing Get Directions calls onGetDirections with building", () => {
@@ -396,7 +400,7 @@ describe("BuildingPopup", () => {
     expect(queryAllByText(/Paragraph/)).toHaveLength(2);
   });
 
-  it("calls snapToIndex(0) on mount and when building id changes", () => {
+  it("calls snapToIndex(0) on mount and when building id changes", async () => {
     const { rerender } = render(
       <BuildingPopup
         building={{ ...baseBuilding, id: "b1", details: undefined } as any}
@@ -406,7 +410,9 @@ describe("BuildingPopup", () => {
       />,
     );
 
-    expect(mockSnapToIndex).toHaveBeenCalledWith(0);
+    await waitFor(() => {
+      expect(mockSnapToIndex).toHaveBeenCalledWith(0);
+    });
 
     rerender(
       <BuildingPopup
@@ -417,8 +423,10 @@ describe("BuildingPopup", () => {
       />,
     );
 
-    expect(mockSnapToIndex).toHaveBeenCalledWith(0);
-    expect(mockSnapToIndex).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(mockSnapToIndex).toHaveBeenCalledWith(0);
+      expect(mockSnapToIndex).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("renders Loyola theme variant without crashing", () => {
