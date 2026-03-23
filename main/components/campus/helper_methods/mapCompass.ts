@@ -1,33 +1,28 @@
-import type React from "react";
 import type MapView from "react-native-maps";
-import type { LatLng } from "@/components/campus/helper_methods/googleDirections";
+import type { LatLng } from "react-native-maps";
 
-type CameraCapableMap = MapView & {
-  animateCamera?: (
-    camera: {
-      center?: LatLng;
-      heading?: number;
-      pitch?: number;
-    },
-    options?: { duration?: number },
-  ) => void;
+type CameraLike = {
+  center?: LatLng;
+  heading?: number;
+  pitch?: number;
+  zoom?: number;
+  altitude?: number;
 };
 
-export function resetMapDirectionToNorth(
+export const resetMapDirectionToNorth = (
   mapRef: React.RefObject<MapView | null>,
-  center?: LatLng,
-  duration = 350,
-) {
-  const map = mapRef.current as CameraCapableMap | null;
+  animationDuration = 350,
+) => {
+  const map = mapRef.current;
+  if (!map) return;
 
-  if (!map || typeof map.animateCamera !== "function") return;
-
-  map.animateCamera(
-    {
-      ...(center ? { center } : {}),
-      heading: 0,
-      pitch: 0,
-    },
-    { duration },
-  );
-}
+  map.getCamera().then((camera: CameraLike) => {
+    map.animateCamera(
+      {
+        ...camera,
+        heading: 0,
+      },
+      { duration: animationDuration },
+    );
+  });
+};

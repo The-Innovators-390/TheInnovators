@@ -288,8 +288,8 @@ export default function CampusMap() {
 
   const NORTH_ANIMATION_DURATION = 350;
 
-  const resetCompassToNorth = useCallback((center?: LatLng) => {
-    resetMapDirectionToNorth(mapRef, center, NORTH_ANIMATION_DURATION);
+  const resetCompassToNorth = useCallback(() => {
+    resetMapDirectionToNorth(mapRef, NORTH_ANIMATION_DURATION);
     setMapHeading(0);
   }, []);
 
@@ -363,10 +363,7 @@ export default function CampusMap() {
       setFocusedCampus(resolvedCampus);
     }
 
-    resetCompassToNorth({
-      latitude: location.latitude,
-      longitude: location.longitude,
-    });
+    setMapHeading(0);
 
     if (!routeNavigation.isNavigating) {
       mapRef.current?.animateToRegion(
@@ -391,12 +388,9 @@ export default function CampusMap() {
     setFocusedCampus(campus);
     setSelected(null);
     setPopupIndex(-1);
+    setMapHeading(0);
 
     const nextRegion = campus === "SGW" ? SGW_REGION : LOY_REGION;
-    resetCompassToNorth({
-      latitude: nextRegion.latitude,
-      longitude: nextRegion.longitude,
-    });
     mapRef.current?.animateToRegion(nextRegion, 500);
   };
 
@@ -831,16 +825,6 @@ export default function CampusMap() {
   const shouldHideFloatingButtons =
     popupIndex > 0 && (hasBuildingPopup || hasTravelPopup);
 
-  const resetCenter = userLocation
-    ? {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-      }
-    : {
-        latitude: region?.latitude ?? INITIAL_REGION?.latitude ?? 0,
-        longitude: region?.longitude ?? INITIAL_REGION?.longitude ?? 0,
-      };
-
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
       if (mode === "shuttle") {
@@ -945,13 +929,8 @@ export default function CampusMap() {
     setAllRouteCoords([]);
     setShuttleSegmentCoords(null);
 
-    resetCompassToNorth({
-      latitude: region.latitude,
-      longitude: region.longitude,
-    });
-
     nav.toggleRouteMode();
-  }, [nav, destText, setStartToCurrentLocation, region, resetCompassToNorth]);
+  }, [nav, destText, setStartToCurrentLocation]);
 
   return (
     <View style={styles.container} testID="campusMap-root">
@@ -1221,7 +1200,7 @@ export default function CampusMap() {
       <Compass
         visible={shouldShowCompass && !shouldHideFloatingButtons}
         rotationDegrees={-mapHeading}
-        onPress={() => resetCompassToNorth(resetCenter)}
+        onPress={resetCompassToNorth}
         style={[
           compassStyles.button,
           { bottom: floatingBottom },
@@ -1339,8 +1318,6 @@ export default function CampusMap() {
           routeNavigation.exitNavigation();
           setAllRouteCoords([]);
           setShuttleSegmentCoords(null);
-
-          resetCompassToNorth(resetCenter);
         }}
       />
 
