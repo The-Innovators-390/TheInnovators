@@ -27,6 +27,55 @@ type Props = {
   onGetDirections: (destination: Building) => void;
 };
 
+type PopupTheme = {
+  brand: string;
+  brandSoft: string;
+  cardBorder: string;
+  revealingBorder: string;
+  icon: string;
+  closeBg: string;
+};
+
+type IconRowProps = {
+  iconKey: keyof typeof BUILDING_ICONS;
+  title: string;
+  description?: string;
+};
+
+type SimpleRowProps = {
+  iconKey: keyof typeof BUILDING_ICONS;
+  title?: string;
+  description?: string;
+};
+
+function IconRow({ iconKey, title, description }: Readonly<IconRowProps>) {
+  return (
+    <View style={styles.iconRow}>
+      <Image source={BUILDING_ICONS[iconKey]} style={styles.rowIcon} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        {!!description && <Text style={styles.rowDesc}>{description}</Text>}
+      </View>
+    </View>
+  );
+}
+
+function SimpleRow({ iconKey, title, description }: Readonly<SimpleRowProps>) {
+  if (!title && !description) return null;
+
+  return (
+    <IconRow
+      iconKey={iconKey}
+      title={title ?? ""}
+      description={description ?? ""}
+    />
+  );
+}
+
+function getEntryKey(entry: { title?: string; description?: string }) {
+  return `${entry.title ?? "entry"}-${entry.description ?? "details"}`;
+}
+
 export default function BuildingPopup({
   building,
   campusTheme,
@@ -39,7 +88,7 @@ export default function BuildingPopup({
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const theme =
+  const theme: PopupTheme =
     campusTheme === "SGW"
       ? {
           brand: "#912338",
@@ -109,43 +158,6 @@ export default function BuildingPopup({
     },
     [expandSheet, closeSheet, theme.closeBg, theme.icon],
   );
-
-  const IconRow = ({
-    iconKey,
-    title,
-    description,
-  }: {
-    iconKey: keyof typeof BUILDING_ICONS;
-    title: string;
-    description?: string;
-  }) => (
-    <View style={styles.iconRow}>
-      <Image source={BUILDING_ICONS[iconKey]} style={styles.rowIcon} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {!!description && <Text style={styles.rowDesc}>{description}</Text>}
-      </View>
-    </View>
-  );
-
-  const SimpleRow = ({
-    iconKey,
-    title,
-    description,
-  }: {
-    iconKey: keyof typeof BUILDING_ICONS;
-    title?: string;
-    description?: string;
-  }) => {
-    if (!title && !description) return null;
-    return (
-      <IconRow
-        iconKey={iconKey}
-        title={title ?? ""}
-        description={description ?? ""}
-      />
-    );
-  };
 
   const hasAccessibility =
     Array.isArray(details?.accessibility) && details.accessibility.length > 0;
@@ -275,12 +287,12 @@ export default function BuildingPopup({
             {Array.isArray(details.entries) && details.entries.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Number of Entries</Text>
-                {details.entries.map((e, idx) => (
+                {details.entries.map((entry) => (
                   <SimpleRow
-                    key={`${e.title}-${idx}`}
+                    key={getEntryKey(entry)}
                     iconKey="entry"
-                    title={e.title}
-                    description={e.description}
+                    title={entry.title}
+                    description={entry.description}
                   />
                 ))}
               </View>
@@ -304,8 +316,8 @@ export default function BuildingPopup({
             {Array.isArray(details.overview) && details.overview.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Building Overview</Text>
-                {details.overview.map((p, idx) => (
-                  <Text key={idx} style={styles.paragraph}>
+                {details.overview.map((p) => (
+                  <Text key={p} style={styles.paragraph}>
                     {p}
                   </Text>
                 ))}
