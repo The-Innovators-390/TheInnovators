@@ -5,6 +5,10 @@ export interface IndoorPathResult {
   distance: number;
 }
 
+export interface IndoorRoutingOptions {
+  accessible?: boolean;
+}
+
 type AdjacencyEntry = {
   nodeId: string;
   weight: number;
@@ -23,10 +27,7 @@ function ensureAdjacencyEntry(
   nodeId: string,
 ): AdjacencyEntry[] {
   const existing = adjacency.get(nodeId);
-
-  if (existing) {
-    return existing;
-  }
+  if (existing) return existing;
 
   const created: AdjacencyEntry[] = [];
   adjacency.set(nodeId, created);
@@ -39,19 +40,8 @@ function addUndirectedEdge(
   target: string,
   weight: number,
 ): void {
-  ensureAdjacencyEntry(adjacency, source).push({
-    nodeId: target,
-    weight,
-  });
-
-  ensureAdjacencyEntry(adjacency, target).push({
-    nodeId: source,
-    weight,
-  });
-}
-
-export interface IndoorRoutingOptions {
-  accessible?: boolean;
+  ensureAdjacencyEntry(adjacency, source).push({ nodeId: target, weight });
+  ensureAdjacencyEntry(adjacency, target).push({ nodeId: source, weight });
 }
 
 function buildAdjacencyList(
@@ -61,6 +51,7 @@ function buildAdjacencyList(
   const adjacency: AdjacencyList = new Map();
 
   for (const edge of edges) {
+    // Skip edges that are not accessible if the user requires an accessible route
     if (options?.accessible && edge.accessible === false) {
       continue;
     }
@@ -75,49 +66,11 @@ function buildSingleNodePath(
   nodeId: string,
 ): IndoorPathResult | null {
   const node = nodes.find((item) => item.id === nodeId);
-
-  if (!node) {
-    return null;
-  }
+  if (!node) return null;
 
   return {
     path: [node],
     distance: 0,
-  };
-}
-
-function hasRequiredEndpoints(
-  nodeMap: Map<string, IndoorNode>,
-  startId: string,
-  destinationId: string,
-): boolean {
-  return nodeMap.has(startId) && nodeMap.has(destinationId);
-}
-
-function initializeDijkstraState(
-  nodes: IndoorNode[],
-  startId: string,
-): {
-  distances: DistanceMap;
-  previous: PreviousMap;
-  unvisited: Set<string>;
-} {
-  const distances: DistanceMap = new Map();
-  const previous: PreviousMap = new Map();
-  const unvisited = new Set<string>();
-
-  for (const node of nodes) {
-    distances.set(node.id, Number.POSITIVE_INFINITY);
-    previous.set(node.id, null);
-    unvisited.add(node.id);
-  }
-
-  distances.set(startId, 0);
-
-  return {
-    distances,
-    previous,
-    unvisited,
   };
 }
 
@@ -130,29 +83,13 @@ function findClosestUnvisitedNode(
 
   for (const nodeId of unvisited) {
     const distance = distances.get(nodeId) ?? Number.POSITIVE_INFINITY;
-
     if (distance < closestDistance) {
       closestDistance = distance;
       closestNodeId = nodeId;
     }
   }
 
-  return {
-    nodeId: closestNodeId,
-    distance: closestDistance,
-  };
-}
-
-function shouldStopTraversal(
-  currentId: string | null,
-  currentDistance: number,
-  destinationId: string,
-): boolean {
-  return (
-    currentId === null ||
-    currentDistance === Number.POSITIVE_INFINITY ||
-    currentId === destinationId
-  );
+  return { nodeId: closestNodeId, distance: closestDistance };
 }
 
 function relaxNeighbors(
@@ -166,9 +103,7 @@ function relaxNeighbors(
   const neighbors = adjacency.get(currentId) ?? [];
 
   for (const neighbor of neighbors) {
-    if (!unvisited.has(neighbor.nodeId)) {
-      continue;
-    }
+    if (!unvisited.has(neighbor.nodeId)) continue;
 
     const candidateDistance = currentDistance + neighbor.weight;
     const knownDistance =
@@ -194,26 +129,7 @@ function reconstructPathIds(
     currentId = previous.get(currentId) ?? null;
   }
 
-  if (pathIds[0] !== startId) {
-    return null;
-  }
-
-  return pathIds;
-}
-
-function buildPathFromIds(
-  pathIds: string[],
-  nodeMap: Map<string, IndoorNode>,
-): IndoorNode[] | null {
-  const path = pathIds
-    .map((nodeId) => nodeMap.get(nodeId))
-    .filter((node): node is IndoorNode => node !== undefined);
-
-  if (path.length !== pathIds.length) {
-    return null;
-  }
-
-  return path;
+  return pathIds[0] === startId ? pathIds : null;
 }
 
 export function findShortestIndoorPath(
@@ -228,28 +144,31 @@ export function findShortestIndoorPath(
   }
 
   const nodeMap = buildNodeMap(nodes);
-
-  if (!hasRequiredEndpoints(nodeMap, startId, destinationId)) {
+  if (!nodeMap.has(startId) || !nodeMap.has(destinationId)) {
     return null;
   }
 
   const adjacency = buildAdjacencyList(edges, options);
-  const { distances, previous, unvisited } = initializeDijkstraState(
-    nodes,
-    startId,
-  );
+  const distances: DistanceMap = new Map();
+  const previous: PreviousMap = new Map();
+  const unvisited = new Set<string>();
 
+  // Initialization
+  for (const node of nodes) {
+    distances.set(node.id, Number.POSITIVE_INFINITY);
+    previous.set(node.id, null);
+    unvisited.add(node.id);
+  }
+  distances.set(startId, 0);
+
+  // Dijkstra's Core Loop
   while (unvisited.size > 0) {
     const { nodeId: currentId, distance: currentDistance } =
       findClosestUnvisitedNode(unvisited, distances);
 
-    if (currentId === null || currentDistance === Number.POSITIVE_INFINITY) {
+    if (currentId === null || currentDistance === Number.POSITIVE_INFINITY)
       break;
-    }
-
-    if (currentId === destinationId) {
-      break;
-    }
+    if (currentId === destinationId) break;
 
     unvisited.delete(currentId);
     relaxNeighbors(
@@ -264,25 +183,16 @@ export function findShortestIndoorPath(
 
   const finalDistance =
     distances.get(destinationId) ?? Number.POSITIVE_INFINITY;
-
-  if (finalDistance === Number.POSITIVE_INFINITY) {
-    return null;
-  }
+  if (finalDistance === Number.POSITIVE_INFINITY) return null;
 
   const pathIds = reconstructPathIds(previous, startId, destinationId);
+  if (!pathIds) return null;
 
-  if (!pathIds) {
-    return null;
-  }
+  const path = pathIds
+    .map((nodeId) => nodeMap.get(nodeId))
+    .filter((node): node is IndoorNode => node !== undefined);
 
-  const path = buildPathFromIds(pathIds, nodeMap);
-
-  if (!path) {
-    return null;
-  }
-
-  return {
-    path,
-    distance: finalDistance,
-  };
+  return path.length === pathIds.length
+    ? { path, distance: finalDistance }
+    : null;
 }

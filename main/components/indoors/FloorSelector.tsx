@@ -28,7 +28,11 @@ export const FloorSelector: React.FC<FloorSelectorProps> = ({
       return { backgroundColor: campusTheme.selectedButtonColor };
     }
     if (routeFloors.includes(floor)) {
-      return { backgroundColor: "#ffcccc", borderWidth: 2, borderColor: campusTheme.selectedButtonColor };
+      return {
+        backgroundColor: "#ffcccc",
+        borderWidth: 2,
+        borderColor: campusTheme.selectedButtonColor,
+      };
     }
     return null;
   };

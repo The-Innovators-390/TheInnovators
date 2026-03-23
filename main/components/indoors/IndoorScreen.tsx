@@ -73,7 +73,7 @@ export default function IndoorScreen({
   // For multi-floor navigation, do NOT reset on floor change
   useEffect(() => {
     // Only reset when buildingId changes (which happens when Screen is re-mounted with new building)
-    // or manually if needed. 
+    // or manually if needed.
     // Actually, we should probably only reset if graphData changes (new building).
   }, [graphData]);
 
@@ -92,7 +92,7 @@ export default function IndoorScreen({
 
     const selectedNode = activeField === "start" ? startNode : destinationNode;
 
-    if (!normalizedQuery || selectedNode) {
+    if (!normalizedQuery || selectedNode || !graphData) {
       return [];
     }
 
@@ -100,19 +100,12 @@ export default function IndoorScreen({
       .filter((node) => node.type === "room" && !!node.label)
       .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
       .slice(0, 8);
-  }, [
-    activeField,
-    startText,
-    destText,
-    startNode,
-    destinationNode,
-    graphData.nodes,
-  ]);
+  }, [activeField, startText, destText, startNode, destinationNode, graphData]);
 
   const [accessible, setAccessible] = useState(false);
 
   const routeResult = useMemo(() => {
-    if (!startNode || !destinationNode) {
+    if (!startNode || !destinationNode || !graphData) {
       return null;
     }
 
@@ -125,7 +118,7 @@ export default function IndoorScreen({
       destinationNode.id,
       options,
     );
-  }, [startNode, destinationNode, graphData.nodes, graphData.edges, accessible]);
+  }, [startNode, destinationNode, graphData, accessible]);
 
   const handleSwapRouteFields = () => {
     const previousStart = startNode;
@@ -209,7 +202,9 @@ export default function IndoorScreen({
   }
 
   const routeFloors = useMemo(() => {
-    return Array.from(new Set(routeResult?.path.map((node) => node.floor) ?? []));
+    return Array.from(
+      new Set(routeResult?.path.map((node) => node.floor) ?? []),
+    );
   }, [routeResult]);
 
   return (

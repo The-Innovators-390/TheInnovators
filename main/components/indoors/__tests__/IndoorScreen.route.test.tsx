@@ -263,11 +263,11 @@ describe("IndoorScreen route panel", () => {
 
     fireEvent.changeText(getByTestId("start-input"), "room");
 
-    expect(getByTestId("suggestions-count").props.children).toBe("2");
+    expect(getByTestId("suggestions-count").props.children).toBe("3");
     expect(queryByTestId("suggestion-n1")).toBeTruthy();
     expect(queryByTestId("suggestion-n2")).toBeTruthy();
+    expect(queryByTestId("suggestion-n4")).toBeTruthy();
     expect(queryByTestId("suggestion-n3")).toBeNull();
-    expect(queryByTestId("suggestion-n4")).toBeNull();
   });
 
   it("returns no suggestions when the query is empty", () => {
@@ -305,12 +305,17 @@ describe("IndoorScreen route panel", () => {
       expect.arrayContaining([
         expect.objectContaining({ id: "n1" }),
         expect.objectContaining({ id: "n2" }),
+        expect.objectContaining({ id: "n3" }),
+        expect.objectContaining({ id: "n4" }),
       ]),
       expect.arrayContaining([
         expect.objectContaining({ source: "n1", target: "n2" }),
+        expect.objectContaining({ source: "n2", target: "n3" }),
+        expect.objectContaining({ source: "n4", target: "n4" }),
       ]),
       "n1",
       "n2",
+      { accessible: false },
     );
   });
 
@@ -365,7 +370,7 @@ describe("IndoorScreen route panel", () => {
     fireEvent.changeText(getByTestId("start-input"), "room");
 
     expect(getByTestId("active-field").props.children).toBe("start");
-    expect(getByTestId("suggestions-count").props.children).toBe("2");
+    expect(getByTestId("suggestions-count").props.children).toBe("3");
     expect(mockFindShortestIndoorPath).not.toHaveBeenCalled();
   });
 
@@ -383,7 +388,29 @@ describe("IndoorScreen route panel", () => {
     fireEvent.changeText(getByTestId("dest-input"), "room");
 
     expect(getByTestId("active-field").props.children).toBe("destination");
-    expect(getByTestId("suggestions-count").props.children).toBe("2");
+    expect(getByTestId("suggestions-count").props.children).toBe("3");
     expect(mockFindShortestIndoorPath).not.toHaveBeenCalled();
+  });
+
+  it("picking a destination suggestion on a different floor triggers pathfinding", () => {
+    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+
+    // Start on floor 1
+    fireEvent.changeText(getByTestId("start-input"), "Room A");
+    fireEvent.press(getByTestId("suggestion-n1"));
+
+    // Destination on floor 2
+    fireEvent.changeText(getByTestId("dest-input"), "Room C");
+    fireEvent.press(getByTestId("suggestion-n4"));
+
+    expect(getByTestId("dest-input").props.value).toBe("Room C");
+    expect(mockFindShortestIndoorPath).toHaveBeenCalledTimes(1);
+    expect(mockFindShortestIndoorPath).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "n1",
+      "n4",
+      { accessible: false },
+    );
   });
 });
