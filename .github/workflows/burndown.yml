@@ -33,6 +33,7 @@ jobs:
       STATUS_FIELD_NAME: "Status"
       DONE_STATUS_NAME: "Closed"
       SPRINT_FIELD_NAME: "Sprint"
+      INITIAL_POINTS: "110"
 
     steps:
       - name: Checkout
@@ -131,6 +132,7 @@ jobs:
           DONE = os.environ["DONE_STATUS_NAME"]
           SPRINT = os.environ["SPRINT_FIELD_NAME"]
           SPRINT_NAME = os.environ["SPRINT_NAME"]
+          INITIAL_POINTS: "110"
 
           remaining = 0.0
 
@@ -188,6 +190,7 @@ jobs:
           sprint = os.environ["SPRINT_NAME"]
           start = datetime.date.fromisoformat(os.environ["SPRINT_START"])
           end = datetime.date.fromisoformat(os.environ["SPRINT_END"])
+          initial_points = float(os.environ["INITIAL_POINTS"])
 
           safe = sprint.lower().replace(" ", "_")
           csv_file = f"data/burndown_{safe}.csv"
@@ -205,16 +208,13 @@ jobs:
               actual.append(actual_map.get(ds, None))
               d += datetime.timedelta(days=1)
 
-          existing = [v for v in actual if v is not None]
-          start_points = existing[0] if existing else 0.0
-
           total_days = (end - start).days
           ideal = []
           for i in range(len(dates)):
               if total_days == 0:
-                  ideal.append(start_points)
+                  ideal.append(initial_points)
               else:
-                  ideal.append(max(0.0, start_points - (start_points / total_days) * i))
+                  ideal.append(max(0.0, initial_points - (initial_points / total_days) * i))
 
           config = {
               "type": "line",
@@ -224,7 +224,7 @@ jobs:
                       {
                           "label": "Actual Remaining",
                           "data": actual,
-                          "spanGaps": False
+                          "spanGaps": True
                       },
                       {
                           "label": "Ideal Burndown",
