@@ -161,4 +161,49 @@ describe("findShortestIndoorPath", () => {
 
     expect(result).toBeNull();
   });
+
+  it("filters out inaccessible edges when requested", () => {
+    const inaccessibleEdges: IndoorEdge[] = [
+      {
+        source: "A",
+        target: "B",
+        type: "corridor",
+        weight: 1,
+        accessible: false,
+      },
+      {
+        source: "A",
+        target: "C",
+        type: "corridor",
+        weight: 10,
+        accessible: true,
+      },
+      {
+        source: "C",
+        target: "B",
+        type: "corridor",
+        weight: 1,
+        accessible: true,
+      },
+    ];
+
+    // With accessibility: true, it should avoid A-B
+    const result = findShortestIndoorPath(nodes, inaccessibleEdges, "A", "B", {
+      accessible: true,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.path.map((n) => n.id)).toEqual(["A", "C", "B"]);
+    expect(result?.distance).toBe(11);
+
+    // Without accessibility constraint, it should take A-B
+    const resultNormal = findShortestIndoorPath(
+      nodes,
+      inaccessibleEdges,
+      "A",
+      "B",
+    );
+    expect(resultNormal?.path.map((n) => n.id)).toEqual(["A", "B"]);
+    expect(resultNormal?.distance).toBe(1);
+  });
 });

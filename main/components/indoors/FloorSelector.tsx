@@ -13,6 +13,7 @@ interface FloorSelectorProps {
   selectedFloor: number | null;
   onSelectFloor: (floor: number) => void;
   campusTheme: CampusTheme;
+  routeFloors?: number[];
 }
 
 export const FloorSelector: React.FC<FloorSelectorProps> = ({
@@ -20,10 +21,16 @@ export const FloorSelector: React.FC<FloorSelectorProps> = ({
   selectedFloor,
   onSelectFloor,
   campusTheme,
+  routeFloors = [],
 }) => {
   const getFloorButtonStyle = (floor: number): ViewStyle | null => {
-    if (selectedFloor !== floor) return null;
-    return { backgroundColor: campusTheme.selectedButtonColor };
+    if (selectedFloor === floor) {
+      return { backgroundColor: campusTheme.selectedButtonColor };
+    }
+    if (routeFloors.includes(floor)) {
+      return { backgroundColor: "#ffcccc", borderWidth: 2, borderColor: campusTheme.selectedButtonColor };
+    }
+    return null;
   };
 
   return (

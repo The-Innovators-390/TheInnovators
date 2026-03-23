@@ -13,7 +13,7 @@ import { BUILDING_FLOORS, INDOOR_LAYOUT } from "./indoor.constants";
 import { FloorSelector } from "./FloorSelector";
 import IndoorRouteInput from "./IndoorRouteInput";
 import IndoorSuggestionsList from "./IndoorSuggestionsList";
-import { findShortestIndoorPath } from "./pathfinding";
+import { findShortestIndoorPath, IndoorRoutingOptions } from "./pathfinding";
 import type { IndoorNode } from "./types";
 
 interface IndoorScreenProps {
@@ -70,14 +70,12 @@ export default function IndoorScreen({
     }
   }, [availableFloors, selectedFloor]);
 
-  // For same-floor navigation only, start/dest shouldnt reset for multi-floor
+  // For multi-floor navigation, do NOT reset on floor change
   useEffect(() => {
-    setStartNode(null);
-    setDestinationNode(null);
-    setStartText("");
-    setDestText("");
-    setActiveField("start");
-  }, [selectedFloor]);
+    // Only reset when buildingId changes (which happens when Screen is re-mounted with new building)
+    // or manually if needed. 
+    // Actually, we should probably only reset if graphData changes (new building).
+  }, [graphData]);
 
   const currentFloorMap = useMemo(() => {
     if (selectedFloor === null) return undefined;
@@ -98,7 +96,7 @@ export default function IndoorScreen({
       return [];
     }
 
-    return floorData.nodes
+    return graphData.nodes
       .filter((node) => node.type === "room" && !!node.label)
       .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
       .slice(0, 8);
@@ -108,21 +106,26 @@ export default function IndoorScreen({
     destText,
     startNode,
     destinationNode,
-    floorData.nodes,
+    graphData.nodes,
   ]);
+
+  const [accessible, setAccessible] = useState(false);
 
   const routeResult = useMemo(() => {
     if (!startNode || !destinationNode) {
       return null;
     }
 
+    const options: IndoorRoutingOptions = { accessible };
+
     return findShortestIndoorPath(
-      floorData.nodes,
-      floorData.edges,
+      graphData.nodes,
+      graphData.edges,
       startNode.id,
       destinationNode.id,
+      options,
     );
-  }, [startNode, destinationNode, floorData.nodes, floorData.edges]);
+  }, [startNode, destinationNode, graphData.nodes, graphData.edges, accessible]);
 
   const handleSwapRouteFields = () => {
     const previousStart = startNode;
@@ -205,6 +208,10 @@ export default function IndoorScreen({
     );
   }
 
+  const routeFloors = useMemo(() => {
+    return Array.from(new Set(routeResult?.path.map((node) => node.floor) ?? []));
+  }, [routeResult]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View
@@ -249,6 +256,7 @@ export default function IndoorScreen({
           nodes={floorData.nodes}
           edges={floorData.edges}
           path={routeResult?.path ?? []}
+          currentFloor={selectedFloor ?? 0}
         />
       </View>
       <View
@@ -263,6 +271,7 @@ export default function IndoorScreen({
           selectedFloor={selectedFloor}
           onSelectFloor={setSelectedFloor}
           campusTheme={campusTheme}
+          routeFloors={routeFloors}
         />
       </View>
     </SafeAreaView>

@@ -50,10 +50,20 @@ function addUndirectedEdge(
   });
 }
 
-function buildAdjacencyList(edges: IndoorEdge[]): AdjacencyList {
+export interface IndoorRoutingOptions {
+  accessible?: boolean;
+}
+
+function buildAdjacencyList(
+  edges: IndoorEdge[],
+  options?: IndoorRoutingOptions,
+): AdjacencyList {
   const adjacency: AdjacencyList = new Map();
 
   for (const edge of edges) {
+    if (options?.accessible && edge.accessible === false) {
+      continue;
+    }
     addUndirectedEdge(adjacency, edge.source, edge.target, edge.weight);
   }
 
@@ -211,6 +221,7 @@ export function findShortestIndoorPath(
   edges: IndoorEdge[],
   startId: string,
   destinationId: string,
+  options?: IndoorRoutingOptions,
 ): IndoorPathResult | null {
   if (startId === destinationId) {
     return buildSingleNodePath(nodes, startId);
@@ -222,7 +233,7 @@ export function findShortestIndoorPath(
     return null;
   }
 
-  const adjacency = buildAdjacencyList(edges);
+  const adjacency = buildAdjacencyList(edges, options);
   const { distances, previous, unvisited } = initializeDijkstraState(
     nodes,
     startId,
