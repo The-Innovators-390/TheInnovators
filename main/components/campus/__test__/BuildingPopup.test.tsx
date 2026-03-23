@@ -124,13 +124,14 @@ describe("BuildingPopup", () => {
     getByText("1455 De Maisonneuve");
     getByText("Details coming soon");
     getByText("We’ll add the expanded info for this building next.");
+    expect(getByTestId("buildingImageButton")).toBeTruthy();
 
     const images = UNSAFE_queryAllByType(Image);
     expect(images.length).toBeGreaterThan(0);
   });
 
   it("renders placeholder branch when no building image exists", () => {
-    const { getByText, UNSAFE_queryAllByType } = render(
+    const { getByText, queryByTestId, UNSAFE_queryAllByType } = render(
       <BuildingPopup
         building={
           {
@@ -149,6 +150,7 @@ describe("BuildingPopup", () => {
 
     getByText("Unknown Building");
     getByText("Details coming soon");
+    expect(queryByTestId("buildingImageButton")).toBeNull();
 
     const images = UNSAFE_queryAllByType(Image);
     expect(images.length).toBe(0);
@@ -233,6 +235,124 @@ describe("BuildingPopup", () => {
     expect(router.push).toHaveBeenCalledWith({
       pathname: "/indoor",
       params: { building: "H" },
+    });
+  });
+
+  it("opens the building image overlay when the thumbnail is pressed", async () => {
+    const { getByTestId } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(getByTestId("buildingImageButton"));
+
+    await waitFor(() => {
+      expect(getByTestId("buildingImageOverlay")).toBeTruthy();
+    });
+  });
+
+  it("closes the building image overlay when the overlay image is pressed", async () => {
+    const { getByTestId, queryByTestId } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(getByTestId("buildingImageButton"));
+
+    await waitFor(() => {
+      expect(getByTestId("buildingImageOverlay")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("buildingImageOverlay"));
+
+    await waitFor(() => {
+      expect(queryByTestId("buildingImageOverlay")).toBeNull();
+    });
+  });
+
+  it("closes the building image overlay when the backdrop is pressed", async () => {
+    const { getByTestId, queryByTestId } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(getByTestId("buildingImageButton"));
+
+    await waitFor(() => {
+      expect(getByTestId("buildingImageOverlayBackdrop")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("buildingImageOverlayBackdrop"));
+
+    await waitFor(() => {
+      expect(queryByTestId("buildingImageOverlay")).toBeNull();
+    });
+  });
+
+  it("renders image overlay accessibility props", async () => {
+    const { getByTestId } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    const imageButton = getByTestId("buildingImageButton");
+    expect(imageButton.props.accessibilityRole).toBe("button");
+    expect(imageButton.props.accessibilityLabel).toBe("Open building image");
+
+    fireEvent.press(imageButton);
+
+    await waitFor(() => {
+      const overlayImage = getByTestId("buildingImageOverlay");
+      expect(overlayImage.props.accessibilityRole).toBe("button");
+      expect(overlayImage.props.accessibilityLabel).toBe(
+        "Close building image",
+      );
+    });
+  });
+
+  it("resets the building image overlay when the building id changes", async () => {
+    const { getByTestId, queryByTestId, rerender } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, id: "b1", details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(getByTestId("buildingImageButton"));
+
+    await waitFor(() => {
+      expect(getByTestId("buildingImageOverlay")).toBeTruthy();
+    });
+
+    rerender(
+      <BuildingPopup
+        building={{ ...baseBuilding, id: "b2", details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(queryByTestId("buildingImageOverlay")).toBeNull();
     });
   });
 
