@@ -95,7 +95,7 @@ export default function IndoorMapViewer({
 
   const pathPoints = useMemo(() => {
     if (!path || path.length < 2) {
-      return "";
+      return null;
     }
 
     return path
@@ -173,7 +173,7 @@ export default function IndoorMapViewer({
                 width={layoutInfo.renderedWidth}
                 height={layoutInfo.renderedHeight}
               >
-                {pathPoints.length > 0 && (
+                {pathPoints !== null && (
                   <Polyline
                     points={pathPoints}
                     fill="none"

@@ -3,6 +3,68 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { IndoorNode } from "./types";
 
+type FieldName = "start" | "destination";
+
+type RouteFieldRowProps = {
+  field: FieldName;
+  value: string;
+  activeField: FieldName;
+  placeholder: string;
+  disabled?: boolean;
+  testIDRow: string;
+  testIDInput: string;
+  testIDClear: string;
+  onFocusField: (f: FieldName) => void;
+  onChangeText: (t: string) => void;
+  onClear: () => void;
+};
+
+function RouteFieldRow({
+  field,
+  value,
+  activeField,
+  placeholder,
+  disabled,
+  testIDRow,
+  testIDInput,
+  testIDClear,
+  onFocusField,
+  onChangeText,
+  onClear,
+}: Readonly<RouteFieldRowProps>) {
+  return (
+    <View
+      style={[s.inputRow, activeField === field && s.inputRowActive]}
+      testID={testIDRow}
+    >
+      <TextInput
+        testID={testIDInput}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="rgba(17,17,17,0.45)"
+        style={s.input}
+        editable={!disabled}
+        onFocus={() => onFocusField(field)}
+        autoCorrect={false}
+        autoCapitalize="characters"
+      />
+
+      {value.length > 0 && (
+        <Pressable
+          onPress={onClear}
+          hitSlop={8}
+          style={s.clearButton}
+          testID={testIDClear}
+          disabled={disabled}
+        >
+          <Text style={s.clearIcon}>✕</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 type Props = {
   start: IndoorNode | null;
   destination: IndoorNode | null;
@@ -44,68 +106,35 @@ export default function IndoorRouteInput({
       </View>
 
       <View style={s.inputs}>
-        <View
-          style={[s.inputRow, activeField === "start" && s.inputRowActive]}
-          testID="indoorRouteStartRow"
-        >
-          <TextInput
-            testID="indoorRouteStartInput"
-            value={startValue}
-            onChangeText={onChangeStartText}
-            placeholder="Enter your starting room"
-            placeholderTextColor="rgba(17,17,17,0.45)"
-            style={s.input}
-            editable={!disabled}
-            onFocus={() => onFocusField("start")}
-            autoCorrect={false}
-            autoCapitalize="characters"
-          />
-
-          {startValue.length > 0 && (
-            <Pressable
-              onPress={onClearStart}
-              hitSlop={8}
-              style={s.clearButton}
-              testID="clearIndoorStart"
-            >
-              <Text style={s.clearIcon}>✕</Text>
-            </Pressable>
-          )}
-        </View>
+        <RouteFieldRow
+          field="start"
+          value={startValue}
+          activeField={activeField}
+          placeholder="Enter your starting room"
+          disabled={disabled}
+          testIDRow="indoorRouteStartRow"
+          testIDInput="indoorRouteStartInput"
+          testIDClear="clearIndoorStart"
+          onFocusField={onFocusField}
+          onChangeText={onChangeStartText}
+          onClear={onClearStart}
+        />
 
         <View style={s.divider} />
 
-        <View
-          style={[
-            s.inputRow,
-            activeField === "destination" && s.inputRowActive,
-          ]}
-          testID="indoorRouteDestRow"
-        >
-          <TextInput
-            testID="indoorRouteDestInput"
-            value={destValue}
-            onChangeText={onChangeDestText}
-            placeholder="Enter your destination room"
-            placeholderTextColor="rgba(17,17,17,0.45)"
-            style={s.input}
-            editable={!disabled}
-            onFocus={() => onFocusField("destination")}
-            autoCorrect={false}
-            autoCapitalize="characters"
-          />
-
-          {destValue.length > 0 && (
-            <Pressable
-              onPress={onClearDestination}
-              hitSlop={8}
-              style={s.clearButton}
-              testID="clearIndoorDestination"
-            >
-              <Text style={s.clearIcon}>✕</Text>
-            </Pressable>
-          )}
-        </View>
+        <RouteFieldRow
+          field="destination"
+          value={destValue}
+          activeField={activeField}
+          placeholder="Enter your destination room"
+          disabled={disabled}
+          testIDRow="indoorRouteDestRow"
+          testIDInput="indoorRouteDestInput"
+          testIDClear="clearIndoorDestination"
+          onFocusField={onFocusField}
+          onChangeText={onChangeDestText}
+          onClear={onClearDestination}
+        />
       </View>
 
       <Pressable

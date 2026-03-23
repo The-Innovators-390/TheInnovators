@@ -124,6 +124,47 @@ export default function IndoorScreen({
     );
   }, [startNode, destinationNode, floorData.nodes, floorData.edges]);
 
+  const handleSwapRouteFields = () => {
+    const previousStart = startNode;
+    const previousDestination = destinationNode;
+
+    setStartNode(previousDestination);
+    setDestinationNode(previousStart);
+
+    setStartText(previousDestination?.label ?? destText);
+    setDestText(previousStart?.label ?? startText);
+  };
+
+  const handleChangeStartText = (text: string) => {
+    setActiveField("start");
+    setStartText(text);
+
+    if (startNode) {
+      setStartNode(null);
+    }
+  };
+
+  const handleChangeDestText = (text: string) => {
+    setActiveField("destination");
+    setDestText(text);
+
+    if (destinationNode) {
+      setDestinationNode(null);
+    }
+  };
+
+  const handleClearStart = () => {
+    setStartText("");
+    setStartNode(null);
+    setActiveField("start");
+  };
+
+  const handleClearDestination = () => {
+    setDestText("");
+    setDestinationNode(null);
+    setActiveField("destination");
+  };
+
   function handlePickIndoorNode(node: IndoorNode) {
     if (activeField === "start") {
       setStartNode(node);
@@ -189,38 +230,13 @@ export default function IndoorScreen({
           destination={destinationNode}
           activeField={activeField}
           onFocusField={setActiveField}
-          onSwap={() => {
-            const previousStart = startNode;
-            const previousDestination = destinationNode;
-
-            setStartNode(previousDestination);
-            setDestinationNode(previousStart);
-
-            setStartText(previousDestination?.label ?? destText);
-            setDestText(previousStart?.label ?? startText);
-          }}
+          onSwap={handleSwapRouteFields}
           startText={startText}
           destText={destText}
-          onChangeStartText={(text) => {
-            setActiveField("start");
-            setStartText(text);
-            if (startNode) setStartNode(null);
-          }}
-          onChangeDestText={(text) => {
-            setActiveField("destination");
-            setDestText(text);
-            if (destinationNode) setDestinationNode(null);
-          }}
-          onClearStart={() => {
-            setStartText("");
-            setStartNode(null);
-            setActiveField("start");
-          }}
-          onClearDestination={() => {
-            setDestText("");
-            setDestinationNode(null);
-            setActiveField("destination");
-          }}
+          onChangeStartText={handleChangeStartText}
+          onChangeDestText={handleChangeDestText}
+          onClearStart={handleClearStart}
+          onClearDestination={handleClearDestination}
         />
         <IndoorSuggestionsList
           suggestions={suggestions}
