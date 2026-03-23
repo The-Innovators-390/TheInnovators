@@ -47,6 +47,7 @@ export default function BuildingPopup({
           cardBorder: "rgba(145,35,56,0.25)",
           revealingBorder: "rgba(145,35,56,0.20)",
           icon: "#912338",
+          closeBg: "rgba(145,35,56,0.14)",
         }
       : {
           brand: "#E0B100",
@@ -54,6 +55,7 @@ export default function BuildingPopup({
           cardBorder: "rgba(224,177,0,0.25)",
           revealingBorder: "rgba(224,177,0,0.20)",
           icon: "#E0B100",
+          closeBg: "rgba(224,177,0,0.18)",
         };
 
   const snapPoints = useMemo(() => {
@@ -93,8 +95,10 @@ export default function BuildingPopup({
           <Pressable
             onPress={closeSheet}
             hitSlop={14}
-            style={styles.handleCloseBtn}
+            style={[styles.handleCloseBtn, { backgroundColor: theme.closeBg }]}
             testID="buildingPopup-close"
+            accessibilityRole="button"
+            accessibilityLabel="Close building popup"
           >
             <Text style={[styles.handleCloseText, { color: theme.icon }]}>
               ✕
@@ -103,7 +107,7 @@ export default function BuildingPopup({
         </View>
       );
     },
-    [expandSheet, closeSheet, theme.icon],
+    [expandSheet, closeSheet, theme.closeBg, theme.icon],
   );
 
   const IconRow = ({
@@ -218,7 +222,6 @@ export default function BuildingPopup({
       >
         {details ? (
           <>
-            {/* Building Accessibility */}
             <View style={styles.card}>
               <Text style={styles.cardHeader}>Building Accessibility</Text>
 
@@ -247,7 +250,6 @@ export default function BuildingPopup({
               )}
             </View>
 
-            {/* Metro Accessibility (only if provided) */}
             {!!details.metro && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Metro Accessibility</Text>
@@ -259,7 +261,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Building Connectivity (only if provided) */}
             {!!details.connectivity && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Building Connectivity</Text>
@@ -271,7 +272,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Number of Entries (show if present and non-empty) */}
             {Array.isArray(details.entries) && details.entries.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Number of Entries</Text>
@@ -286,7 +286,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Other Services (only if provided) */}
             {Array.isArray(details.otherServices) &&
               details.otherServices.length > 0 && (
                 <View style={styles.card}>
@@ -302,7 +301,6 @@ export default function BuildingPopup({
                 </View>
               )}
 
-            {/* Building Overview (only if provided) */}
             {Array.isArray(details.overview) && details.overview.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Building Overview</Text>
@@ -314,7 +312,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Venues */}
             {Array.isArray(details.venues) && details.venues.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Venues</Text>
@@ -327,7 +324,6 @@ export default function BuildingPopup({
               </View>
             )}
 
-            {/* Departments */}
             {Array.isArray(details.departments) &&
               details.departments.length > 0 && (
                 <View style={styles.card}>
@@ -341,7 +337,6 @@ export default function BuildingPopup({
                 </View>
               )}
 
-            {/* Services */}
             {Array.isArray(details.services) && details.services.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardHeader}>Services</Text>
@@ -396,14 +391,19 @@ const styles = StyleSheet.create({
   },
   handleCloseBtn: {
     position: "absolute",
-    right: 12,
-    top: 2,
-    padding: 8,
+    right: 16,
+    top: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 10,
   },
   handleCloseText: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "900",
+    lineHeight: 24,
   },
 
   header: {
@@ -453,7 +453,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     resizeMode: "cover",
     overflow: "hidden",
-    marginTop: 6,
+    marginTop: 35,
+    marginRight: 8,
   },
   thumbPlaceholder: {
     backgroundColor: "rgba(0,0,0,0.10)",
