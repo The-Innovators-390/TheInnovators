@@ -58,6 +58,7 @@ import {
   getUserLocationBuildingId,
   getBuildingContainingPoint,
   makeUserLocationBuilding,
+  resolveCampusFromLocation,
 } from "@/components/campus/helper_methods/campusMap.buildings";
 import type { Region } from "react-native-maps";
 import TravelOptionsPopup from "@/components/campus/TravelOptionsPopup";
@@ -351,6 +352,16 @@ export default function CampusMap() {
   const handleLocationFound = (location: UserLocation) => {
     setUserLocation(location);
     setIsFollowingUser(true);
+
+    const resolvedCampus = resolveCampusFromLocation(
+      ALL_BUILDINGS,
+      location.latitude,
+      location.longitude,
+    );
+
+    if (resolvedCampus) {
+      setFocusedCampus(resolvedCampus);
+    }
 
     resetCompassToNorth({
       latitude: location.latitude,
@@ -681,9 +692,14 @@ export default function CampusMap() {
         loc.longitude,
       );
 
+      const resolvedCampus =
+        buildingInside?.campus ??
+        resolveCampusFromLocation(ALL_BUILDINGS, loc.latitude, loc.longitude) ??
+        focusedCampus;
+
       const startBuilding =
         buildingInside ??
-        makeUserLocationBuilding(loc.latitude, loc.longitude, focusedCampus);
+        makeUserLocationBuilding(loc.latitude, loc.longitude, resolvedCampus);
 
       nav.setRouteStart(startBuilding);
       setStartText(
