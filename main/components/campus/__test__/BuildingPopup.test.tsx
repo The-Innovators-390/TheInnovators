@@ -2,10 +2,19 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { Image } from "react-native";
+import { router } from "expo-router";
 
 // ---- Mocks ----
 
-// Mock BuildingPin to avoid unrelated rendering/props complexity
+const mockSnapToIndex = jest.fn();
+const mockClose = jest.fn();
+
+jest.mock("expo-router", () => ({
+  router: {
+    push: jest.fn(),
+  },
+}));
+
 jest.mock("@/components/campus/BuildingPin", () => {
   const React = require("react");
   const { Text } = require("react-native");
@@ -19,11 +28,9 @@ jest.mock("@/components/campus/BuildingPin", () => {
   };
 });
 
-// Avoid requiring real asset files
 jest.mock("@/components/Buildings/details/buildingImages", () => ({
   BUILDING_IMAGES: {
-    H: 123, // truthy -> thumbSource branch
-    // Any other code will be undefined -> placeholder branch
+    H: 123,
   },
 }));
 
@@ -34,17 +41,15 @@ jest.mock("@/components/Buildings/details/buildingIcons", () => ({
     entry: 3,
     wifi: 4,
     elevator: 5,
+    ramp: 6,
+    accessibility: 7,
+    coffee: 8,
   },
 }));
 
-// Safe-area mock (stable snapPoints + avoids crashes)
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 10, bottom: 0, left: 0, right: 0 }),
 }));
-
-// BottomSheet mock
-const mockSnapToIndex = jest.fn();
-const mockClose = jest.fn();
 
 jest.mock("@gorhom/bottom-sheet", () => {
   const ReactActual = jest.requireActual("react");
@@ -87,7 +92,6 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 
-// Import AFTER mocks
 import BuildingPopup from "@/components/campus/BuildingPopup";
 
 describe("BuildingPopup", () => {
@@ -105,57 +109,59 @@ describe("BuildingPopup", () => {
     jest.clearAllMocks();
   });
 
-  it("renders fallback UI when details are missing + shows image thumbnail branch", () => {
-    const onClose = jest.fn();
-    const onGetDirections = jest.fn();
-
-    const { getByText, UNSAFE_queryAllByType } = render(
+  it("renders fallback UI when details are missing and uses image thumbnail branch", () => {
+    const { getByText, getByTestId, UNSAFE_queryAllByType } = render(
       <BuildingPopup
         building={{ ...baseBuilding, details: undefined } as any}
         campusTheme="SGW"
-        onClose={onClose}
-        onGetDirections={onGetDirections}
-      />,
-    );
-
-    getByText("Details coming soon");
-    getByText("We’ll add the expanded info for this building next.");
-
-    // ThumbSource branch (H exists in BUILDING_IMAGES)
-    const images = UNSAFE_queryAllByType(Image);
-    expect(images.length).toBeGreaterThan(0);
-  });
-
-  it("renders thumb placeholder branch when no building image exists", () => {
-    const onClose = jest.fn();
-
-    const { getByText, UNSAFE_queryAllByType } = render(
-      <BuildingPopup
-        building={
-          { ...baseBuilding, id: "sgw-x", code: "X", details: undefined } as any
-        }
-        campusTheme="SGW"
-        onClose={onClose}
+        onClose={jest.fn()}
         onGetDirections={jest.fn()}
       />,
     );
 
+    expect(getByTestId("buildingPin")).toBeTruthy();
+    getByText("Henry F. Hall");
+    getByText("1455 De Maisonneuve");
+    getByText("Details coming soon");
+    getByText("We’ll add the expanded info for this building next.");
+
+    const images = UNSAFE_queryAllByType(Image);
+    expect(images.length).toBeGreaterThan(0);
+  });
+
+  it("renders placeholder branch when no building image exists", () => {
+    const { getByText, UNSAFE_queryAllByType } = render(
+      <BuildingPopup
+        building={
+          {
+            ...baseBuilding,
+            id: "sgw-x",
+            code: "X",
+            name: "Unknown Building",
+            details: undefined,
+          } as any
+        }
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    getByText("Unknown Building");
     getByText("Details coming soon");
 
-    // No building image => should be 0 Image components in fallback mode
     const images = UNSAFE_queryAllByType(Image);
     expect(images.length).toBe(0);
   });
 
-  it("pressing handle expands sheet (snapToIndex) and triggers onSheetChange", () => {
-    const onClose = jest.fn();
+  it("pressing handle expands sheet and triggers onSheetChange", () => {
     const onSheetChange = jest.fn();
 
     const { getByTestId } = render(
       <BuildingPopup
         building={{ ...baseBuilding, details: undefined } as any}
         campusTheme="SGW"
-        onClose={onClose}
+        onClose={jest.fn()}
         onSheetChange={onSheetChange}
         onGetDirections={jest.fn()}
       />,
@@ -167,7 +173,7 @@ describe("BuildingPopup", () => {
     expect(onSheetChange).toHaveBeenCalledWith(1);
   });
 
-  it("pressing close calls BottomSheet.close -> onClose", () => {
+  it("pressing close calls BottomSheet.close and onClose", () => {
     const onClose = jest.fn();
 
     const { getByTestId } = render(
@@ -185,31 +191,51 @@ describe("BuildingPopup", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("pressing Get Directions calls onGetDirections(building)", () => {
-    const onClose = jest.fn();
+  it("pressing Get Directions calls onGetDirections with building", () => {
     const onGetDirections = jest.fn();
 
     const { getByTestId } = render(
       <BuildingPopup
         building={{ ...baseBuilding, details: undefined } as any}
         campusTheme="SGW"
-        onClose={onClose}
+        onClose={jest.fn()}
         onGetDirections={onGetDirections}
       />,
     );
 
     fireEvent.press(getByTestId("directionsButton"));
+
     expect(onGetDirections).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "sgw-h", code: "H" }),
+      expect.objectContaining({
+        id: "sgw-h",
+        code: "H",
+        campus: "SGW",
+      }),
     );
   });
 
-  it("renders detailed sections + covers accessibility empty branch + SimpleRow null-return", () => {
-    const onClose = jest.fn();
+  it("pressing Indoor Map navigates to the indoor screen with building code", () => {
+    const { getByTestId } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
 
+    fireEvent.press(getByTestId("indoorMapButton"));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/indoor",
+      params: { building: "H" },
+    });
+  });
+
+  it("renders accessibility empty branch and keeps Metro/Connectivity cards when provided as empty objects", () => {
     const buildingWithDetails = {
       ...baseBuilding,
-      id: "sgw-h-2",
+      id: "sgw-h-empty-details",
       details: {
         accessibility: [],
         metro: {},
@@ -227,7 +253,7 @@ describe("BuildingPopup", () => {
       <BuildingPopup
         building={buildingWithDetails as any}
         campusTheme="LOY"
-        onClose={onClose}
+        onClose={jest.fn()}
         onGetDirections={jest.fn()}
       />,
     );
@@ -256,10 +282,10 @@ describe("BuildingPopup", () => {
     getByText("Information desk");
   });
 
-  it("renders accessibility items branch (IconRow mapping + description conditional)", () => {
+  it("renders accessibility items branch including description and no-description variants", () => {
     const buildingWithAccessibility = {
       ...baseBuilding,
-      id: "sgw-h-3",
+      id: "sgw-h-accessibility",
       details: {
         accessibility: [
           { icon: "elevator", title: "Elevator", description: "" },
@@ -282,11 +308,95 @@ describe("BuildingPopup", () => {
     getByText("Wi-Fi");
     getByText("Available");
 
-    // Empty string description should not render
-    expect(queryByText("")).toBeNull();
+    expect(
+      queryByText(
+        "This building is not accessible. It is not equipped with an accessibility ramp, automated door, elevator or wheelchair lift.",
+      ),
+    ).toBeNull();
   });
 
-  it("calls snapToIndex(0) when building id changes (useEffect dependency)", () => {
+  it("renders metro, connectivity, entries, other services, overview, venues, departments, and services when populated", () => {
+    const buildingWithFullDetails = {
+      ...baseBuilding,
+      id: "sgw-h-full-details",
+      details: {
+        accessibility: [
+          {
+            icon: "ramp",
+            title: "Ramp",
+            description: "Ramp at main entrance",
+          },
+        ],
+        metro: {
+          title: "Guy-Concordia",
+          description: "Connected by metro",
+        },
+        connectivity: {
+          title: "Connected Buildings",
+          description: "Linked to EV and LB",
+        },
+        entries: [
+          { title: "Main entrance", description: "Front door" },
+          { title: "Side entrance", description: "South side" },
+        ],
+        otherServices: [
+          { icon: "coffee", title: "Coffee shop", description: "Level 1" },
+        ],
+        overview: ["Paragraph 1", "Paragraph 2"],
+        venues: ["Auditorium"],
+        departments: ["Computer Science"],
+        services: ["Help desk"],
+      },
+    };
+
+    const { getByText, queryAllByText } = render(
+      <BuildingPopup
+        building={buildingWithFullDetails as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    getByText("Building Accessibility");
+    getByText("Ramp");
+    getByText("Ramp at main entrance");
+
+    getByText("Metro Accessibility");
+    getByText("Guy-Concordia");
+    getByText("Connected by metro");
+
+    getByText("Building Connectivity");
+    getByText("Connected Buildings");
+    getByText("Linked to EV and LB");
+
+    getByText("Number of Entries");
+    getByText("Main entrance");
+    getByText("Front door");
+    getByText("Side entrance");
+    getByText("South side");
+
+    getByText("Other services");
+    getByText("Coffee shop");
+    getByText("Level 1");
+
+    getByText("Building Overview");
+    getByText("Paragraph 1");
+    getByText("Paragraph 2");
+
+    getByText("Venues");
+    getByText("Auditorium");
+
+    getByText("Departments");
+    getByText("Computer Science");
+
+    getByText("Services");
+    getByText("Help desk");
+
+    expect(queryAllByText(/Paragraph/)).toHaveLength(2);
+  });
+
+  it("calls snapToIndex(0) on mount and when building id changes", () => {
     const { rerender } = render(
       <BuildingPopup
         building={{ ...baseBuilding, id: "b1", details: undefined } as any}
@@ -295,6 +405,8 @@ describe("BuildingPopup", () => {
         onGetDirections={jest.fn()}
       />,
     );
+
+    expect(mockSnapToIndex).toHaveBeenCalledWith(0);
 
     rerender(
       <BuildingPopup
@@ -306,5 +418,59 @@ describe("BuildingPopup", () => {
     );
 
     expect(mockSnapToIndex).toHaveBeenCalledWith(0);
+    expect(mockSnapToIndex).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders Loyola theme variant without crashing", () => {
+    const { getByText } = render(
+      <BuildingPopup
+        building={
+          {
+            ...baseBuilding,
+            id: "loy-h",
+            campus: "LOY",
+            details: undefined,
+          } as any
+        }
+        campusTheme="LOY"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    getByText("Henry F. Hall");
+    getByText("Indoor Map");
+    getByText("Get Directions");
+  });
+
+  it("renders close button accessibility props", () => {
+    const { getByTestId } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    const closeButton = getByTestId("buildingPopup-close");
+
+    expect(closeButton.props.accessibilityRole).toBe("button");
+    expect(closeButton.props.accessibilityLabel).toBe("Close building popup");
+  });
+
+  it("renders the scroll view and drag handle", () => {
+    const { getByTestId } = render(
+      <BuildingPopup
+        building={{ ...baseBuilding, details: undefined } as any}
+        campusTheme="SGW"
+        onClose={jest.fn()}
+        onGetDirections={jest.fn()}
+      />,
+    );
+
+    expect(getByTestId("bottomSheet")).toBeTruthy();
+    expect(getByTestId("bottomSheetScrollView")).toBeTruthy();
+    expect(getByTestId("buildingPopup-handle")).toBeTruthy();
   });
 });
