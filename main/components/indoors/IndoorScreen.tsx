@@ -172,6 +172,12 @@ export default function IndoorScreen({
     }
   }
 
+  const routeFloors = useMemo(() => {
+    return Array.from(
+      new Set(routeResult?.path.map((node) => node.floor) ?? []),
+    );
+  }, [routeResult]);
+
   if (!graphData) {
     return (
       <SafeAreaView style={styles.container}>
@@ -200,12 +206,6 @@ export default function IndoorScreen({
       </SafeAreaView>
     );
   }
-
-  const routeFloors = useMemo(() => {
-    return Array.from(
-      new Set(routeResult?.path.map((node) => node.floor) ?? []),
-    );
-  }, [routeResult]);
 
   return (
     <SafeAreaView style={styles.container}>
