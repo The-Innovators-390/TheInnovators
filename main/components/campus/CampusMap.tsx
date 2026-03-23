@@ -381,6 +381,12 @@ export default function CampusMap() {
     }
   };
 
+  const handleCloseBuildingPopup = useCallback(() => {
+    setQuery("");
+    setSelected(null);
+    setPopupIndex(-1);
+  }, []);
+
   const handleCampusChange = (campus: Campus) => {
     setFocusedCampus(campus);
     setSelected(null);
@@ -1247,10 +1253,7 @@ export default function CampusMap() {
         <BuildingPopup
           building={selected}
           campusTheme={focusedCampus}
-          onClose={() => {
-            setSelected(null);
-            setPopupIndex(-1);
-          }}
+          onClose={handleCloseBuildingPopup}
           onSheetChange={(index: number) => setPopupIndex(index)}
           onGetDirections={handleGetDirectionsFromPopup}
         />
