@@ -269,8 +269,6 @@ export default function CampusMap() {
     setMapHeading(0);
   }, []);
 
-  const shouldShowCompass = popupIndex < 1;
-
   useEffect(() => {
     selectedModeRef.current = selectedMode;
   }, [selectedMode]);
@@ -843,6 +841,10 @@ export default function CampusMap() {
   const hasBuildingPopup = !nav.isRouteMode && !!selected;
   const hasTravelPopup =
     nav.isRouteMode && !routeNavigation.isNavigating && travelPopupVisible;
+
+  const shouldShowCompass =
+    routeNavigation.isNavigating ||
+    !(popupIndex > 0 && (hasBuildingPopup || hasTravelPopup));
 
   const collapsedBuildingPopupHeight = Math.round(windowHeight * 0.19);
   const collapsedTravelPopupHeight = Math.max(
