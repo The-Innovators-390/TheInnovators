@@ -234,8 +234,8 @@ jest.mock("react-native-maps", () => {
 
   (MockMapView as any).displayName = "MockMapView";
 
-  const MockPolyline = () =>
-    ReactActual.createElement(View, { testID: "polyline" });
+  const MockPolyline = (props: any) =>
+    ReactActual.createElement(View, { ...props, testID: "polyline" });
 
   return {
     __esModule: true,
@@ -291,22 +291,33 @@ beforeEach(() => {
   mockBuildShuttleDirectionRoute.mockReturnValue(null);
 
   mockDecodePolyline.mockImplementation((encoded: string) => {
-    if (encoded === "combined-shuttle-poly") {
-      return [
-        { latitude: 1, longitude: 1 },
-        { latitude: 2, longitude: 2 },
-      ];
+    switch (encoded) {
+      case "walk-1-poly":
+        return [
+          { latitude: 1, longitude: 1 },
+          { latitude: 2, longitude: 2 },
+        ];
+      case "ride-poly":
+        return [
+          { latitude: 2, longitude: 2 },
+          { latitude: 3, longitude: 3 },
+        ];
+      case "walk-2-poly":
+        return [
+          { latitude: 3, longitude: 3 },
+          { latitude: 4, longitude: 4 },
+        ];
+      default:
+        return [
+          { latitude: 10, longitude: 10 },
+          { latitude: 11, longitude: 11 },
+        ];
     }
-
-    return [
-      { latitude: 10, longitude: 10 },
-      { latitude: 11, longitude: 11 },
-    ];
   });
 });
 
 describe("CampusMap - shuttle selected route rendering", () => {
-  it("renders one selected shuttle route polyline when shuttle mode is selected", async () => {
+  it("renders the segmented shuttle route when shuttle mode is selected", async () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<CampusMap />);
 
     await findByTestId("mode-shuttle");
@@ -316,10 +327,13 @@ describe("CampusMap - shuttle selected route rendering", () => {
     });
 
     await waitFor(() => {
-      expect(getAllByTestId("polyline")).toHaveLength(1);
+      expect(getAllByTestId("polyline")).toHaveLength(3);
     });
 
     expect(mockBuildShuttleDirectionRouteFromGoogle).toHaveBeenCalled();
     expect(mockBuildShuttleDirectionRoute).not.toHaveBeenCalled();
+    expect(mockDecodePolyline).toHaveBeenCalledWith("walk-1-poly");
+    expect(mockDecodePolyline).toHaveBeenCalledWith("ride-poly");
+    expect(mockDecodePolyline).toHaveBeenCalledWith("walk-2-poly");
   });
 });

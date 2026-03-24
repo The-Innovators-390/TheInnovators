@@ -16,12 +16,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import MapView, {
-  PROVIDER_GOOGLE,
-  Marker,
-  Polyline,
-  LatLng,
-} from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE, Marker, LatLng } from "react-native-maps";
 import {
   getDeviceLocation,
   LocationError,
@@ -63,7 +58,6 @@ import {
 import type { Region } from "react-native-maps";
 import TravelOptionsPopup from "@/components/campus/TravelOptionsPopup";
 import {
-  decodePolyline,
   fetchDirections,
   pickFastestRoute,
   type DirectionRoute,
@@ -90,12 +84,24 @@ import {
 import Compass from "@/components/campus/Compass";
 import { NextClassButton } from "@/components/campus/NextClassButton";
 import { resetMapDirectionToNorth } from "@/components/campus/helper_methods/mapCompass";
+import RoutePolylines from "@/components/campus/RoutePolylines";
+import {
+  buildRouteRenderSegments,
+  flattenRouteSegmentCoordinates,
+  type RouteRenderSegment,
+} from "@/components/campus/helper_methods/routeSegments";
 
 // Re-export for backwards compatibility with tests
 export {
   calculatePanValue,
   determineCampusFromPan,
 } from "@/components/campus/ToggleButton";
+
+type PendingTransitRender = {
+  segments: RouteRenderSegment[];
+  coords: LatLng[];
+  fitToRoute: boolean;
+};
 
 function SuggestionsList({
   suggestions,
@@ -175,31 +181,6 @@ const GOOGLE_MODES: TravelMode[] = [
   "bicycling",
 ];
 
-const RouteStroke = ({
-  mode,
-  coords,
-  onPress,
-  strokeWidth,
-}: {
-  mode: TravelMode;
-  coords: { latitude: number; longitude: number }[];
-  onPress: () => void;
-  strokeWidth: number;
-}) => {
-  return (
-    <Polyline
-      coordinates={coords}
-      tappable
-      onPress={onPress}
-      strokeWidth={strokeWidth}
-      strokeColor="#4286f5"
-      lineDashPattern={mode === "walking" ? [10, 8] : undefined}
-      lineCap="round"
-      lineJoin="round"
-    />
-  );
-};
-
 export default function CampusMap() {
   const [focusedCampus, setFocusedCampus] = useState<Campus>("SGW");
 
@@ -251,9 +232,14 @@ export default function CampusMap() {
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [travelPopupVisible, setTravelPopupVisible] = useState(false);
 
-  const [allRouteCoords, setAllRouteCoords] = useState<
-    { latitude: number; longitude: number }[][]
+  const [renderedRouteSegments, setRenderedRouteSegments] = useState<
+    RouteRenderSegment[]
   >([]);
+
+  const [routePolylineMountKey, setRoutePolylineMountKey] = useState(0);
+  const [pendingTransitRender, setPendingTransitRender] =
+    useState<PendingTransitRender | null>(null);
+  const [showRouteLayer, setShowRouteLayer] = useState(false);
 
   const routeNavigation = useRouteNavigation({
     origin: nav.routeStart
@@ -415,8 +401,11 @@ export default function CampusMap() {
   }, [query, ALL_BUILDINGS]);
 
   const clearRouteData = useCallback(() => {
+    setPendingTransitRender(null);
     setTravelPopupVisible(false);
-    setAllRouteCoords([]);
+    setShowRouteLayer(false);
+    setRenderedRouteSegments([]);
+    setRoutePolylineMountKey((k) => k + 1);
     setRoutesByMode({
       driving: [],
       transit: [],
@@ -428,7 +417,10 @@ export default function CampusMap() {
   }, []);
 
   const clearDisplayedRoutes = useCallback(() => {
-    setAllRouteCoords([]);
+    setPendingTransitRender(null);
+    setShowRouteLayer(false);
+    setRenderedRouteSegments([]);
+    setRoutePolylineMountKey((k) => k + 1);
   }, []);
 
   const showRoutesForMode = useCallback(
@@ -439,10 +431,14 @@ export default function CampusMap() {
     ) => {
       const routes = routesByMode[mode] ?? [];
 
+      setPendingTransitRender(null);
+
       if (routes.length === 0) {
         setSelectedMode(mode);
         setSelectedRouteIndex(0);
-        setAllRouteCoords([]);
+        setShowRouteLayer(false);
+        setRenderedRouteSegments([]);
+        setRoutePolylineMountKey((k) => k + 1);
         return;
       }
 
@@ -450,13 +446,27 @@ export default function CampusMap() {
       const selectedRoute = routes[safeIndex];
       if (!selectedRoute) return;
 
-      const selectedCoords = decodePolyline(selectedRoute.polyline);
+      const segments = buildRouteRenderSegments(mode, selectedRoute);
+      const selectedCoords = flattenRouteSegmentCoordinates(segments);
 
       setSelectedMode(mode);
       setSelectedRouteIndex(safeIndex);
 
-      // display ONLY the selected route on the map
-      setAllRouteCoords(selectedCoords.length > 0 ? [selectedCoords] : []);
+      if (mode === "transit") {
+        setShowRouteLayer(false);
+        setRenderedRouteSegments([]);
+        setRoutePolylineMountKey((k) => k + 1);
+        setPendingTransitRender({
+          segments,
+          coords: selectedCoords,
+          fitToRoute: options?.fitToRoute ?? true,
+        });
+        return;
+      }
+
+      setRenderedRouteSegments(segments);
+      setShowRouteLayer(segments.length > 0);
+      setRoutePolylineMountKey((k) => k + 1);
 
       if ((options?.fitToRoute ?? true) && selectedCoords.length >= 2) {
         mapRef.current?.fitToCoordinates(selectedCoords, {
@@ -540,6 +550,28 @@ export default function CampusMap() {
   }, [ALL_BUILDINGS, focusedCampus, nav, showLocationAlert]);
 
   useEffect(() => {
+    if (!pendingTransitRender) return;
+    if (showRouteLayer) return;
+    if (renderedRouteSegments.length !== 0) return;
+
+    setRenderedRouteSegments(pendingTransitRender.segments);
+    setShowRouteLayer(pendingTransitRender.segments.length > 0);
+    setRoutePolylineMountKey((k) => k + 1);
+
+    if (
+      pendingTransitRender.fitToRoute &&
+      pendingTransitRender.coords.length >= 2
+    ) {
+      mapRef.current?.fitToCoordinates(pendingTransitRender.coords, {
+        edgePadding: { top: 90, right: 70, bottom: 260, left: 70 },
+        animated: true,
+      });
+    }
+
+    setPendingTransitRender(null);
+  }, [pendingTransitRender, renderedRouteSegments, showRouteLayer]);
+
+  useEffect(() => {
     if (!destBuildingId) return;
 
     const targetBuilding = ALL_BUILDINGS.find((b) => b.id === destBuildingId);
@@ -567,7 +599,10 @@ export default function CampusMap() {
 
     if (!nav.isRouteMode || !start || !dest) {
       setTravelPopupVisible(false);
-      setAllRouteCoords([]);
+      setPendingTransitRender(null);
+      setShowRouteLayer(false);
+      setRenderedRouteSegments([]);
+      setRoutePolylineMountKey((k) => k + 1);
       return;
     }
 
@@ -642,25 +677,49 @@ export default function CampusMap() {
 
         const safeIndex = Math.max(0, fastestIndex);
         const selectedRoute = next[bestMode][safeIndex];
-        const selectedCoords = selectedRoute
-          ? decodePolyline(selectedRoute.polyline)
+        const selectedSegments = selectedRoute
+          ? buildRouteRenderSegments(bestMode, selectedRoute)
           : [];
+        const selectedCoords = flattenRouteSegmentCoordinates(selectedSegments);
 
         setSelectedMode(bestMode);
         setSelectedRouteIndex(safeIndex);
-        setAllRouteCoords(selectedCoords.length > 0 ? [selectedCoords] : []);
         setTravelPopupVisible(true);
+
+        if (bestMode === "transit") {
+          setShowRouteLayer(false);
+          setRenderedRouteSegments([]);
+          setRoutePolylineMountKey((k) => k + 1);
+          setPendingTransitRender({
+            segments: selectedSegments,
+            coords: selectedCoords,
+            fitToRoute: true,
+          });
+          return;
+        }
+
+        setRenderedRouteSegments(selectedSegments);
+        setShowRouteLayer(selectedSegments.length > 0);
+        setRoutePolylineMountKey((k) => k + 1);
 
         if (selectedCoords.length >= 2) {
           mapRef.current?.fitToCoordinates(selectedCoords, {
-            edgePadding: { top: 90, right: 70, bottom: 260, left: 70 },
+            edgePadding: {
+              top: 90,
+              right: 70,
+              bottom: 260,
+              left: 70,
+            },
             animated: true,
           });
         }
       } catch (e) {
         if (!cancelled) {
           setTravelPopupVisible(false);
-          setAllRouteCoords([]);
+          setPendingTransitRender(null);
+          setShowRouteLayer(false);
+          setRenderedRouteSegments([]);
+          setRoutePolylineMountKey((k) => k + 1);
           setDirectionsError(toDirectionsErrorMessage(e));
         }
       }
@@ -670,6 +729,7 @@ export default function CampusMap() {
 
     return () => {
       cancelled = true;
+      setPendingTransitRender(null);
     };
   }, [
     nav.isRouteMode,
@@ -940,15 +1000,14 @@ export default function CampusMap() {
           <LocationMarker location={userLocation} />
         )}
 
-        {allRouteCoords.map((coords, index) => (
-          <RouteStroke
-            key={`${selectedMode}-${selectedRouteIndex}-${index}`}
-            mode={selectedMode}
-            coords={coords}
+        {showRouteLayer && renderedRouteSegments.length > 0 && (
+          <RoutePolylines
+            key={`route-polylines-${routePolylineMountKey}`}
+            segments={renderedRouteSegments}
             onPress={() => applySelection(selectedMode, selectedRouteIndex)}
             strokeWidth={routeStrokeWidth}
           />
-        ))}
+        )}
 
         {nav.routeStart && (
           <Marker
