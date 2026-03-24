@@ -1,0 +1,187 @@
+# User story: shortest indoor path between start and destination on the indoor map.
+# Covers: valid room selection, automatic path calculation, route visibility hook,
+# recalculation when destination changes, floor/map controls still usable.
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Welcome -> Guest (same entry as other campus flows)
+- runFlow:
+    when:
+      visible:
+        id: "guest-sign-in-button"
+    commands:
+      - tapOn:
+          id: "guest-sign-in-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+- tapOn:
+    id: "searchInput"
+- eraseText
+- inputText: "Henry"
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "suggestion-SGW-SGW-H"
+- waitForAnimationToEnd
+- hideKeyboard
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoorMapButton"
+    timeout: 20000
+- tapOn:
+    id: "indoorMapButton"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoor-floor-selector"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "indoorRouteStartInput"
+    timeout: 30000
+
+- tapOn:
+    id: "indoor-floor-8"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 8"
+    timeout: 10000
+
+- tapOn:
+    id: "indoorRouteStartInput"
+- eraseText
+- inputText: "H-867"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-suggestions"
+    timeout: 8000
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F8_room_291"
+    timeout: 8000
+- tapOn:
+    id: "indoorSuggestion-Hall_F8_room_291"
+- hideKeyboard
+- waitForAnimationToEnd
+- assertVisible:
+    id: "clearIndoorStart"
+
+- tapOn:
+    id: "indoorRouteDestInput"
+- eraseText
+- inputText: "H-865"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F8_room_292"
+    timeout: 8000
+- tapOn:
+    id: "indoorSuggestion-Hall_F8_room_292"
+- hideKeyboard
+- waitForAnimationToEnd
+- assertVisible:
+    id: "clearIndoorDestination"
+
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-calculated"
+    timeout: 10000
+
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "indoor-floor-2"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 2"
+    timeout: 10000
+- hideKeyboard
+- waitForAnimationToEnd
+- tapOn:
+    id: "indoor-floor-8"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 8"
+    timeout: 10000
+
+- hideKeyboard
+- waitForAnimationToEnd
+- tapOn:
+    id: "clearIndoorDestination"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible:
+      id: "indoor-route-calculated"
+    timeout: 8000
+
+- tapOn:
+    id: "indoorRouteDestInput"
+- eraseText
+- inputText: "H-863"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F8_room_294"
+    timeout: 8000
+- tapOn:
+    id: "indoorSuggestion-Hall_F8_room_294"
+- hideKeyboard
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-calculated"
+    timeout: 10000
+
+- tapOn:
+    id: "clearIndoorStart"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible:
+      id: "indoor-route-calculated"
+    timeout: 8000
+
+- tapOn:
+    id: "indoorRouteStartInput"
+- eraseText
+- inputText: "H-865"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F8_room_292"
+    timeout: 8000
+- tapOn:
+    id: "indoorSuggestion-Hall_F8_room_292"
+- hideKeyboard
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-calculated"
+    timeout: 10000
