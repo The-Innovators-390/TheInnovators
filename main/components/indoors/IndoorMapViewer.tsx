@@ -25,6 +25,7 @@ interface IndoorMapViewerProps {
   nodes: IndoorNode[];
   edges: IndoorEdge[];
   path?: IndoorNode[];
+  currentFloor: number;
 }
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
@@ -35,6 +36,7 @@ export default function IndoorMapViewer({
   nodes,
   edges,
   path = [],
+  currentFloor,
 }: Readonly<IndoorMapViewerProps>) {
   const { width, height } = useWindowDimensions();
   const availableHeight = height - INDOOR_LAYOUT.AVAILABLE_HEIGHT_OFFSET;
@@ -93,17 +95,21 @@ export default function IndoorMapViewer({
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
 
+  const floorPath = useMemo(() => {
+    return path.filter((node) => node.floor === currentFloor);
+  }, [path, currentFloor]);
+
   const pathPoints = useMemo(() => {
-    if (!path || path.length < 2) {
-      return null;
+    if (!floorPath || floorPath.length < 2) {
+      return "";
     }
 
-    return path
+    return floorPath
       .map(
         (node) => `${node.x * layoutInfo.scale},${node.y * layoutInfo.scale}`,
       )
       .join(" ");
-  }, [path, layoutInfo.scale]);
+  }, [floorPath, layoutInfo.scale]);
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
@@ -173,7 +179,7 @@ export default function IndoorMapViewer({
                 width={layoutInfo.renderedWidth}
                 height={layoutInfo.renderedHeight}
               >
-                {pathPoints !== null && (
+                {pathPoints.length > 0 && (
                   <Polyline
                     points={pathPoints}
                     fill="none"
