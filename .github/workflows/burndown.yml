@@ -6,15 +6,15 @@ on:
       sprint_name:
         description: "Sprint field value"
         required: true
-        default: "Sprint 5"
+        default: "Sprint 6"
       sprint_start:
         description: "Sprint start date (YYYY-MM-DD)"
         required: true
-        default: "2026-03-08"
+        default: "2026-03-22"
       sprint_end:
         description: "Sprint end date (YYYY-MM-DD)"
         required: true
-        default: "2026-03-22"
+        default: "2026-04-05"
 
   schedule:
     - cron: "0 3 * * *"
@@ -33,7 +33,7 @@ jobs:
       STATUS_FIELD_NAME: "Status"
       DONE_STATUS_NAME: "Closed"
       SPRINT_FIELD_NAME: "Sprint"
-      INITIAL_POINTS: "110"
+      INITIAL_POINTS: "121"
 
     steps:
       - name: Checkout
@@ -132,7 +132,6 @@ jobs:
           DONE = os.environ["DONE_STATUS_NAME"]
           SPRINT = os.environ["SPRINT_FIELD_NAME"]
           SPRINT_NAME = os.environ["SPRINT_NAME"]
-          INITIAL_POINTS: "110"
 
           remaining = 0.0
 
