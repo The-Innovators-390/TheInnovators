@@ -145,14 +145,14 @@ appId: com.theinnovators.campusguide
 - tapOn:
     id: "indoorRouteDestInput"
 - eraseText
-- inputText: "H-863"
+- inputText: "H-833"
 - hideKeyboard
 - extendedWaitUntil:
     visible:
-      id: "indoorSuggestion-Hall_F8_room_294"
+      id: "indoorSuggestion-Hall_F8_room_311"
     timeout: 8000
 - tapOn:
-    id: "indoorSuggestion-Hall_F8_room_294"
+    id: "indoorSuggestion-Hall_F8_room_311"
 - hideKeyboard
 - waitForAnimationToEnd
 - extendedWaitUntil:
