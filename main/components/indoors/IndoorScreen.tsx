@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBackButton } from "../ui/HeaderBackButton";
 import { indoorData } from "./indoorData";
@@ -170,6 +170,7 @@ export default function IndoorScreen({
       setDestinationNode(node);
       setDestText(node.label ?? "");
     }
+    Keyboard.dismiss(); // dismiss keyboard after picking a node
   }
 
   const routeFloors = useMemo(() => {
@@ -244,6 +245,14 @@ export default function IndoorScreen({
           suggestions={suggestions}
           onPick={handlePickIndoorNode}
         />
+        {routeResult != null && routeResult.path.length > 0 ? (
+          <Text
+            testID="indoor-route-calculated"
+            style={styles.hiddenRouteTestHook}
+          >
+            {routeResult.path.length}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.content}>
         <IndoorMapViewer
@@ -323,6 +332,18 @@ const styles = StyleSheet.create({
     color: "transparent",
     textAlign: "center",
     marginTop: 1,
+  },
+  // Match hiddenFloorTestHook: avoid opacity:0 so Maestro/iOS still treat the node as visible
+  hiddenRouteTestHook: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    right: 0,
+    bottom: 0,
+    overflow: "hidden",
+    fontSize: 1,
+    lineHeight: 1,
+    color: "transparent",
   },
   routePanelContainer: {
     paddingHorizontal: 12,
