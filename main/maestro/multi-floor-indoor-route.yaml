@@ -16,6 +16,7 @@ appId: com.theinnovators.campusguide
       id: "campusMap-root"
     timeout: 30000
 
+# Open Hall
 - tapOn:
     id: "searchInput"
 - eraseText
@@ -32,6 +33,7 @@ appId: com.theinnovators.campusguide
 - hideKeyboard
 - waitForAnimationToEnd
 
+# Open indoor map
 - extendedWaitUntil:
     visible: "Indoor Map"
     timeout: 20000
@@ -42,59 +44,59 @@ appId: com.theinnovators.campusguide
       id: "indoor-floor-selector"
     timeout: 10000
 
-# Start room
+# Start: H-131-1
+- tapOn:
+    id: "indoorRouteStartRow"
 - tapOn:
     id: "indoorRouteStartInput"
 - eraseText
-- inputText: "H-131"
+- inputText: "H-131-1"
 
 - extendedWaitUntil:
-    visible: "H-131"
+    visible:
+      id: "indoorSuggestion-Hall_F1_room_45"
     timeout: 10000
-- tapOn: "H-131"
+- tapOn:
+    id: "indoorSuggestion-Hall_F1_room_45"
 - waitForAnimationToEnd
 
-# Destination room
+# Destination: H-867
+- tapOn:
+    id: "indoorRouteDestRow"
 - tapOn:
     id: "indoorRouteDestInput"
 - eraseText
-- inputText: "H-231"
-
-- extendedWaitUntil:
-    visible: "H-231"
-    timeout: 10000
-- tapOn: "H-231"
-
-# Dismiss active editing state by tapping non-input text
-- tapOn: "Henry F. Hall Building"
-- waitForAnimationToEnd
-
-# Confirm still on indoor map
-- assertVisible:
-    id: "indoor-floor-selector"
-
-# Switch to floor 2
-- tapOn:
-    id: "indoor-floor-2"
-- waitForAnimationToEnd
+- inputText: "H-867"
 
 - extendedWaitUntil:
     visible:
-      id: "indoor-current-floor"
+      id: "indoorSuggestion-Hall_F8_room_291"
     timeout: 10000
+- tapOn:
+    id: "indoorSuggestion-Hall_F8_room_291"
+- waitForAnimationToEnd
 
+# Dismiss keyboard explicitly
+- pressKey: Enter
+- waitForAnimationToEnd
+- pressKey: Enter
+- waitForAnimationToEnd
+
+# Verify route exists
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-calculated"
+    timeout: 20000
+
+# Route persists across floor switches
+- tapOn:
+    id: "indoor-floor-8"
+- waitForAnimationToEnd
 - assertVisible:
-    id: "indoor-floor-selector"
+    id: "indoor-route-calculated"
 
-# Switch back to floor 1
 - tapOn:
     id: "indoor-floor-1"
 - waitForAnimationToEnd
-
-- extendedWaitUntil:
-    visible:
-      id: "indoor-current-floor"
-    timeout: 10000
-
 - assertVisible:
-    id: "indoor-floor-selector"
+    id: "indoor-route-calculated"
