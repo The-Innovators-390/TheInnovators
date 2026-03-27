@@ -49,6 +49,10 @@ export type DirectionStep = {
   durationText: string;
   start: LatLng;
   end: LatLng;
+  travelMode?: string;
+  polyline?: string;
+  transitLineName?: string;
+  transitVehicleType?: string;
 };
 
 /**

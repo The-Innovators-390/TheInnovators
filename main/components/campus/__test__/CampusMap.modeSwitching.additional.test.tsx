@@ -230,14 +230,14 @@ jest.mock("react-native-maps", () => {
   (MockMapView as any).displayName = "MockMapView";
 
   const MockPolyline = (props: any) => {
+    const strokeColor = String(props.strokeColor ?? "").toLowerCase();
+    const isDashed = Array.isArray(props.lineDashPattern);
+
     let testID = "polyline";
 
-    if (
-      props.strokeColor === "#4286f5" &&
-      Array.isArray(props.lineDashPattern)
-    ) {
+    if (strokeColor === "#4286f5" && isDashed) {
       testID = "selected-dashed-route";
-    } else if (props.strokeColor === "#4286f5") {
+    } else if (strokeColor === "#4286f5" && !isDashed) {
       testID = "selected-solid-route";
     }
 
@@ -256,6 +256,7 @@ jest.mock("react-native-maps", () => {
 jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(() => ({})),
 }));
+
 import CampusMap from "@/components/campus/CampusMap";
 
 function makeRoute(polyline: string, durationSec = 300) {

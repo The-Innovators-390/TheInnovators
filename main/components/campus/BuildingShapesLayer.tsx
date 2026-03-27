@@ -44,11 +44,36 @@ const USER_LOCATION_COLOR = {
   fill: "rgba(97, 151, 251, 0.35)",
 };
 
-/**
- * Render-only layer: draws building polygons + code markers.
- * - Prevents duplicating rendering logic across campuses/screens
- * - Keeps CampusMap focused on layout + interaction flow (search/selection/camera)
- */
+function getBuildingStyle(
+  building: Building,
+  selectedBuildingId: string | null,
+  userLocationBuildingId: string | null,
+) {
+  const isSelected = selectedBuildingId === building.id;
+  const isUserLocation = userLocationBuildingId === building.id;
+  const colors = CAMPUS_COLORS[building.campus];
+
+  let fillColor = colors.fill;
+  let strokeColor = colors.stroke;
+  let strokeWidth = 2;
+
+  if (isUserLocation) {
+    fillColor = USER_LOCATION_COLOR.fill;
+    strokeColor = USER_LOCATION_COLOR.stroke;
+    strokeWidth = 3;
+  } else if (isSelected) {
+    fillColor = colors.fillSelected;
+    strokeWidth = 3;
+  }
+
+  return {
+    colors,
+    fillColor,
+    strokeColor,
+    strokeWidth,
+  };
+}
+
 export default function BuildingShapesLayer({
   buildings,
   selectedBuildingId,
@@ -56,66 +81,63 @@ export default function BuildingShapesLayer({
   onPickBuilding,
   region,
 }: Readonly<Props>) {
+  const polygonBuildings = buildings.filter((b) => b.polygon?.length);
+  const labelBuildings = buildings.filter((b) =>
+    shouldShowBuildingLabel(b, region),
+  );
+
   return (
     <>
-      {buildings.map((b) => {
-        const isSelected = selectedBuildingId === b.id;
-        const isUserLocation = userLocationBuildingId === b.id;
-        const colors = CAMPUS_COLORS[b.campus];
-        const showLabel = shouldShowBuildingLabel(b, region);
-
-        // Determine fill and stroke colors based on state
-        let fillColor = colors.fill;
-        let strokeColor = colors.stroke;
-        let strokeWidth = 2;
-
-        if (isUserLocation) {
-          fillColor = USER_LOCATION_COLOR.fill;
-          strokeColor = USER_LOCATION_COLOR.stroke;
-          strokeWidth = 3;
-        } else if (isSelected) {
-          fillColor = colors.fillSelected;
-          strokeWidth = 3;
-        }
+      {polygonBuildings.map((b) => {
+        const { fillColor, strokeColor, strokeWidth } = getBuildingStyle(
+          b,
+          selectedBuildingId,
+          userLocationBuildingId,
+        );
 
         return (
-          <React.Fragment key={`${b.campus}-${b.id}`}>
-            {b.polygon?.length ? (
-              <Polygon
-                key={`${b.campus}-${b.id}-${fillColor}-${strokeColor}`}
-                coordinates={b.polygon}
-                tappable
-                onPress={() => onPickBuilding(b)}
-                strokeColor={strokeColor}
-                strokeWidth={strokeWidth}
-                fillColor={fillColor}
-              />
-            ) : null}
+          <Polygon
+            key={`polygon-${b.campus}-${b.id}`}
+            coordinates={b.polygon}
+            tappable
+            onPress={() => onPickBuilding(b)}
+            strokeColor={strokeColor}
+            strokeWidth={strokeWidth}
+            fillColor={fillColor}
+          />
+        );
+      })}
 
-            {showLabel ? (
-              <Marker
-                coordinate={{ latitude: b.latitude, longitude: b.longitude }}
-                onPress={() => onPickBuilding(b)}
-                tracksViewChanges={isSelected}
-                accessibilityLabel={`${b.code} ${b.name}`}
-              >
-                <View
-                  accessible
-                  accessibilityRole="button"
-                  testID={`building-marker-${b.campus}-${b.id}`}
-                  style={[
-                    s.codeCircle,
-                    {
-                      backgroundColor: colors.labelBg,
-                      borderColor: colors.labelBorder,
-                    },
-                  ]}
-                >
-                  <Text style={s.codeText}>{b.code}</Text>
-                </View>
-              </Marker>
-            ) : null}
-          </React.Fragment>
+      {labelBuildings.map((b) => {
+        const { colors } = getBuildingStyle(
+          b,
+          selectedBuildingId,
+          userLocationBuildingId,
+        );
+
+        return (
+          <Marker
+            key={`marker-${b.campus}-${b.id}`}
+            coordinate={{ latitude: b.latitude, longitude: b.longitude }}
+            onPress={() => onPickBuilding(b)}
+            tracksViewChanges={false}
+            accessibilityLabel={`${b.code} ${b.name}`}
+          >
+            <View
+              accessible
+              accessibilityRole="button"
+              testID={`building-marker-${b.campus}-${b.id}`}
+              style={[
+                s.codeCircle,
+                {
+                  backgroundColor: colors.labelBg,
+                  borderColor: colors.labelBorder,
+                },
+              ]}
+            >
+              <Text style={s.codeText}>{b.code}</Text>
+            </View>
+          </Marker>
         );
       })}
     </>
