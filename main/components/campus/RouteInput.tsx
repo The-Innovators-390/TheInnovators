@@ -17,6 +17,7 @@ type Props = {
   onClearStart: () => void;
   onClearDestination: () => void;
   onUseMyLocation?: () => void;
+  disabilityMode?: boolean;
 };
 
 export default function RouteInput({
@@ -33,6 +34,7 @@ export default function RouteInput({
   onClearStart,
   onClearDestination,
   onUseMyLocation,
+  disabilityMode = false,
 }: Readonly<Props>) {
   let startValue = startText;
 
@@ -46,7 +48,7 @@ export default function RouteInput({
     : destText;
 
   return (
-    <View style={s.card} testID="routeCard">
+    <View style={[s.card, disabilityMode && s.cardDisability]} testID="routeCard">
       <View style={s.rail} pointerEvents="none">
         <MaterialIcons name="radio-button-checked" size={14} color="#111" />
         <View style={s.dots} />
@@ -56,7 +58,11 @@ export default function RouteInput({
       <View style={s.inputs}>
         <Pressable
           onPress={() => onFocusField("start")}
-          style={[s.inputRow, activeField === "start" && s.inputRowActive]}
+          style={[
+            s.inputRow,
+            disabilityMode && s.inputRowDisability,
+            activeField === "start" && s.inputRowActive,
+          ]}
           testID="routeStartRow"
         >
           <View style={s.inputWrapper}>
@@ -124,6 +130,7 @@ export default function RouteInput({
           onPress={() => onFocusField("destination")}
           style={[
             s.inputRow,
+            disabilityMode && s.inputRowDisability,
             activeField === "destination" && s.inputRowActive,
           ]}
           testID="routeDestRow"
@@ -198,6 +205,9 @@ const s = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
   },
+  cardDisability: {
+    backgroundColor: "#1E90FF",
+  },
 
   rail: {
     width: 18,
@@ -224,9 +234,14 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: "rgba(17,17,17,0.04)",
   },
+  inputRowDisability: {
+    backgroundColor: "rgba(248,250,252,0.92)",
+  },
 
   inputRowActive: {
-    backgroundColor: "rgba(17,17,17,0.07)",
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#8B5CF6",
   },
 
   inputWrapper: {

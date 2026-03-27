@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   Pressable,
+  Image,
   Keyboard,
   Platform,
   StyleSheet,
@@ -22,6 +23,7 @@ import {
   LocationError,
 } from "@/components/campus/helper_methods/locationUtils";
 import { StatusBar } from "expo-status-bar";
+import { MaterialIcons } from "@expo/vector-icons";
 import { SGW_BUILDINGS } from "@/components/Buildings/SGW/SGWBuildings";
 import { LOYOLA_BUILDINGS } from "@/components/Buildings/Loyola/LoyolaBuildings";
 import {
@@ -193,6 +195,7 @@ export default function CampusMap() {
 
   const [startText, setStartText] = useState("");
   const [destText, setDestText] = useState("");
+  const [isDisabilityMode, setIsDisabilityMode] = useState(false);
   const [popupIndex, setPopupIndex] = useState(-1);
 
   const [directionsError, setDirectionsError] = useState<string | null>(null);
@@ -1183,6 +1186,7 @@ export default function CampusMap() {
                   clearDisplayedRoutes();
                 }}
                 onUseMyLocation={setStartToCurrentLocation}
+                disabilityMode={isDisabilityMode}
               />
             </View>
 
@@ -1212,6 +1216,34 @@ export default function CampusMap() {
 
           <View style={[floatingStyles.container, { bottom: floatingBottom }]}>
             <CurrentLocationButton onLocationFound={handleLocationFound} />
+
+            {nav.isRouteMode && !routeNavigation.isNavigating && (
+              <Pressable
+                testID="accessibleRouteButton"
+                style={floatingStyles.accessibilityButton}
+                accessibilityRole="button"
+                accessibilityLabel="Accessibility routes"
+                accessibilityState={{ selected: isDisabilityMode }}
+                onPress={() => setIsDisabilityMode((prev) => !prev)}
+              >
+                {isDisabilityMode ? (
+                  <View style={floatingStyles.accessibilityButtonActive}>
+                    <MaterialIcons
+                      name="close"
+                      size={28}
+                      color="#FFFFFF"
+                      style={floatingStyles.accessibilityCloseIcon}
+                    />
+                  </View>
+                ) : (
+                  <Image
+                    source={require("@/assets/icons/accessibility-button.png")}
+                    style={floatingStyles.accessibilityIcon}
+                    resizeMode="cover"
+                  />
+                )}
+              </Pressable>
+            )}
 
             {!routeNavigation.isNavigating && (
               <RoutePlanner
@@ -1348,10 +1380,39 @@ const floatingStyles = StyleSheet.create({
   container: {
     position: "absolute",
     right: 16,
-    gap: 30,
+    gap: 20,
     alignItems: "center",
     zIndex: 999,
     elevation: 999,
+  },
+  accessibilityButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  accessibilityButtonActive: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#1E90FF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  accessibilityCloseIcon: {
+    textAlign: "center",
+  },
+  accessibilityIcon: {
+    width: 64,
+    height: 64,
   },
 });
 
