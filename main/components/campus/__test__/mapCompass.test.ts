@@ -5,69 +5,82 @@ describe("resetMapDirectionToNorth", () => {
   it("does nothing when mapRef.current is null", () => {
     const mapRef = { current: null };
 
-    expect(() =>
-      resetMapDirectionToNorth(mapRef as any, {
-        latitude: 45.5,
-        longitude: -73.5,
-      }),
-    ).not.toThrow();
+    expect(() => resetMapDirectionToNorth(mapRef as any, 500)).not.toThrow();
   });
 
-  it("does nothing when animateCamera is missing", () => {
+  it("does nothing when getCamera is missing", () => {
     const mapRef = {
       current: {},
     };
 
-    expect(() =>
-      resetMapDirectionToNorth(mapRef as any, {
-        latitude: 45.5,
-        longitude: -73.5,
-      }),
-    ).not.toThrow();
-  });
-
-  it("animates camera to north with provided center and duration", () => {
-    const animateCamera = jest.fn();
-    const mapRef = {
-      current: {
-        animateCamera,
-      },
-    };
-
-    resetMapDirectionToNorth(
-      mapRef as any,
-      { latitude: 45.497, longitude: -73.579 },
-      500,
-    );
-
-    expect(animateCamera).toHaveBeenCalledTimes(1);
-    expect(animateCamera).toHaveBeenCalledWith(
-      {
-        center: { latitude: 45.497, longitude: -73.579 },
-        heading: 0,
-        pitch: 0,
-      },
-      { duration: 500 },
+    expect(() => resetMapDirectionToNorth(mapRef as any, 500)).toThrow(
+      "map.getCamera is not a function",
     );
   });
 
-  it("uses default duration when not provided", () => {
+  it("animates camera to north with default duration when no duration is provided", async () => {
     const animateCamera = jest.fn();
+    const getCamera = jest.fn().mockResolvedValue({
+      center: { latitude: 45.497, longitude: -73.579 },
+      heading: 123,
+      pitch: 10,
+      zoom: 15,
+    });
+
     const mapRef = {
       current: {
+        getCamera,
         animateCamera,
       },
     };
 
     resetMapDirectionToNorth(mapRef as any);
 
+    await Promise.resolve();
+
+    expect(getCamera).toHaveBeenCalledTimes(1);
+    expect(animateCamera).toHaveBeenCalledTimes(1);
     expect(animateCamera).toHaveBeenCalledWith(
       {
-        center: undefined,
+        center: { latitude: 45.497, longitude: -73.579 },
         heading: 0,
-        pitch: 0,
+        pitch: 10,
+        zoom: 15,
       },
       { duration: 350 },
+    );
+  });
+
+  it("animates camera to north with provided duration", async () => {
+    const animateCamera = jest.fn();
+    const getCamera = jest.fn().mockResolvedValue({
+      center: { latitude: 45.5, longitude: -73.5 },
+      heading: 80,
+      pitch: 0,
+      altitude: 1000,
+    });
+
+    const mapRef = {
+      current: {
+        getCamera,
+        animateCamera,
+      },
+    };
+
+    resetMapDirectionToNorth(mapRef as any, 500);
+
+    await Promise.resolve();
+
+    expect(getCamera).toHaveBeenCalledTimes(1);
+    expect(animateCamera).toHaveBeenCalledTimes(1);
+    expect(animateCamera).toHaveBeenCalledWith(
+      {
+        center: { latitude: 45.5, longitude: -73.5 },
+        heading: 0,
+        pitch: 0,
+        altitude: 1000,
+      },
+      { duration: 500 },
     );
   });
 });

@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  useState,
+} from "react";
 import {
   View,
   Text,
@@ -6,6 +12,8 @@ import {
   StyleSheet,
   Image,
   useWindowDimensions,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import BottomSheet, {
@@ -27,6 +35,55 @@ type Props = {
   onGetDirections: (destination: Building) => void;
 };
 
+type PopupTheme = {
+  brand: string;
+  brandSoft: string;
+  cardBorder: string;
+  revealingBorder: string;
+  icon: string;
+  closeBg: string;
+};
+
+type IconRowProps = {
+  iconKey: keyof typeof BUILDING_ICONS;
+  title: string;
+  description?: string;
+};
+
+type SimpleRowProps = {
+  iconKey: keyof typeof BUILDING_ICONS;
+  title?: string;
+  description?: string;
+};
+
+function IconRow({ iconKey, title, description }: Readonly<IconRowProps>) {
+  return (
+    <View style={styles.iconRow}>
+      <Image source={BUILDING_ICONS[iconKey]} style={styles.rowIcon} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        {!!description && <Text style={styles.rowDesc}>{description}</Text>}
+      </View>
+    </View>
+  );
+}
+
+function SimpleRow({ iconKey, title, description }: Readonly<SimpleRowProps>) {
+  if (!title && !description) return null;
+
+  return (
+    <IconRow
+      iconKey={iconKey}
+      title={title ?? ""}
+      description={description ?? ""}
+    />
+  );
+}
+
+function getEntryKey(entry: { title?: string; description?: string }) {
+  return `${entry.title ?? "entry"}-${entry.description ?? "details"}`;
+}
+
 export default function BuildingPopup({
   building,
   campusTheme,
@@ -35,11 +92,12 @@ export default function BuildingPopup({
   onGetDirections,
 }: Readonly<Props>) {
   const sheetRef = useRef<BottomSheet>(null);
+  const [isImageOverlayVisible, setIsImageOverlayVisible] = useState(false);
 
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const theme =
+  const theme: PopupTheme =
     campusTheme === "SGW"
       ? {
           brand: "#912338",
@@ -47,6 +105,7 @@ export default function BuildingPopup({
           cardBorder: "rgba(145,35,56,0.25)",
           revealingBorder: "rgba(145,35,56,0.20)",
           icon: "#912338",
+          closeBg: "rgba(145,35,56,0.14)",
         }
       : {
           brand: "#E0B100",
@@ -54,6 +113,7 @@ export default function BuildingPopup({
           cardBorder: "rgba(224,177,0,0.25)",
           revealingBorder: "rgba(224,177,0,0.20)",
           icon: "#E0B100",
+          closeBg: "rgba(224,177,0,0.18)",
         };
 
   const snapPoints = useMemo(() => {
@@ -71,8 +131,17 @@ export default function BuildingPopup({
     sheetRef.current?.close();
   }, []);
 
+  const openImageOverlay = useCallback(() => {
+    setIsImageOverlayVisible(true);
+  }, []);
+
+  const closeImageOverlay = useCallback(() => {
+    setIsImageOverlayVisible(false);
+  }, []);
+
   useEffect(() => {
     sheetRef.current?.snapToIndex(0);
+    setIsImageOverlayVisible(false);
   }, [building?.id]);
 
   const thumbSource = BUILDING_IMAGES[building.code];
@@ -93,8 +162,10 @@ export default function BuildingPopup({
           <Pressable
             onPress={closeSheet}
             hitSlop={14}
-            style={styles.handleCloseBtn}
+            style={[styles.handleCloseBtn, { backgroundColor: theme.closeBg }]}
             testID="buildingPopup-close"
+            accessibilityRole="button"
+            accessibilityLabel="Close building popup"
           >
             <Text style={[styles.handleCloseText, { color: theme.icon }]}>
               ✕
@@ -103,269 +174,284 @@ export default function BuildingPopup({
         </View>
       );
     },
-    [expandSheet, closeSheet, theme.icon],
+    [expandSheet, closeSheet, theme.closeBg, theme.icon],
   );
-
-  const IconRow = ({
-    iconKey,
-    title,
-    description,
-  }: {
-    iconKey: keyof typeof BUILDING_ICONS;
-    title: string;
-    description?: string;
-  }) => (
-    <View style={styles.iconRow}>
-      <Image source={BUILDING_ICONS[iconKey]} style={styles.rowIcon} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {!!description && <Text style={styles.rowDesc}>{description}</Text>}
-      </View>
-    </View>
-  );
-
-  const SimpleRow = ({
-    iconKey,
-    title,
-    description,
-  }: {
-    iconKey: keyof typeof BUILDING_ICONS;
-    title?: string;
-    description?: string;
-  }) => {
-    if (!title && !description) return null;
-    return (
-      <IconRow
-        iconKey={iconKey}
-        title={title ?? ""}
-        description={description ?? ""}
-      />
-    );
-  };
 
   const hasAccessibility =
     Array.isArray(details?.accessibility) && details.accessibility.length > 0;
 
   return (
-    <BottomSheet
-      ref={sheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      onClose={onClose}
-      onChange={(index) => onSheetChange?.(index)}
-      handleComponent={Handle}
-      topInset={insets.top - 6}
-      backgroundStyle={[
-        styles.sheetBackground,
-        { borderColor: theme.cardBorder },
-      ]}
-    >
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <BuildingPin
-            code={building.code}
-            campus={campusTheme}
-            size={46}
-            variant="popup"
-          />
-
-          <View style={styles.textBlock}>
-            <Text style={styles.title} numberOfLines={1}>
-              {building.name}
-            </Text>
-            <Text style={styles.sub} numberOfLines={1}>
-              {building.address}
-            </Text>
-
-            <Pressable
-              onPress={() => onGetDirections(building)}
-              style={[styles.directionsBtn, { borderColor: theme.cardBorder }]}
-              testID="directionsButton"
-            >
-              <Text style={[styles.directionsText, { color: theme.brand }]}>
-                Get Directions
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: "/indoor",
-                  params: { building: building.code },
-                })
-              }
-              style={[styles.directionsBtn, { borderColor: theme.cardBorder }]}
-              testID="indoorMapButton"
-            >
-              <Text style={[styles.directionsText, { color: theme.brand }]}>
-                Indoor Map
-              </Text>
-            </Pressable>
-          </View>
-
-          {thumbSource ? (
-            <Image source={thumbSource} style={styles.thumb} />
-          ) : (
-            <View style={[styles.thumb, styles.thumbPlaceholder]} />
-          )}
-        </View>
-      </View>
-
-      <BottomSheetScrollView
-        contentContainerStyle={[styles.content, styles.hiddenAtFirst]}
-        showsVerticalScrollIndicator={false}
+    <>
+      <BottomSheet
+        ref={sheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        enablePanDownToClose
+        onClose={onClose}
+        onChange={(index) => onSheetChange?.(index)}
+        handleComponent={Handle}
+        topInset={insets.top - 6}
+        backgroundStyle={[
+          styles.sheetBackground,
+          { borderColor: theme.cardBorder },
+        ]}
       >
-        {details ? (
-          <>
-            {/* Building Accessibility */}
-            <View style={styles.card}>
-              <Text style={styles.cardHeader}>Building Accessibility</Text>
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <BuildingPin
+              code={building.code}
+              campus={campusTheme}
+              size={46}
+              variant="popup"
+            />
 
-              {hasAccessibility ? (
-                details.accessibility!.map((item) => (
-                  <IconRow
-                    key={item.title}
-                    iconKey={item.icon as keyof typeof BUILDING_ICONS}
-                    title={item.title}
-                    description={item.description}
-                  />
-                ))
-              ) : (
-                <View
-                  style={[
-                    styles.messageBox,
-                    { borderColor: theme.revealingBorder },
-                  ]}
-                >
-                  <Text style={styles.messageText}>
-                    This building is not accessible. It is not equipped with an
-                    accessibility ramp, automated door, elevator or wheelchair
-                    lift.
-                  </Text>
-                </View>
-              )}
+            <View style={styles.textBlock}>
+              <Text style={styles.title} numberOfLines={1}>
+                {building.name}
+              </Text>
+              <Text style={styles.sub} numberOfLines={1}>
+                {building.address}
+              </Text>
+
+              <Pressable
+                onPress={() => onGetDirections(building)}
+                style={[
+                  styles.directionsBtn,
+                  { borderColor: theme.cardBorder },
+                ]}
+                testID="directionsButton"
+              >
+                <Text style={[styles.directionsText, { color: theme.brand }]}>
+                  Get Directions
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/indoor",
+                    params: { building: building.code },
+                  })
+                }
+                style={[
+                  styles.directionsBtn,
+                  { borderColor: theme.cardBorder },
+                ]}
+                testID="indoorMapButton"
+              >
+                <Text style={[styles.directionsText, { color: theme.brand }]}>
+                  Indoor Map
+                </Text>
+              </Pressable>
             </View>
 
-            {/* Metro Accessibility (only if provided) */}
-            {!!details.metro && (
-              <View style={styles.card}>
-                <Text style={styles.cardHeader}>Metro Accessibility</Text>
-                <SimpleRow
-                  iconKey="metro"
-                  title={details.metro?.title}
-                  description={details.metro?.description}
-                />
-              </View>
+            {thumbSource ? (
+              <Pressable
+                onPress={openImageOverlay}
+                testID="buildingImageButton"
+                accessibilityRole="button"
+                accessibilityLabel="Open building image"
+                hitSlop={6}
+              >
+                <Image source={thumbSource} style={styles.thumb} />
+              </Pressable>
+            ) : (
+              <View style={[styles.thumb, styles.thumbPlaceholder]} />
             )}
+          </View>
+        </View>
 
-            {/* Building Connectivity (only if provided) */}
-            {!!details.connectivity && (
+        <BottomSheetScrollView
+          contentContainerStyle={[styles.content, styles.hiddenAtFirst]}
+          showsVerticalScrollIndicator={false}
+        >
+          {details ? (
+            <>
               <View style={styles.card}>
-                <Text style={styles.cardHeader}>Building Connectivity</Text>
-                <SimpleRow
-                  iconKey="connectedBuildings"
-                  title={details.connectivity?.title}
-                  description={details.connectivity?.description}
-                />
-              </View>
-            )}
+                <Text style={styles.cardHeader}>Building Accessibility</Text>
 
-            {/* Number of Entries (show if present and non-empty) */}
-            {Array.isArray(details.entries) && details.entries.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardHeader}>Number of Entries</Text>
-                {details.entries.map((e, idx) => (
-                  <SimpleRow
-                    key={`${e.title}-${idx}`}
-                    iconKey="entry"
-                    title={e.title}
-                    description={e.description}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Other Services (only if provided) */}
-            {Array.isArray(details.otherServices) &&
-              details.otherServices.length > 0 && (
-                <View style={styles.card}>
-                  <Text style={styles.cardHeader}>Other services</Text>
-                  {details.otherServices.map((item) => (
+                {hasAccessibility ? (
+                  details.accessibility!.map((item) => (
                     <IconRow
                       key={item.title}
                       iconKey={item.icon as keyof typeof BUILDING_ICONS}
                       title={item.title}
                       description={item.description}
                     />
+                  ))
+                ) : (
+                  <View
+                    style={[
+                      styles.messageBox,
+                      { borderColor: theme.revealingBorder },
+                    ]}
+                  >
+                    <Text style={styles.messageText}>
+                      This building is not accessible. It is not equipped with
+                      an accessibility ramp, automated door, elevator or
+                      wheelchair lift.
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {!!details.metro && (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeader}>Metro Accessibility</Text>
+                  <SimpleRow
+                    iconKey="metro"
+                    title={details.metro?.title}
+                    description={details.metro?.description}
+                  />
+                </View>
+              )}
+
+              {!!details.connectivity && (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeader}>Building Connectivity</Text>
+                  <SimpleRow
+                    iconKey="connectedBuildings"
+                    title={details.connectivity?.title}
+                    description={details.connectivity?.description}
+                  />
+                </View>
+              )}
+
+              {Array.isArray(details.entries) && details.entries.length > 0 && (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeader}>Number of Entries</Text>
+                  {details.entries.map((entry) => (
+                    <SimpleRow
+                      key={getEntryKey(entry)}
+                      iconKey="entry"
+                      title={entry.title}
+                      description={entry.description}
+                    />
                   ))}
                 </View>
               )}
 
-            {/* Building Overview (only if provided) */}
-            {Array.isArray(details.overview) && details.overview.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardHeader}>Building Overview</Text>
-                {details.overview.map((p, idx) => (
-                  <Text key={idx} style={styles.paragraph}>
-                    {p}
-                  </Text>
-                ))}
-              </View>
-            )}
-
-            {/* Venues */}
-            {Array.isArray(details.venues) && details.venues.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardHeader}>Venues</Text>
-                {details.venues.map((v) => (
-                  <View key={v} style={styles.bulletRow}>
-                    <Text style={styles.bullet}>•</Text>
-                    <Text style={styles.bulletText}>{v}</Text>
+              {Array.isArray(details.otherServices) &&
+                details.otherServices.length > 0 && (
+                  <View style={styles.card}>
+                    <Text style={styles.cardHeader}>Other services</Text>
+                    {details.otherServices.map((item) => (
+                      <IconRow
+                        key={item.title}
+                        iconKey={item.icon as keyof typeof BUILDING_ICONS}
+                        title={item.title}
+                        description={item.description}
+                      />
+                    ))}
                   </View>
-                ))}
-              </View>
-            )}
+                )}
 
-            {/* Departments */}
-            {Array.isArray(details.departments) &&
-              details.departments.length > 0 && (
+              {Array.isArray(details.overview) &&
+                details.overview.length > 0 && (
+                  <View style={styles.card}>
+                    <Text style={styles.cardHeader}>Building Overview</Text>
+                    {details.overview.map((p) => (
+                      <Text key={p} style={styles.paragraph}>
+                        {p}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+
+              {Array.isArray(details.venues) && details.venues.length > 0 && (
                 <View style={styles.card}>
-                  <Text style={styles.cardHeader}>Departments</Text>
-                  {details.departments.map((d) => (
-                    <View key={d} style={styles.bulletRow}>
+                  <Text style={styles.cardHeader}>Venues</Text>
+                  {details.venues.map((v) => (
+                    <View key={v} style={styles.bulletRow}>
                       <Text style={styles.bullet}>•</Text>
-                      <Text style={styles.bulletText}>{d}</Text>
+                      <Text style={styles.bulletText}>{v}</Text>
                     </View>
                   ))}
                 </View>
               )}
 
-            {/* Services */}
-            {Array.isArray(details.services) && details.services.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardHeader}>Services</Text>
-                {details.services.map((s) => (
-                  <View key={s} style={styles.bulletRow}>
-                    <Text style={styles.bullet}>•</Text>
-                    <Text style={styles.bulletText}>{s}</Text>
+              {Array.isArray(details.departments) &&
+                details.departments.length > 0 && (
+                  <View style={styles.card}>
+                    <Text style={styles.cardHeader}>Departments</Text>
+                    {details.departments.map((d) => (
+                      <View key={d} style={styles.bulletRow}>
+                        <Text style={styles.bullet}>•</Text>
+                        <Text style={styles.bulletText}>{d}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-            )}
-          </>
-        ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardHeader}>Details coming soon</Text>
-            <Text style={styles.cardText}>
-              We’ll add the expanded info for this building next.
-            </Text>
-          </View>
-        )}
+                )}
 
-        <View style={{ height: 32 }} />
-      </BottomSheetScrollView>
-    </BottomSheet>
+              {Array.isArray(details.services) &&
+                details.services.length > 0 && (
+                  <View style={styles.card}>
+                    <Text style={styles.cardHeader}>Services</Text>
+                    {details.services.map((s) => (
+                      <View key={s} style={styles.bulletRow}>
+                        <Text style={styles.bullet}>•</Text>
+                        <Text style={styles.bulletText}>{s}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+            </>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.cardHeader}>Details coming soon</Text>
+              <Text style={styles.cardText}>
+                We’ll add the expanded info for this building next.
+              </Text>
+            </View>
+          )}
+
+          <View style={{ height: 32 }} />
+        </BottomSheetScrollView>
+      </BottomSheet>
+
+      <Modal
+        visible={isImageOverlayVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeImageOverlay}
+      >
+        <View style={styles.overlayBackdrop}>
+          <Pressable
+            style={styles.overlayDismissArea}
+            onPress={closeImageOverlay}
+            testID="buildingImageOverlayBackdrop"
+          />
+
+          <ScrollView
+            style={styles.overlayScroll}
+            contentContainerStyle={styles.overlayScrollContent}
+            maximumZoomScale={3}
+            minimumZoomScale={1}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            bouncesZoom={false}
+            centerContent
+          >
+            <Pressable
+              onPress={closeImageOverlay}
+              testID="buildingImageOverlay"
+              accessibilityRole="button"
+              accessibilityLabel="Close building image"
+            >
+              {thumbSource ? (
+                <Image
+                  source={thumbSource}
+                  style={[
+                    styles.overlayImage,
+                    { width: windowWidth - 32, height: windowHeight * 0.52 },
+                  ]}
+                />
+              ) : null}
+            </Pressable>
+          </ScrollView>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -396,14 +482,19 @@ const styles = StyleSheet.create({
   },
   handleCloseBtn: {
     position: "absolute",
-    right: 12,
-    top: 2,
-    padding: 8,
+    right: 16,
+    top: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 10,
   },
   handleCloseText: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "900",
+    lineHeight: 24,
   },
 
   header: {
@@ -453,7 +544,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     resizeMode: "cover",
     overflow: "hidden",
-    marginTop: 6,
+    marginTop: 35,
+    marginRight: 8,
   },
   thumbPlaceholder: {
     backgroundColor: "rgba(0,0,0,0.10)",
@@ -552,5 +644,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     opacity: 0.9,
+  },
+
+  overlayBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.82)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayDismissArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlayScroll: {
+    flexGrow: 0,
+    maxWidth: "100%",
+  },
+  overlayScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  overlayImage: {
+    resizeMode: "contain",
+    borderRadius: 18,
   },
 });

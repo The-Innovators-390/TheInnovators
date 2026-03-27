@@ -58,8 +58,8 @@ function stripHtml(input: string): string {
   let out = "";
   let insideTag = false;
 
-  for (let i = 0; i < input.length; i++) {
-    const ch = input[i];
+  for (const element of input) {
+    const ch = element;
     if (ch === "<") {
       insideTag = true;
       continue;
@@ -72,7 +72,7 @@ function stripHtml(input: string): string {
     if (!insideTag) out += ch;
   }
 
-  return out.replace(/\s+/g, " ").trim();
+  return out.replaceAll(/\s+/g, " ").trim();
 }
 
 function parseStepsFromLeg(leg: any): DirectionStep[] {
@@ -82,6 +82,17 @@ function parseStepsFromLeg(leg: any): DirectionStep[] {
     .map((s) => {
       const start = s?.start_location;
       const end = s?.end_location;
+      const transitLine = s?.transit_details?.line;
+
+      let transitLineName: string | undefined;
+
+      if (typeof transitLine?.short_name === "string") {
+        transitLineName = transitLine.short_name;
+      } else if (typeof transitLine?.name === "string") {
+        transitLineName = transitLine.name;
+      } else {
+        transitLineName = undefined;
+      }
 
       return {
         instruction: stripHtml(String(s?.html_instructions ?? "")),
@@ -95,6 +106,17 @@ function parseStepsFromLeg(leg: any): DirectionStep[] {
           latitude: Number(end?.lat ?? 0),
           longitude: Number(end?.lng ?? 0),
         },
+        travelMode:
+          typeof s?.travel_mode === "string" ? s.travel_mode : undefined,
+        polyline:
+          typeof s?.polyline?.points === "string"
+            ? s.polyline.points
+            : undefined,
+        transitLineName,
+        transitVehicleType:
+          typeof transitLine?.vehicle?.type === "string"
+            ? transitLine.vehicle.type
+            : undefined,
       } as DirectionStep;
     })
     .filter((st) => st.instruction.length > 0);

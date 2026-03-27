@@ -10,6 +10,8 @@ jest.mock("@/components/campus/helper_methods/pointInPolygon", () => ({
 import {
   buildAllBuildings,
   getBuildingContainingPoint,
+  getNearestBuilding,
+  resolveCampusFromLocation,
   getUserLocationBuildingId,
   makeUserLocationBuilding,
 } from "@/components/campus/helper_methods/campusMap.buildings";
@@ -24,6 +26,8 @@ describe("campusMap.buildings", () => {
     campus: "SGW",
     code: "H",
     name: "Hall",
+    latitude: 45.49729,
+    longitude: -73.57898,
     polygon: [{ latitude: 1, longitude: 1 }],
   };
 
@@ -32,49 +36,132 @@ describe("campusMap.buildings", () => {
     campus: "SGW",
     code: "MB",
     name: "Molson",
+    latitude: 45.4978,
+    longitude: -73.5795,
     polygon: [{ latitude: 2, longitude: 2 }],
   };
 
-  it("buildAllBuildings merges SGW + LOY arrays", () => {
-    const sgw = [B1];
-    const loy = [B2];
-    expect(buildAllBuildings(sgw, loy)).toEqual([B1, B2]);
+  it("buildAllBuildings merges SGW and LOY arrays", () => {
+    expect(buildAllBuildings([B1], [B2])).toEqual([B1, B2]);
   });
 
-  it("getBuildingContainingPoint returns first building whose polygon contains the point", () => {
-    // @ts-ignore
+  it("getBuildingContainingPoint returns the building containing the point", () => {
     mockIsPointInPolygon.mockImplementation((_pt: any, polygon: any[]) => {
       return polygon === B2.polygon;
     });
 
-    const res = getBuildingContainingPoint([B1, B2], 10, 20);
-    expect(res).toBe(B2);
+    const result = getBuildingContainingPoint([B1, B2], 10, 20);
 
+    expect(result).toBe(B2);
     expect(mockIsPointInPolygon).toHaveBeenCalled();
   });
 
-  it("getBuildingContainingPoint skips buildings without polygon length", () => {
-    const noPoly: any = { id: "X", polygon: [] };
+  it("getBuildingContainingPoint skips buildings with empty polygons", () => {
+    const noPolygon: any = {
+      id: "X",
+      campus: "SGW",
+      code: "X",
+      name: "No Polygon",
+      latitude: 0,
+      longitude: 0,
+      polygon: [],
+    };
+
     mockIsPointInPolygon.mockReturnValue(true);
 
-    const res = getBuildingContainingPoint([noPoly, B1], 10, 20);
-    expect(res).toBe(B1);
+    const result = getBuildingContainingPoint([noPolygon, B1], 10, 20);
 
-    // should only be called for B1 (since noPoly.polygon is empty)
+    expect(result).toBe(B1);
     expect(mockIsPointInPolygon).toHaveBeenCalledTimes(1);
   });
 
-  it("getBuildingContainingPoint returns undefined if no building matches", () => {
+  it("getBuildingContainingPoint returns undefined when no building matches", () => {
     mockIsPointInPolygon.mockReturnValue(false);
+
     expect(getBuildingContainingPoint([B1, B2], 10, 20)).toBeUndefined();
+  });
+
+  it("getNearestBuilding returns undefined when buildings array is empty", () => {
+    expect(getNearestBuilding([], 45.5, -73.6)).toBeUndefined();
+  });
+
+  it("getNearestBuilding returns the closest building", () => {
+    const near: any = {
+      id: "AD",
+      campus: "LOY",
+      code: "AD",
+      name: "Administration",
+      latitude: 45.458,
+      longitude: -73.64,
+      polygon: [],
+    };
+
+    const far: any = {
+      id: "H",
+      campus: "SGW",
+      code: "H",
+      name: "Hall",
+      latitude: 45.49729,
+      longitude: -73.57898,
+      polygon: [],
+    };
+
+    const result = getNearestBuilding([far, near], 45.4581, -73.6401);
+
+    expect(result).toBe(near);
+  });
+
+  it("resolveCampusFromLocation returns containing building campus first", () => {
+    mockIsPointInPolygon.mockImplementation((_pt: any, polygon: any[]) => {
+      return polygon === B1.polygon;
+    });
+
+    const result = resolveCampusFromLocation([B1, B2], 45.5, -73.6);
+
+    expect(result).toBe("SGW");
+  });
+
+  it("resolveCampusFromLocation falls back to nearest building campus", () => {
+    mockIsPointInPolygon.mockReturnValue(false);
+
+    const loy: any = {
+      id: "AD",
+      campus: "LOY",
+      code: "AD",
+      name: "Administration",
+      latitude: 45.458,
+      longitude: -73.64,
+      polygon: [],
+    };
+
+    const sgw: any = {
+      id: "H",
+      campus: "SGW",
+      code: "H",
+      name: "Hall",
+      latitude: 45.49729,
+      longitude: -73.57898,
+      polygon: [],
+    };
+
+    const result = resolveCampusFromLocation([sgw, loy], 45.45805, -73.64005);
+
+    expect(result).toBe("LOY");
+  });
+
+  it("resolveCampusFromLocation returns null when no buildings exist", () => {
+    mockIsPointInPolygon.mockReturnValue(false);
+
+    expect(resolveCampusFromLocation([], 45.5, -73.6)).toBeNull();
   });
 
   it("getUserLocationBuildingId returns null when userLocation is null", () => {
     expect(getUserLocationBuildingId([B1], null)).toBeNull();
   });
 
-  it("getUserLocationBuildingId returns building id when user is inside a building", () => {
+  it("getUserLocationBuildingId returns the building id when user is inside a building", () => {
     mockIsPointInPolygon.mockReturnValue(true);
+
     expect(getUserLocationBuildingId([B1], { latitude: 1, longitude: 2 })).toBe(
       "H",
     );
@@ -82,20 +169,24 @@ describe("campusMap.buildings", () => {
 
   it("getUserLocationBuildingId returns null when user is not inside any building", () => {
     mockIsPointInPolygon.mockReturnValue(false);
+
     expect(
       getUserLocationBuildingId([B1], { latitude: 1, longitude: 2 }),
     ).toBeNull();
   });
 
-  it("makeUserLocationBuilding returns a Building-like object", () => {
-    const b: any = makeUserLocationBuilding(45.5, -73.6, "SGW");
+  it("makeUserLocationBuilding returns the expected user location building object", () => {
+    const result = makeUserLocationBuilding(45.5, -73.6, "SGW");
 
-    expect(b).toMatchObject({
+    expect(result).toMatchObject({
       id: "USER_LOCATION",
       campus: "SGW",
+      code: "",
       name: "Your location",
+      address: "",
       latitude: 45.5,
       longitude: -73.6,
+      aliases: [],
       polygon: [],
       zoomCategory: 2,
     });
