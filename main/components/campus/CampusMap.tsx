@@ -402,6 +402,8 @@ export default function CampusMap() {
   }, [query, ALL_BUILDINGS]);
 
   const clearRouteData = useCallback(() => {
+    selectedModeRef.current = "driving";
+    setSelectedMode("driving");
     setPendingTransitRender(null);
     setTravelPopupVisible(false);
     setShowRouteLayer(false);
