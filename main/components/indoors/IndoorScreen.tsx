@@ -167,7 +167,7 @@ export default function IndoorScreen({
       setDestinationNode(node);
       setDestText(node.label ?? "");
     }
-    Keyboard.dismiss(); // dismiss keyboard after picking a node
+    Keyboard.dismiss();
   }
 
   const routeFloors = useMemo(() => {
@@ -270,15 +270,6 @@ export default function IndoorScreen({
           Floor: {selectedFloor === -2 ? "S2" : (selectedFloor ?? "-")}
         </Text>
 
-        {routeResult ? (
-          <Text
-            testID="indoor-route-calculated"
-            style={styles.routeHookVisible}
-          >
-            route-active
-          </Text>
-        ) : null}
-
         <FloorSelector
           floors={availableFloors}
           selectedFloor={selectedFloor}
@@ -342,7 +333,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 1,
   },
-  // Match hiddenFloorTestHook: avoid opacity:0 so Maestro/iOS still treat the node as visible
   hiddenRouteTestHook: {
     position: "absolute",
     width: 1,
