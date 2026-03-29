@@ -16,7 +16,7 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, LatLng } from "react-native-maps";
 import {
   getDeviceLocation,
@@ -203,12 +203,43 @@ export default function CampusMap() {
 
   const mapRef = useRef<MapView>(null);
   const nav = useNavigation();
+  const router = useRouter();
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const [mapHeading, setMapHeading] = useState(0);
   const { height: windowHeight } = useWindowDimensions();
 
-  const { destBuildingId } = useLocalSearchParams<{ destBuildingId: string }>();
+  const {
+    destBuildingId,
+    indoorStartBuildingCode,
+    indoorStartBuildingId,
+    indoorStartLabel,
+    externalDestRoomNodeId,
+    externalDestRoomLabel,
+    externalDestBuildingCode,
+  } = useLocalSearchParams<{
+    destBuildingId?: string;
+    indoorStartBuildingCode?: string;
+    indoorStartBuildingId?: string;
+    indoorStartLabel?: string;
+    externalDestRoomNodeId?: string;
+    externalDestRoomLabel?: string;
+    externalDestBuildingCode?: string;
+  }>();
+
+  const normalizedExternalDestRoomNodeId = Array.isArray(externalDestRoomNodeId)
+    ? externalDestRoomNodeId[0]
+    : externalDestRoomNodeId;
+
+  const normalizedExternalDestRoomLabel = Array.isArray(externalDestRoomLabel)
+    ? externalDestRoomLabel[0]
+    : externalDestRoomLabel;
+
+  const normalizedExternalDestBuildingCode = Array.isArray(
+    externalDestBuildingCode,
+  )
+    ? externalDestBuildingCode[0]
+    : externalDestBuildingCode;
 
   const routeStrokeWidth = useMemo(() => {
     const d = region?.latitudeDelta ?? 0.1;
@@ -289,6 +320,7 @@ export default function CampusMap() {
   }, [nav.routeDest?.id]);
 
   const lastCameraUpdateRef = useRef(0);
+  const hasOpenedIndoorDestinationRef = useRef(false);
 
   // Auto fetch user location on mount
   useEffect(() => {
@@ -312,6 +344,17 @@ export default function CampusMap() {
     () => buildAllBuildings(SGW_BUILDINGS, LOYOLA_BUILDINGS),
     [],
   );
+
+  const indoorStartBuilding = useMemo(() => {
+    if (!indoorStartBuildingCode && !indoorStartBuildingId) return null;
+
+    return (
+      ALL_BUILDINGS.find(
+        (b) =>
+          b.code === indoorStartBuildingCode || b.id === indoorStartBuildingId,
+      ) ?? null
+    );
+  }, [ALL_BUILDINGS, indoorStartBuildingCode, indoorStartBuildingId]);
 
   const handleLocationFound = useCallback(
     (location: UserLocation) => {
@@ -578,22 +621,87 @@ export default function CampusMap() {
     if (!destBuildingId) return;
 
     const targetBuilding = ALL_BUILDINGS.find((b) => b.id === destBuildingId);
-    if (targetBuilding) {
-      if (!nav.isRouteMode) nav.setIsRouteMode(true);
-      nav.setRouteDest(targetBuilding);
-      setDestText(`${targetBuilding.code} - ${targetBuilding.name}`);
+    if (!targetBuilding || (indoorStartBuilding && !nav.routeStart)) return;
+
+    if (!nav.isRouteMode) nav.setIsRouteMode(true);
+
+    nav.setRouteDest(targetBuilding);
+    setDestText(`${targetBuilding.code} - ${targetBuilding.name}`);
+
+    if (!indoorStartBuilding && !nav.routeStart) {
       void setStartToCurrentLocation();
-      setSelected(null);
-      setPopupIndex(-1);
-      setQuery("");
-      focusBuilding(targetBuilding);
     }
+
+    setSelected(null);
+    setPopupIndex(-1);
+    setQuery("");
+    focusBuilding(targetBuilding);
   }, [
     destBuildingId,
     ALL_BUILDINGS,
     nav,
     setStartToCurrentLocation,
     focusBuilding,
+    indoorStartBuilding,
+  ]);
+
+  useEffect(() => {
+    if (!indoorStartBuilding) return;
+
+    if (!nav.isRouteMode) {
+      nav.setIsRouteMode(true);
+    }
+
+    nav.setRouteStart(indoorStartBuilding);
+
+    setStartText(
+      indoorStartLabel
+        ? `${indoorStartLabel} (${indoorStartBuilding.code})`
+        : `${indoorStartBuilding.code} - ${indoorStartBuilding.name}`,
+    );
+
+    setSelected(null);
+    setPopupIndex(-1);
+  }, [indoorStartBuilding, indoorStartLabel, nav]);
+
+  useEffect(() => {
+    if (
+      !routeNavigation.isArrived ||
+      !nav.routeDest ||
+      !normalizedExternalDestRoomNodeId ||
+      !normalizedExternalDestBuildingCode ||
+      nav.routeDest.code !== normalizedExternalDestBuildingCode ||
+      hasOpenedIndoorDestinationRef.current
+    ) {
+      return;
+    }
+
+    hasOpenedIndoorDestinationRef.current = true;
+
+    router.push({
+      pathname: "/indoorscreen",
+      params: {
+        buildingCode: nav.routeDest.code,
+        destinationNodeId: normalizedExternalDestRoomNodeId,
+        destinationLabel: normalizedExternalDestRoomLabel,
+      },
+    });
+  }, [
+    routeNavigation.isArrived,
+    nav.routeDest,
+    normalizedExternalDestRoomNodeId,
+    normalizedExternalDestRoomLabel,
+    normalizedExternalDestBuildingCode,
+    router,
+  ]);
+
+  useEffect(() => {
+    hasOpenedIndoorDestinationRef.current = false;
+  }, [
+    nav.routeStart?.id,
+    nav.routeDest?.id,
+    normalizedExternalDestRoomNodeId,
+    normalizedExternalDestBuildingCode,
   ]);
 
   useEffect(() => {
@@ -945,7 +1053,18 @@ export default function CampusMap() {
       nav.setActiveField("destination");
       setQuery(destText);
       nav.setRouteError(null);
-      void setStartToCurrentLocation();
+
+      if (indoorStartBuilding) {
+        nav.setRouteStart(indoorStartBuilding);
+        setStartText(
+          indoorStartLabel
+            ? `${indoorStartLabel} (${indoorStartBuilding.code})`
+            : `${indoorStartBuilding.code} - ${indoorStartBuilding.name}`,
+        );
+      } else if (!nav.routeStart) {
+        void setStartToCurrentLocation();
+      }
+
       return;
     }
 
@@ -965,6 +1084,8 @@ export default function CampusMap() {
     setStartToCurrentLocation,
     clearRouteData,
     clearDisplayedRoutes,
+    indoorStartBuilding,
+    indoorStartLabel,
   ]);
 
   return (
@@ -1343,6 +1464,7 @@ export default function CampusMap() {
             : "--"
         }
         onExit={() => {
+          hasOpenedIndoorDestinationRef.current = false;
           routeNavigation.exitNavigation();
           clearRouteData();
           clearDisplayedRoutes();

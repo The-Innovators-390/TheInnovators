@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Keyboard, Switch } from "react-native";
+import { View, Text, StyleSheet, Keyboard, Switch, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { HeaderBackButton } from "../ui/HeaderBackButton";
 import { indoorData } from "./indoorData";
 import { floorMaps } from "./floorMaps";
@@ -19,6 +20,20 @@ import type { IndoorNode } from "./types";
 interface IndoorScreenProps {
   buildingId: string;
 }
+
+type MixedSuggestion =
+  | IndoorNode
+  | {
+      type: "outdoor_building";
+      label: string;
+      building: any;
+    }
+  | {
+      type: "external_room";
+      label: string;
+      building: any;
+      roomNode: IndoorNode;
+    };
 
 export default function IndoorScreen({
   buildingId,
@@ -44,6 +59,18 @@ export default function IndoorScreen({
   const [activeField, setActiveField] = useState<"start" | "destination">(
     "start",
   );
+
+  const router = useRouter();
+
+  const ALL_BUILDINGS = useMemo(
+    () => [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS],
+    [],
+  );
+
+  const [selectedOutdoorBuilding, setSelectedOutdoorBuilding] = useState<any>(
+    null,
+  );
+  const [selectedExternalRoom, setSelectedExternalRoom] = useState<any>(null);
 
   const graphData = useMemo(() => {
     return indoorData[trimmedBuildingId];
@@ -96,11 +123,72 @@ export default function IndoorScreen({
       return [];
     }
 
-    return graphData.nodes
+    if (activeField === "start") {
+      return graphData.nodes
+        .filter((node) => node.type === "room" && !!node.label)
+        .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
+        .slice(0, 8);
+    }
+
+    const sameBuildingRooms = graphData.nodes
       .filter((node) => node.type === "room" && !!node.label)
       .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
-      .slice(0, 8);
-  }, [activeField, startText, destText, startNode, destinationNode, graphData]);
+      .slice(0, 4);
+
+    const outdoorBuildings = ALL_BUILDINGS.filter((b) => {
+      const code = b.code?.toLowerCase() ?? "";
+      const name = b.name?.toLowerCase() ?? "";
+      const address = b.address?.toLowerCase() ?? "";
+
+      return (
+        code.includes(normalizedQuery) ||
+        name.includes(normalizedQuery) ||
+        address.includes(normalizedQuery)
+      );
+    })
+      .slice(0, 4)
+      .map((b) => ({
+        type: "outdoor_building" as const,
+        label: `${b.code} - ${b.name}`,
+        building: b,
+      }));
+
+    const externalRooms: MixedSuggestion[] = [];
+
+    Object.entries(indoorData).forEach(([code, data]) => {
+      if (code === trimmedBuildingId) return;
+
+      const targetBuilding = ALL_BUILDINGS.find((b) => b.code === code);
+      if (!targetBuilding) return;
+
+      data.nodes
+        .filter((node) => node.type === "room" && !!node.label)
+        .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
+        .slice(0, 2)
+        .forEach((node) => {
+          externalRooms.push({
+            type: "external_room",
+            label: `${node.label} (${targetBuilding.code})`,
+            building: targetBuilding,
+            roomNode: node,
+          });
+        });
+    });
+
+    return [...sameBuildingRooms, ...outdoorBuildings, ...externalRooms].slice(
+      0,
+      8,
+    );
+  }, [
+    activeField,
+    startText,
+    destText,
+    startNode,
+    destinationNode,
+    graphData,
+    ALL_BUILDINGS,
+    trimmedBuildingId,
+  ]);
 
   const [accessible, setAccessible] = useState(false);
 
@@ -126,6 +214,8 @@ export default function IndoorScreen({
 
     setStartNode(previousDestination);
     setDestinationNode(previousStart);
+    setSelectedOutdoorBuilding(null);
+    setSelectedExternalRoom(null);
 
     setStartText(previousDestination?.label ?? destText);
     setDestText(previousStart?.label ?? startText);
@@ -147,6 +237,14 @@ export default function IndoorScreen({
     if (destinationNode) {
       setDestinationNode(null);
     }
+
+    if (selectedOutdoorBuilding) {
+      setSelectedOutdoorBuilding(null);
+    }
+
+    if (selectedExternalRoom) {
+      setSelectedExternalRoom(null);
+    }
   };
 
   const handleClearStart = () => {
@@ -158,20 +256,64 @@ export default function IndoorScreen({
   const handleClearDestination = () => {
     setDestText("");
     setDestinationNode(null);
+    setSelectedOutdoorBuilding(null);
+    setSelectedExternalRoom(null);
     setActiveField("destination");
   };
 
-  function handlePickIndoorNode(node: IndoorNode) {
+  function handlePickIndoorNode(node: any) {
     if (activeField === "start") {
       setStartNode(node);
       setStartText(node.label ?? "");
       setActiveField("destination");
-    } else {
-      setDestinationNode(node);
-      setDestText(node.label ?? "");
+      Keyboard.dismiss();
+      return;
     }
-    Keyboard.dismiss(); // dismiss keyboard after picking a node
+
+    if (node.type === "outdoor_building") {
+      setDestinationNode(null);
+      setSelectedExternalRoom(null);
+      setSelectedOutdoorBuilding(node.building);
+      setDestText(node.label ?? "");
+      Keyboard.dismiss();
+      return;
+    }
+
+    if (node.type === "external_room") {
+      setDestinationNode(null);
+      setSelectedOutdoorBuilding(node.building);
+      setSelectedExternalRoom({
+        building: node.building,
+        roomNode: node.roomNode,
+      });
+      setDestText(node.label ?? "");
+      Keyboard.dismiss();
+      return;
+    }
+
+    setDestinationNode(node);
+    setSelectedOutdoorBuilding(null);
+    setSelectedExternalRoom(null);
+    setDestText(node.label ?? "");
+    Keyboard.dismiss();
   }
+
+  const handleContinueToCampusRoute = () => {
+    if (!building || !startNode || !selectedOutdoorBuilding) return;
+
+    router.push({
+      pathname: "/(tabs)/map",
+      params: {
+        indoorStartBuildingCode: building.code,
+        indoorStartBuildingId: building.id,
+        indoorStartLabel: startNode.label ?? startText ?? "Selected room",
+        destBuildingId: selectedOutdoorBuilding.id,
+        externalDestRoomNodeId: selectedExternalRoom?.roomNode?.id,
+        externalDestRoomLabel: selectedExternalRoom?.roomNode?.label ?? "",
+        externalDestBuildingCode: selectedExternalRoom?.building?.code ?? "",
+      },
+    });
+  };
 
   const routeFloors = useMemo(() => {
     return Array.from(
@@ -258,7 +400,7 @@ export default function IndoorScreen({
           />
         </View>
         <IndoorSuggestionsList
-          suggestions={suggestions}
+          suggestions={suggestions as any}
           onPick={handlePickIndoorNode}
         />
         {routeResult != null && routeResult.path.length > 0 ? (
@@ -268,6 +410,15 @@ export default function IndoorScreen({
           >
             {routeResult.path.length}
           </Text>
+        ) : null}
+        {startNode && selectedOutdoorBuilding ? (
+          <Pressable
+            testID="continueToCampusRouteButton"
+            onPress={handleContinueToCampusRoute}
+            style={continueStyles.button}
+          >
+            <Text style={continueStyles.text}>Continue to campus route</Text>
+          </Pressable>
         ) : null}
       </View>
       <View style={styles.content}>
@@ -386,5 +537,21 @@ const styles = StyleSheet.create({
   routeSummaryText: {
     fontSize: 13,
     color: "#374151",
+  },
+});
+
+const continueStyles = StyleSheet.create({
+  button: {
+    marginTop: 10,
+    alignSelf: "center",
+    backgroundColor: "#912338",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  text: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
