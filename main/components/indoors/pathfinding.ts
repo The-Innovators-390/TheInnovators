@@ -6,6 +6,7 @@ export interface IndoorPathResult {
 }
 
 export interface IndoorRoutingOptions {
+  /** If true, omit stairs, edges with accessible:false, and edges to/from inaccessible nodes. */
   accessible?: boolean;
 }
 
@@ -45,15 +46,20 @@ function addUndirectedEdge(
 }
 
 function buildAdjacencyList(
+  nodes: IndoorNode[],
   edges: IndoorEdge[],
   options?: IndoorRoutingOptions,
 ): AdjacencyList {
   const adjacency: AdjacencyList = new Map();
+  const nodeMap = buildNodeMap(nodes);
 
   for (const edge of edges) {
-    // Skip edges that are not accessible if the user requires an accessible route
-    if (options?.accessible && edge.accessible === false) {
-      continue;
+    if (options?.accessible) {
+      if (edge.accessible === false) continue;
+      if (edge.type === "stair") continue;
+      const src = nodeMap.get(edge.source);
+      const tgt = nodeMap.get(edge.target);
+      if (src?.accessible === false || tgt?.accessible === false) continue;
     }
     addUndirectedEdge(adjacency, edge.source, edge.target, edge.weight);
   }
@@ -148,7 +154,7 @@ export function findShortestIndoorPath(
     return null;
   }
 
-  const adjacency = buildAdjacencyList(edges, options);
+  const adjacency = buildAdjacencyList(nodes, edges, options);
   const distances: DistanceMap = new Map();
   const previous: PreviousMap = new Map();
   const unvisited = new Set<string>();

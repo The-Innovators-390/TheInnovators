@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Keyboard } from "react-native";
+import { View, Text, StyleSheet, Keyboard, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBackButton } from "../ui/HeaderBackButton";
 import { indoorData } from "./indoorData";
@@ -241,6 +241,22 @@ export default function IndoorScreen({
           onClearStart={handleClearStart}
           onClearDestination={handleClearDestination}
         />
+        <View style={styles.accessibleRow}>
+          <Text style={styles.accessibleLabel}>Accessible route</Text>
+          <Switch
+            testID="indoor-accessible-route-switch"
+            value={accessible}
+            onValueChange={setAccessible}
+            trackColor={{
+              false: "#d1d5db",
+              true: `${campusTheme.selectedButtonColor}99`,
+            }}
+            thumbColor={
+              accessible ? campusTheme.selectedButtonColor : "#f4f4f5"
+            }
+            ios_backgroundColor="#d1d5db"
+          />
+        </View>
         <IndoorSuggestionsList
           suggestions={suggestions}
           onPick={handlePickIndoorNode}
@@ -350,6 +366,17 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 0,
     backgroundColor: "#fff",
+  },
+  accessibleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+    paddingVertical: 6,
+  },
+  accessibleLabel: {
+    fontSize: 15,
+    color: "#374151",
   },
   routeSummary: {
     paddingHorizontal: 12,
