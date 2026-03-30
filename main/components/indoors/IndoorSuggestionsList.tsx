@@ -62,7 +62,8 @@ export default function IndoorSuggestionsList({
               {(node as IndoorNode).label ?? (node as IndoorNode).id}
             </Text>
             <Text style={styles.subtitle}>
-              Floor {(node as IndoorNode).floor} • {(node as IndoorNode).buildingId}
+              Floor {(node as IndoorNode).floor} •{" "}
+              {(node as IndoorNode).buildingId}
             </Text>
           </Pressable>
         ))}

@@ -33,7 +33,6 @@ type AdjacencyList = Map<string, AdjacencyEntry[]>;
 type DistanceMap = Map<string, number>;
 type PreviousMap = Map<string, string | null>;
 
-
 const METERS_PER_COORD_UNIT = 0.35;
 
 function buildNodeMap(nodes: IndoorNode[]): Map<string, IndoorNode> {
@@ -567,12 +566,7 @@ export function findShortestPathToBuildingExitWithSteps(
   startId: string,
   options?: IndoorRoutingOptions,
 ): IndoorPathWithStepsResult | null {
-  const result = findShortestPathToBuildingExit(
-    nodes,
-    edges,
-    startId,
-    options,
-  );
+  const result = findShortestPathToBuildingExit(nodes, edges, startId, options);
 
   if (!result) return null;
 

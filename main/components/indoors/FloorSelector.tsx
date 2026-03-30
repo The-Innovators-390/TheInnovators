@@ -47,9 +47,7 @@ export const FloorSelector: React.FC<FloorSelectorProps> = ({
   const accessibilityRingStyle: ViewStyle = {
     borderWidth: 2,
     borderRadius: 14,
-    borderColor: accessible
-      ? campusTheme.selectedButtonColor
-      : "transparent",
+    borderColor: accessible ? campusTheme.selectedButtonColor : "transparent",
   };
 
   const accessibilityIcon = (

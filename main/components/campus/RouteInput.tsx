@@ -48,7 +48,10 @@ export default function RouteInput({
     : destText;
 
   return (
-    <View style={[s.card, disabilityMode && s.cardDisability]} testID="routeCard">
+    <View
+      style={[s.card, disabilityMode && s.cardDisability]}
+      testID="routeCard"
+    >
       <View style={s.rail} pointerEvents="none">
         <MaterialIcons name="radio-button-checked" size={14} color="#111" />
         <View style={s.dots} />
