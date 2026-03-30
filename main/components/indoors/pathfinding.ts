@@ -6,7 +6,6 @@ export interface IndoorPathResult {
 }
 
 export interface IndoorRoutingOptions {
-  /** If true, omit stairs, edges with accessible:false, and edges to/from inaccessible nodes. */
   accessible?: boolean;
 }
 
