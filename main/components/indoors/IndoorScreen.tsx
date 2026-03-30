@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Keyboard,
-  Switch,
   Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -505,7 +504,12 @@ export default function IndoorScreen({
         />
 
         <View style={styles.topOverlay}>
-          <View style={styles.routeCard}>
+          <View
+            style={[
+              styles.routeCard,
+              accessible && styles.routeCardAccessibleShell,
+            ]}
+          >
             <IndoorRouteInput
               start={startNode}
               destination={destinationNode}
@@ -518,23 +522,7 @@ export default function IndoorScreen({
               onChangeDestText={handleChangeDestText}
               onClearStart={handleClearStart}
               onClearDestination={handleClearDestination}
-            />
-          </View>
-
-          <View style={styles.accessibleCard}>
-            <Text style={styles.accessibleLabel}>Accessible route</Text>
-            <Switch
-              testID="indoor-accessible-route-switch"
-              value={accessible}
-              onValueChange={setAccessible}
-              trackColor={{
-                false: "#d1d5db",
-                true: `${campusTheme.selectedButtonColor}99`,
-              }}
-              thumbColor={
-                accessible ? campusTheme.selectedButtonColor : "#f4f4f5"
-              }
-              ios_backgroundColor="#d1d5db"
+              accessible={accessible}
             />
           </View>
 
@@ -616,6 +604,8 @@ export default function IndoorScreen({
             onSelectFloor={setSelectedFloor}
             campusTheme={campusTheme}
             routeFloors={routeFloors}
+            accessible={accessible}
+            onPressAccessible={() => setAccessible((prev) => !prev)}
           />
         </View>
       </View>
@@ -670,20 +660,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  accessibleCard: {
-    marginTop: 4,
-    paddingHorizontal: 6,
+  /** Avoid a second white ring around the blue accessible route card. */
+  routeCardAccessibleShell: {
+    backgroundColor: "transparent",
+    paddingHorizontal: 0,
     paddingVertical: 0,
-    minHeight: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255,255,255,0.88)",
-    borderRadius: 10,
-  },
-  accessibleLabel: {
-    fontSize: 15,
-    color: "#374151",
+    shadowOpacity: 0,
+    elevation: 0,
   },
   suggestionsOverlay: {
     marginTop: 4,
