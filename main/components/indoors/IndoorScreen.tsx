@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Keyboard, Switch, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Keyboard,
+  Switch,
+  Pressable,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { HeaderBackButton } from "../ui/HeaderBackButton";
 import { indoorData } from "./indoorData";
 import { floorMaps } from "./floorMaps";
@@ -14,7 +21,12 @@ import { BUILDING_FLOORS, INDOOR_LAYOUT } from "./indoor.constants";
 import { FloorSelector } from "./FloorSelector";
 import IndoorRouteInput from "./IndoorRouteInput";
 import IndoorSuggestionsList from "./IndoorSuggestionsList";
-import { findShortestIndoorPath, IndoorRoutingOptions } from "./pathfinding";
+import {
+  findShortestIndoorPathWithSteps,
+  findShortestPathToBuildingExitWithSteps,
+  IndoorRoutingOptions,
+  type IndoorRouteStep,
+} from "./pathfinding";
 import type { IndoorNode } from "./types";
 
 interface IndoorScreenProps {
@@ -62,6 +74,22 @@ export default function IndoorScreen({
 
   const router = useRouter();
 
+  const {
+    destinationNodeId,
+    destinationLabel,
+  } = useLocalSearchParams<{
+    destinationNodeId?: string | string[];
+    destinationLabel?: string | string[];
+  }>();
+
+  const normalizedDestinationNodeId = Array.isArray(destinationNodeId)
+    ? destinationNodeId[0]
+    : destinationNodeId;
+
+  const normalizedDestinationLabel = Array.isArray(destinationLabel)
+    ? destinationLabel[0]
+    : destinationLabel;
+
   const ALL_BUILDINGS = useMemo(
     () => [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS],
     [],
@@ -71,10 +99,31 @@ export default function IndoorScreen({
     null,
   );
   const [selectedExternalRoom, setSelectedExternalRoom] = useState<any>(null);
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [accessible, setAccessible] = useState(false);
 
   const graphData = useMemo(() => {
     return indoorData[trimmedBuildingId];
   }, [trimmedBuildingId]);
+
+  useEffect(() => {
+    if (!normalizedDestinationNodeId || !graphData) return;
+
+    const matchedNode =
+      graphData.nodes.find(
+        (node: IndoorNode) => node.id === normalizedDestinationNodeId,
+      ) ?? null;
+
+    if (!matchedNode) return;
+
+    setDestinationNode(matchedNode);
+    setDestText(normalizedDestinationLabel ?? matchedNode.label ?? "");
+    setSelectedOutdoorBuilding(null);
+    setSelectedExternalRoom(null);
+    setActiveField("destination");
+    setCurrentStepIndex(0);
+  }, [normalizedDestinationNodeId, normalizedDestinationLabel, graphData]);
 
   const availableFloors = useMemo(() => {
     if (BUILDING_FLOORS[trimmedBuildingId]) {
@@ -84,12 +133,10 @@ export default function IndoorScreen({
     if (!graphData) return [];
 
     const floors = Array.from(
-      new Set(graphData.nodes.map((node) => node.floor)),
+      new Set(graphData.nodes.map((node: IndoorNode) => node.floor)),
     );
     return floors.sort((a, b) => a - b);
   }, [graphData, trimmedBuildingId]);
-
-  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
 
   useEffect(() => {
     if (selectedFloor === null && availableFloors.length > 0) {
@@ -97,12 +144,16 @@ export default function IndoorScreen({
     }
   }, [availableFloors, selectedFloor]);
 
-  // For multi-floor navigation, do NOT reset on floor change
   useEffect(() => {
-    // Only reset when buildingId changes (which happens when Screen is re-mounted with new building)
-    // or manually if needed.
-    // Actually, we should probably only reset if graphData changes (new building).
-  }, [graphData]);
+    setCurrentStepIndex(0);
+  }, [
+    startNode?.id,
+    destinationNode?.id,
+    selectedOutdoorBuilding?.id,
+    selectedExternalRoom?.roomNode?.id,
+    accessible,
+    trimmedBuildingId,
+  ]);
 
   const currentFloorMap = useMemo(() => {
     if (selectedFloor === null) return undefined;
@@ -125,14 +176,18 @@ export default function IndoorScreen({
 
     if (activeField === "start") {
       return graphData.nodes
-        .filter((node) => node.type === "room" && !!node.label)
-        .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
+        .filter((node: IndoorNode) => node.type === "room" && !!node.label)
+        .filter((node: IndoorNode) =>
+          node.label?.toLowerCase().includes(normalizedQuery),
+        )
         .slice(0, 8);
     }
 
     const sameBuildingRooms = graphData.nodes
-      .filter((node) => node.type === "room" && !!node.label)
-      .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
+      .filter((node: IndoorNode) => node.type === "room" && !!node.label)
+      .filter((node: IndoorNode) =>
+        node.label?.toLowerCase().includes(normalizedQuery),
+      )
       .slice(0, 4);
 
     const outdoorBuildings = ALL_BUILDINGS.filter((b) => {
@@ -162,10 +217,12 @@ export default function IndoorScreen({
       if (!targetBuilding) return;
 
       data.nodes
-        .filter((node) => node.type === "room" && !!node.label)
-        .filter((node) => node.label?.toLowerCase().includes(normalizedQuery))
+        .filter((node: IndoorNode) => node.type === "room" && !!node.label)
+        .filter((node: IndoorNode) =>
+          node.label?.toLowerCase().includes(normalizedQuery),
+        )
         .slice(0, 2)
-        .forEach((node) => {
+        .forEach((node: IndoorNode) => {
           externalRooms.push({
             type: "external_room",
             label: `${node.label} (${targetBuilding.code})`,
@@ -190,23 +247,83 @@ export default function IndoorScreen({
     trimmedBuildingId,
   ]);
 
-  const [accessible, setAccessible] = useState(false);
+  const isOutdoorHandoffRoute = useMemo(() => {
+    return !!startNode && (!!selectedOutdoorBuilding || !!selectedExternalRoom);
+  }, [startNode, selectedOutdoorBuilding, selectedExternalRoom]);
 
   const routeResult = useMemo(() => {
-    if (!startNode || !destinationNode || !graphData) {
+    if (!startNode || !graphData) {
       return null;
     }
 
     const options: IndoorRoutingOptions = { accessible };
 
-    return findShortestIndoorPath(
+    if (isOutdoorHandoffRoute) {
+      return findShortestPathToBuildingExitWithSteps(
+        graphData.nodes,
+        graphData.edges,
+        startNode.id,
+        options,
+      );
+    }
+
+    if (!destinationNode) {
+      return null;
+    }
+
+    return findShortestIndoorPathWithSteps(
       graphData.nodes,
       graphData.edges,
       startNode.id,
       destinationNode.id,
       options,
     );
-  }, [startNode, destinationNode, graphData, accessible]);
+  }, [
+    startNode,
+    destinationNode,
+    graphData,
+    accessible,
+    isOutdoorHandoffRoute,
+  ]);
+
+  useEffect(() => {
+    if (!routeResult?.path?.length) return;
+
+    const firstPathFloor = routeResult.path[0]?.floor;
+    if (typeof firstPathFloor === "number") {
+      setSelectedFloor(firstPathFloor);
+    }
+  }, [routeResult]);
+
+  const routeSteps = routeResult?.steps ?? [];
+
+  const currentStep: IndoorRouteStep | null =
+    routeSteps[currentStepIndex] ?? null;
+
+  const isLastStep =
+    routeSteps.length > 0 && currentStepIndex === routeSteps.length - 1;
+
+  const hasSuggestions = suggestions.length > 0;
+
+  const getNodeById = (nodeId: string) => {
+    return (
+      graphData?.nodes.find((node: IndoorNode) => node.id === nodeId) ?? null
+    );
+  };
+
+  const handleAdvanceStep = () => {
+    if (!currentStep || !routeResult) return;
+    if (isLastStep) return;
+
+    if (currentStep.kind === "elevator" || currentStep.kind === "stairs") {
+      const destinationTransportNode = getNodeById(currentStep.toNodeId);
+      if (destinationTransportNode?.floor != null) {
+        setSelectedFloor(destinationTransportNode.floor);
+      }
+    }
+
+    setCurrentStepIndex((prev) => Math.min(prev + 1, routeSteps.length - 1));
+  };
 
   const handleSwapRouteFields = () => {
     const previousStart = startNode;
@@ -219,6 +336,7 @@ export default function IndoorScreen({
 
     setStartText(previousDestination?.label ?? destText);
     setDestText(previousStart?.label ?? startText);
+    setCurrentStepIndex(0);
   };
 
   const handleChangeStartText = (text: string) => {
@@ -245,11 +363,14 @@ export default function IndoorScreen({
     if (selectedExternalRoom) {
       setSelectedExternalRoom(null);
     }
+
+    setCurrentStepIndex(0);
   };
 
   const handleClearStart = () => {
     setStartText("");
     setStartNode(null);
+    setCurrentStepIndex(0);
     setActiveField("start");
   };
 
@@ -258,6 +379,7 @@ export default function IndoorScreen({
     setDestinationNode(null);
     setSelectedOutdoorBuilding(null);
     setSelectedExternalRoom(null);
+    setCurrentStepIndex(0);
     setActiveField("destination");
   };
 
@@ -266,6 +388,7 @@ export default function IndoorScreen({
       setStartNode(node);
       setStartText(node.label ?? "");
       setActiveField("destination");
+      setCurrentStepIndex(0);
       Keyboard.dismiss();
       return;
     }
@@ -275,6 +398,7 @@ export default function IndoorScreen({
       setSelectedExternalRoom(null);
       setSelectedOutdoorBuilding(node.building);
       setDestText(node.label ?? "");
+      setCurrentStepIndex(0);
       Keyboard.dismiss();
       return;
     }
@@ -287,6 +411,7 @@ export default function IndoorScreen({
         roomNode: node.roomNode,
       });
       setDestText(node.label ?? "");
+      setCurrentStepIndex(0);
       Keyboard.dismiss();
       return;
     }
@@ -295,6 +420,7 @@ export default function IndoorScreen({
     setSelectedOutdoorBuilding(null);
     setSelectedExternalRoom(null);
     setDestText(node.label ?? "");
+    setCurrentStepIndex(0);
     Keyboard.dismiss();
   }
 
@@ -317,7 +443,7 @@ export default function IndoorScreen({
 
   const routeFloors = useMemo(() => {
     return Array.from(
-      new Set(routeResult?.path.map((node) => node.floor) ?? []),
+      new Set(routeResult?.path.map((node: IndoorNode) => node.floor) ?? []),
     );
   }, [routeResult]);
 
@@ -369,59 +495,7 @@ export default function IndoorScreen({
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.routePanelContainer}>
-        <IndoorRouteInput
-          start={startNode}
-          destination={destinationNode}
-          activeField={activeField}
-          onFocusField={setActiveField}
-          onSwap={handleSwapRouteFields}
-          startText={startText}
-          destText={destText}
-          onChangeStartText={handleChangeStartText}
-          onChangeDestText={handleChangeDestText}
-          onClearStart={handleClearStart}
-          onClearDestination={handleClearDestination}
-        />
-        <View style={styles.accessibleRow}>
-          <Text style={styles.accessibleLabel}>Accessible route</Text>
-          <Switch
-            testID="indoor-accessible-route-switch"
-            value={accessible}
-            onValueChange={setAccessible}
-            trackColor={{
-              false: "#d1d5db",
-              true: `${campusTheme.selectedButtonColor}99`,
-            }}
-            thumbColor={
-              accessible ? campusTheme.selectedButtonColor : "#f4f4f5"
-            }
-            ios_backgroundColor="#d1d5db"
-          />
-        </View>
-        <IndoorSuggestionsList
-          suggestions={suggestions as any}
-          onPick={handlePickIndoorNode}
-        />
-        {routeResult != null && routeResult.path.length > 0 ? (
-          <Text
-            testID="indoor-route-calculated"
-            style={styles.hiddenRouteTestHook}
-          >
-            {routeResult.path.length}
-          </Text>
-        ) : null}
-        {startNode && selectedOutdoorBuilding ? (
-          <Pressable
-            testID="continueToCampusRouteButton"
-            onPress={handleContinueToCampusRoute}
-            style={continueStyles.button}
-          >
-            <Text style={continueStyles.text}>Continue to campus route</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      <View style={styles.content}>
+      <View style={styles.mapSection}>
         <IndoorMapViewer
           imageSource={currentFloorMap}
           nodes={floorData.nodes}
@@ -429,21 +503,121 @@ export default function IndoorScreen({
           path={routeResult?.path ?? []}
           currentFloor={selectedFloor ?? 0}
         />
-      </View>
-      <View
-        style={styles.floorSelectorContainer}
-        testID="indoor-floor-selector"
-      >
-        <Text style={styles.hiddenFloorTestHook} testID="indoor-current-floor">
-          Floor: {selectedFloor === -2 ? "S2" : (selectedFloor ?? "-")}
-        </Text>
-        <FloorSelector
-          floors={availableFloors}
-          selectedFloor={selectedFloor}
-          onSelectFloor={setSelectedFloor}
-          campusTheme={campusTheme}
-          routeFloors={routeFloors}
-        />
+
+        <View style={styles.topOverlay}>
+          <View style={styles.routeCard}>
+            <IndoorRouteInput
+              start={startNode}
+              destination={destinationNode}
+              activeField={activeField}
+              onFocusField={setActiveField}
+              onSwap={handleSwapRouteFields}
+              startText={startText}
+              destText={destText}
+              onChangeStartText={handleChangeStartText}
+              onChangeDestText={handleChangeDestText}
+              onClearStart={handleClearStart}
+              onClearDestination={handleClearDestination}
+            />
+          </View>
+
+          <View style={styles.accessibleCard}>
+            <Text style={styles.accessibleLabel}>Accessible route</Text>
+            <Switch
+              testID="indoor-accessible-route-switch"
+              value={accessible}
+              onValueChange={setAccessible}
+              trackColor={{
+                false: "#d1d5db",
+                true: `${campusTheme.selectedButtonColor}99`,
+              }}
+              thumbColor={
+                accessible ? campusTheme.selectedButtonColor : "#f4f4f5"
+              }
+              ios_backgroundColor="#d1d5db"
+            />
+          </View>
+
+          {hasSuggestions ? (
+            <View style={styles.suggestionsOverlay}>
+              <IndoorSuggestionsList
+                suggestions={suggestions as any}
+                onPick={handlePickIndoorNode}
+              />
+            </View>
+          ) : null}
+
+          {routeResult != null && routeResult.path.length > 0 ? (
+            <Text
+              testID="indoor-route-calculated"
+              style={styles.hiddenRouteTestHook}
+            >
+              {routeResult.path.length}
+            </Text>
+          ) : null}
+        </View>
+
+        {currentStep ? (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.stepOverlay,
+              hasSuggestions ? styles.stepOverlayWithSuggestions : null,
+            ]}
+          >
+            <View style={styles.stepCard}>
+              <Text style={styles.stepBadge}>
+                Step {currentStepIndex + 1} of {routeSteps.length}
+              </Text>
+              <Text style={styles.stepText}>{currentStep.instruction}</Text>
+
+              {isOutdoorHandoffRoute && isLastStep ? (
+                <Pressable
+                  testID="confirmExitBuildingButton"
+                  onPress={handleContinueToCampusRoute}
+                  style={continueStyles.button}
+                >
+                  <Text style={continueStyles.text}>
+                    Confirm you have exited the building
+                  </Text>
+                </Pressable>
+              ) : isLastStep ? (
+                <View style={styles.arrivedBadge}>
+                  <Text style={styles.arrivedText}>
+                    You have reached this step
+                  </Text>
+                </View>
+              ) : (
+                <Pressable
+                  testID="indoorNextStepButton"
+                  onPress={handleAdvanceStep}
+                  style={styles.nextStepButton}
+                >
+                  <Text style={styles.nextStepText}>Next</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        ) : null}
+
+        <View
+          style={styles.floorSelectorContainer}
+          testID="indoor-floor-selector"
+        >
+          <Text
+            style={styles.hiddenFloorTestHook}
+            testID="indoor-current-floor"
+          >
+            Floor: {selectedFloor === -2 ? "S2" : (selectedFloor ?? "-")}
+          </Text>
+          <FloorSelector
+            floors={availableFloors}
+            selectedFloor={selectedFloor}
+            onSelectFloor={setSelectedFloor}
+            campusTheme={campusTheme}
+            routeFloors={routeFloors}
+          />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -473,8 +647,137 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 60,
   },
-  content: {
+  mapSection: {
     flex: 1,
+    position: "relative",
+    overflow: "hidden",
+  },
+  topOverlay: {
+    position: "absolute",
+    top: 6,
+    left: 8,
+    right: 8,
+    zIndex: 8,
+  },
+  routeCard: {
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderRadius: 16,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  accessibleCard: {
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 0,
+    minHeight: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 10,
+  },
+  accessibleLabel: {
+    fontSize: 15,
+    color: "#374151",
+  },
+  suggestionsOverlay: {
+    marginTop: 4,
+    zIndex: 9,
+  },
+  stepOverlay: {
+    position: "absolute",
+    left: 10,
+    right: 10,
+    bottom: INDOOR_LAYOUT.FLOOR_SELECTOR_HEIGHT + 10,
+    zIndex: 7,
+  },
+  stepOverlayWithSuggestions: {
+    bottom: INDOOR_LAYOUT.FLOOR_SELECTOR_HEIGHT + 10,
+  },
+  stepCard: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(248, 250, 252, 0.96)",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  stepBadge: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  stepText: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: "#111827",
+    fontWeight: "600",
+  },
+  nextStepButton: {
+    marginTop: 8,
+    alignSelf: "flex-end",
+    backgroundColor: "#111827",
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  nextStepText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  arrivedBadge: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    backgroundColor: "#E5E7EB",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  arrivedText: {
+    color: "#374151",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  floorSelectorContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: INDOOR_LAYOUT.FLOOR_SELECTOR_HEIGHT,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    zIndex: 10,
+  },
+  hiddenFloorTestHook: {
+    fontSize: 1,
+    lineHeight: 1,
+    color: "transparent",
+    textAlign: "center",
+    marginTop: 1,
+  },
+  hiddenRouteTestHook: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    right: 0,
+    bottom: 0,
+    overflow: "hidden",
+    fontSize: 1,
+    lineHeight: 1,
+    color: "transparent",
   },
   errorContainer: {
     flex: 1,
@@ -487,71 +790,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#666",
   },
-  floorSelectorContainer: {
-    height: INDOOR_LAYOUT.FLOOR_SELECTOR_HEIGHT,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  hiddenFloorTestHook: {
-    fontSize: 1,
-    lineHeight: 1,
-    color: "transparent",
-    textAlign: "center",
-    marginTop: 1,
-  },
-  // Match hiddenFloorTestHook: avoid opacity:0 so Maestro/iOS still treat the node as visible
-  hiddenRouteTestHook: {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    right: 0,
-    bottom: 0,
-    overflow: "hidden",
-    fontSize: 1,
-    lineHeight: 1,
-    color: "transparent",
-  },
-  routePanelContainer: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 0,
-    backgroundColor: "#fff",
-  },
-  accessibleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
-    paddingVertical: 6,
-  },
-  accessibleLabel: {
-    fontSize: 15,
-    color: "#374151",
-  },
-  routeSummary: {
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-    backgroundColor: "#fff",
-  },
-  routeSummaryText: {
-    fontSize: 13,
-    color: "#374151",
-  },
 });
 
 const continueStyles = StyleSheet.create({
   button: {
-    marginTop: 10,
+    marginTop: 8,
     alignSelf: "center",
     backgroundColor: "#912338",
     paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 12,
   },
   text: {
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 14,
+    textAlign: "center",
   },
 });
