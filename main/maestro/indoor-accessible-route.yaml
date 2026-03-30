@@ -1,0 +1,129 @@
+# Accessible / disability indoor routing: Hall H — H-231-6 to H-929.
+# After two "Next" taps (walk, then elevator), the floor selector should show 9.
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "guest-sign-in-button"
+    commands:
+      - tapOn:
+          id: "guest-sign-in-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+- tapOn:
+    id: "searchInput"
+- eraseText
+- inputText: "Henry"
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "suggestion-SGW-SGW-H"
+- waitForAnimationToEnd
+- hideKeyboard
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoorMapButton"
+    timeout: 20000
+- tapOn:
+    id: "indoorMapButton"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoor-floor-selector"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "indoor-floor-accessible-icon"
+    timeout: 10000
+- tapOn:
+    id: "indoor-floor-accessible-icon"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoorRouteStartInput"
+    timeout: 10000
+
+- tapOn:
+    id: "indoorRouteStartInput"
+- eraseText
+- inputText: "H-231-6"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-suggestions"
+    timeout: 8000
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F2_room_115"
+    timeout: 8000
+- tapOn:
+    id: "indoorSuggestion-Hall_F2_room_115"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "indoorRouteDestInput"
+- eraseText
+- inputText: "H-929"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-suggestions"
+    timeout: 8000
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F9_room_202"
+    timeout: 8000
+- tapOn:
+    id: "indoorSuggestion-Hall_F9_room_202"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-calculated"
+    timeout: 15000
+
+- hideKeyboard
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoorNextStepButton"
+    timeout: 10000
+- tapOn:
+    id: "indoorNextStepButton"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoorNextStepButton"
+    timeout: 10000
+- tapOn:
+    id: "indoorNextStepButton"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "indoor-current-floor"
+      text: "Floor: 9"
+    timeout: 10000
