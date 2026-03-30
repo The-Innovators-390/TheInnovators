@@ -15,7 +15,7 @@ const mockSetRouteError = jest.fn();
 const mockSetActiveField = jest.fn();
 const mockSetFieldFromBuilding = jest.fn();
 
-const mockStartNavigation = jest.fn().mockResolvedValue(undefined);
+const mockStartNavigation = jest.fn(() => Promise.resolve());
 const mockStartNavigationWithSteps = jest.fn();
 const mockExitNavigation = jest.fn();
 
@@ -90,6 +90,11 @@ jest.mock("expo-status-bar", () => ({
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockLocalSearchParams,
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
 }));
 
 jest.mock("@/hooks/useNavigation", () => ({

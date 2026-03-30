@@ -14,6 +14,11 @@ jest.mock("expo-status-bar", () => ({ StatusBar: () => null }));
 jest.mock("expo-router", () => ({
   __esModule: true,
   useLocalSearchParams: jest.fn(() => ({})),
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  })),
 }));
 
 // ─── Override global useUserRole stub → student ────────────────────────────
@@ -336,9 +341,6 @@ jest.mock("@/hooks/useRouteNavigation", () => ({
 }));
 
 // ─── Import CampusMap after all mocks ─────────────────────────────────────
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: jest.fn(() => ({})),
-}));
 import CampusMap from "@/components/campus/CampusMap";
 
 const { fetchDirections } =
