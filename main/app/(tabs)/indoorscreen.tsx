@@ -2,10 +2,9 @@ import IndoorScreen from "../../components/indoors/IndoorScreen";
 import { useLocalSearchParams } from "expo-router";
 
 export default function IndoorScreenRoute() {
-  const { buildingCode } =
-    useLocalSearchParams<{
-      buildingCode?: string;
-    }>();
+  const { buildingCode } = useLocalSearchParams<{
+    buildingCode?: string;
+  }>();
 
   if (!buildingCode) return null;
 
