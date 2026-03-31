@@ -200,7 +200,8 @@ export default function CampusMap() {
 
   const [directionsError, setDirectionsError] = useState<string | null>(null);
   const [directionRetryTick, setDirectionRetryTick] = useState(0);
-  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] = useState(false);
+  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] =
+    useState(false);
 
   const mapRef = useRef<MapView>(null);
   const nav = useNavigation();
@@ -1475,7 +1476,6 @@ export default function CampusMap() {
         </View>
       ) : null}
 
-
       <NavigationOverlay
         isNavigating={routeNavigation.isNavigating}
         isNearStart={routeNavigation.isNearStart}
@@ -1633,7 +1633,6 @@ const indoorArrivalStyles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
 
 const nextClassStyles = StyleSheet.create({
   button: {
