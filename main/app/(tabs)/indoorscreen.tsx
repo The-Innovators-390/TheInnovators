@@ -17,7 +17,6 @@ export default function IndoorScreenRoute() {
   return (
     <IndoorScreen
       buildingId={buildingCode}
-      // 👇 nothing else needed — params are auto-read inside
     />
   );
 }
