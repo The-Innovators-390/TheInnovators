@@ -1,0 +1,102 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "guest-sign-in-button"
+    commands:
+      - tapOn:
+          id: "guest-sign-in-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "campusMap-root"
+    timeout: 30000
+
+# Open Hall
+- tapOn:
+    id: "searchInput"
+- eraseText
+- inputText: "Henry"
+
+- extendedWaitUntil:
+    visible:
+      id: "suggestion-SGW-SGW-H"
+    timeout: 10000
+- tapOn:
+    id: "suggestion-SGW-SGW-H"
+
+- waitForAnimationToEnd
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Open indoor map
+- extendedWaitUntil:
+    visible: "Indoor Map"
+    timeout: 20000
+- tapOn: "Indoor Map"
+
+- extendedWaitUntil:
+    visible:
+      id: "indoor-floor-selector"
+    timeout: 10000
+
+# Start: H-131-1
+- tapOn:
+    id: "indoorRouteStartRow"
+- tapOn:
+    id: "indoorRouteStartInput"
+- eraseText
+- inputText: "H-131-1"
+
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F1_room_45"
+    timeout: 10000
+- tapOn:
+    id: "indoorSuggestion-Hall_F1_room_45"
+- waitForAnimationToEnd
+
+# Destination: H-867
+- tapOn:
+    id: "indoorRouteDestRow"
+- tapOn:
+    id: "indoorRouteDestInput"
+- eraseText
+- inputText: "H-867"
+
+- extendedWaitUntil:
+    visible:
+      id: "indoorSuggestion-Hall_F8_room_291"
+    timeout: 10000
+- tapOn:
+    id: "indoorSuggestion-Hall_F8_room_291"
+- waitForAnimationToEnd
+
+# Dismiss keyboard explicitly
+- pressKey: Enter
+- waitForAnimationToEnd
+- pressKey: Enter
+- waitForAnimationToEnd
+
+# Verify route exists
+- extendedWaitUntil:
+    visible:
+      id: "indoor-route-calculated"
+    timeout: 20000
+
+# Route persists across floor switches
+- tapOn:
+    id: "indoor-floor-8"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "indoor-route-calculated"
+
+- tapOn:
+    id: "indoor-floor-1"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "indoor-route-calculated"

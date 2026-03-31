@@ -70,11 +70,8 @@ export default function IndoorScreen({
     }
   }, [availableFloors, selectedFloor]);
 
-  // For multi-floor navigation, do NOT reset on floor change
   useEffect(() => {
-    // Only reset when buildingId changes (which happens when Screen is re-mounted with new building)
-    // or manually if needed.
-    // Actually, we should probably only reset if graphData changes (new building).
+    // For multi-floor navigation, do not reset on floor change.
   }, [graphData]);
 
   const currentFloorMap = useMemo(() => {
@@ -102,7 +99,7 @@ export default function IndoorScreen({
       .slice(0, 8);
   }, [activeField, startText, destText, startNode, destinationNode, graphData]);
 
-  const [accessible, setAccessible] = useState(false);
+  const [accessible] = useState(false);
 
   const routeResult = useMemo(() => {
     if (!startNode || !destinationNode || !graphData) {
@@ -170,7 +167,7 @@ export default function IndoorScreen({
       setDestinationNode(node);
       setDestText(node.label ?? "");
     }
-    Keyboard.dismiss(); // dismiss keyboard after picking a node
+    Keyboard.dismiss();
   }
 
   const routeFloors = useMemo(() => {
@@ -254,6 +251,7 @@ export default function IndoorScreen({
           </Text>
         ) : null}
       </View>
+
       <View style={styles.content}>
         <IndoorMapViewer
           imageSource={currentFloorMap}
@@ -263,6 +261,7 @@ export default function IndoorScreen({
           currentFloor={selectedFloor ?? 0}
         />
       </View>
+
       <View
         style={styles.floorSelectorContainer}
         testID="indoor-floor-selector"
@@ -270,6 +269,7 @@ export default function IndoorScreen({
         <Text style={styles.hiddenFloorTestHook} testID="indoor-current-floor">
           Floor: {selectedFloor === -2 ? "S2" : (selectedFloor ?? "-")}
         </Text>
+
         <FloorSelector
           floors={availableFloors}
           selectedFloor={selectedFloor}
@@ -333,7 +333,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 1,
   },
-  // Match hiddenFloorTestHook: avoid opacity:0 so Maestro/iOS still treat the node as visible
   hiddenRouteTestHook: {
     position: "absolute",
     width: 1,
