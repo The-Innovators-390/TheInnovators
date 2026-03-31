@@ -43,9 +43,13 @@ export function useCampusIndoorEffects({
 }: Readonly<UseCampusIndoorEffectsProps>) {
   const router = useRouter();
   const hasOpenedIndoorDestinationRef = useRef(false);
+  const appliedIndoorStartSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!indoorStartBuilding) return;
+    const signature = `${indoorStartBuilding.id}|${indoorStartLabel ?? ""}`;
+    if (appliedIndoorStartSignatureRef.current === signature) return;
+    appliedIndoorStartSignatureRef.current = signature;
 
     if (!nav.isRouteMode) {
       nav.setIsRouteMode(true);

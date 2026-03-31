@@ -206,6 +206,7 @@ export default function CampusMap() {
 
   const mapRef = useRef<MapView>(null);
   const nav = useNavigation();
+  const appliedRouteParamsSignatureRef = useRef<string | null>(null);
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const [mapHeading, setMapHeading] = useState(0);
@@ -612,9 +613,20 @@ export default function CampusMap() {
 
   useEffect(() => {
     if (!destBuildingId) return;
+    const routeParamsSignature = [
+      destBuildingId,
+      indoorStartBuildingCode ?? "",
+      indoorStartBuildingId ?? "",
+      indoorStartLabel ?? "",
+      normalizedExternalDestRoomNodeId ?? "",
+      normalizedExternalDestRoomLabel ?? "",
+      normalizedExternalDestBuildingCode ?? "",
+    ].join("|");
+    if (appliedRouteParamsSignatureRef.current === routeParamsSignature) return;
 
     const targetBuilding = ALL_BUILDINGS.find((b) => b.id === destBuildingId);
     if (!targetBuilding || (indoorStartBuilding && !nav.routeStart)) return;
+    appliedRouteParamsSignatureRef.current = routeParamsSignature;
 
     if (!nav.isRouteMode) nav.setIsRouteMode(true);
 
@@ -636,6 +648,12 @@ export default function CampusMap() {
     setStartToCurrentLocation,
     focusBuilding,
     indoorStartBuilding,
+    indoorStartBuildingCode,
+    indoorStartBuildingId,
+    indoorStartLabel,
+    normalizedExternalDestRoomNodeId,
+    normalizedExternalDestRoomLabel,
+    normalizedExternalDestBuildingCode,
   ]);
 
   const { handleContinueIndoors, resetIndoorDestinationState } =
