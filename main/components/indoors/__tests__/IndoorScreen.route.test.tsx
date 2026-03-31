@@ -40,6 +40,11 @@ jest.mock("../../ui/HeaderBackButton", () => {
 jest.mock("../pathfinding", () => ({
   findShortestIndoorPath: (...args: unknown[]) =>
     mockFindShortestIndoorPath(...args),
+  findShortestIndoorPathWithSteps: (...args: unknown[]) => {
+    const base = mockFindShortestIndoorPath(...args);
+    if (!base) return null;
+    return { ...base, steps: [] };
+  },
 }));
 
 jest.mock("../IndoorMapViewer", () => {
@@ -271,22 +276,26 @@ describe("IndoorScreen route panel", () => {
   });
 
   it("returns no suggestions when the query is empty", () => {
-    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+    const { getByTestId, queryByTestId } = render(
+      <IndoorScreen buildingId="H" />,
+    );
 
     fireEvent.changeText(getByTestId("start-input"), "");
 
-    expect(getByTestId("suggestions-count").props.children).toBe("0");
+    expect(queryByTestId("suggestions-count")).toBeNull();
   });
 
   it("picking a start suggestion fills start and switches focus to destination", () => {
-    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+    const { getByTestId, queryByTestId } = render(
+      <IndoorScreen buildingId="H" />,
+    );
 
     fireEvent.changeText(getByTestId("start-input"), "Room A");
     fireEvent.press(getByTestId("suggestion-n1"));
 
     expect(getByTestId("start-input").props.value).toBe("Room A");
     expect(getByTestId("active-field").props.children).toBe("destination");
-    expect(getByTestId("suggestions-count").props.children).toBe("0");
+    expect(queryByTestId("suggestions-count")).toBeNull();
     expect(mockFindShortestIndoorPath).not.toHaveBeenCalled();
   });
 
