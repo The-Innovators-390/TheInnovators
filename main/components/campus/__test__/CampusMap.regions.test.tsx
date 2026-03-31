@@ -12,6 +12,11 @@ import {
 jest.mock("expo-router", () => ({
   __esModule: true,
   useLocalSearchParams: jest.fn(() => ({})),
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  })),
 }));
 
 // Silence icon async setState warnings

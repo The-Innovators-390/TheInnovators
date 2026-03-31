@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Keyboard,
-  Pressable,
-} from "react-native";
+import { View, Text, StyleSheet, Keyboard, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { HeaderBackButton } from "../ui/HeaderBackButton";
@@ -73,10 +67,7 @@ export default function IndoorScreen({
 
   const router = useRouter();
 
-  const {
-    destinationNodeId,
-    destinationLabel,
-  } = useLocalSearchParams<{
+  const { destinationNodeId, destinationLabel } = useLocalSearchParams<{
     destinationNodeId?: string | string[];
     destinationLabel?: string | string[];
   }>();
@@ -94,9 +85,8 @@ export default function IndoorScreen({
     [],
   );
 
-  const [selectedOutdoorBuilding, setSelectedOutdoorBuilding] = useState<any>(
-    null,
-  );
+  const [selectedOutdoorBuilding, setSelectedOutdoorBuilding] =
+    useState<any>(null);
   const [selectedExternalRoom, setSelectedExternalRoom] = useState<any>(null);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);

@@ -18,6 +18,11 @@ jest.mock("expo-status-bar", () => ({
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
 }));
 
 jest.mock("@/components/Buildings/SGW/SGWBuildings", () => ({

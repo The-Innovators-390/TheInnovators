@@ -41,13 +41,18 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 
-// Mock expo-router
+// Mock expo-router (hooks + imperative API; tests may override per-file)
+const mockExpoRouterApi = {
+  replace: jest.fn(),
+  push: jest.fn(),
+  back: jest.fn(),
+};
+
 jest.mock("expo-router", () => ({
-  router: {
-    replace: jest.fn(),
-    push: jest.fn(),
-    back: jest.fn(),
-  },
+  __esModule: true,
+  router: mockExpoRouterApi,
+  useRouter: jest.fn(() => mockExpoRouterApi),
+  useLocalSearchParams: jest.fn(() => ({})),
 }));
 
 /**

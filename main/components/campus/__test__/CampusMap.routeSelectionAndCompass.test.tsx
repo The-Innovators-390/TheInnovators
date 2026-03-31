@@ -54,6 +54,11 @@ const mockRouteNavigationState = {
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(() => ({})),
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  })),
 }));
 
 jest.mock("expo-status-bar", () => ({
