@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { IndoorNode } from "./types";
 
-type SuggestionItem =
+export type SuggestionItem =
   | IndoorNode
   | {
       type: "outdoor_building";

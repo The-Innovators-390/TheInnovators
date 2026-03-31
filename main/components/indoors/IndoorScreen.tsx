@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Keyboard, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { HeaderBackButton } from "../ui/HeaderBackButton";
 import { indoorData } from "./indoorData";
 import { floorMaps } from "./floorMaps";
@@ -14,31 +14,15 @@ import { BUILDING_FLOORS, INDOOR_LAYOUT } from "./indoor.constants";
 import { FloorSelector } from "./FloorSelector";
 import IndoorRouteInput from "./IndoorRouteInput";
 import IndoorSuggestionsList from "./IndoorSuggestionsList";
-import {
-  findShortestIndoorPathWithSteps,
-  findShortestPathToBuildingExitWithSteps,
-  IndoorRoutingOptions,
-  type IndoorRouteStep,
-} from "./pathfinding";
 import type { IndoorNode } from "./types";
+import { useIndoorDeepLinkEffect } from "./useIndoorDeepLinkEffect";
+import { useIndoorSuggestions } from "./useIndoorSuggestions";
+import { useIndoorRouteHandlers } from "./useIndoorRouteHandlers";
+import { useIndoorRouteComputation } from "./useIndoorRouteComputation";
 
 interface IndoorScreenProps {
   buildingId: string;
 }
-
-type MixedSuggestion =
-  | IndoorNode
-  | {
-      type: "outdoor_building";
-      label: string;
-      building: any;
-    }
-  | {
-      type: "external_room";
-      label: string;
-      building: any;
-      roomNode: IndoorNode;
-    };
 
 export default function IndoorScreen({
   buildingId,
@@ -65,8 +49,6 @@ export default function IndoorScreen({
     "start",
   );
 
-  const router = useRouter();
-
   const { destinationNodeId, destinationLabel } = useLocalSearchParams<{
     destinationNodeId?: string | string[];
     destinationLabel?: string | string[];
@@ -85,9 +67,13 @@ export default function IndoorScreen({
     [],
   );
 
-  const [selectedOutdoorBuilding, setSelectedOutdoorBuilding] =
-    useState<any>(null);
-  const [selectedExternalRoom, setSelectedExternalRoom] = useState<any>(null);
+  const [selectedOutdoorBuilding, setSelectedOutdoorBuilding] = useState<
+    (typeof ALL_BUILDINGS)[number] | null
+  >(null);
+  const [selectedExternalRoom, setSelectedExternalRoom] = useState<{
+    building: (typeof ALL_BUILDINGS)[number];
+    roomNode: IndoorNode;
+  } | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [accessible, setAccessible] = useState(false);
@@ -96,56 +82,20 @@ export default function IndoorScreen({
     return indoorData[trimmedBuildingId];
   }, [trimmedBuildingId]);
 
-  useEffect(() => {
-    if (!normalizedDestinationNodeId || !graphData) return;
-
-    const matchedNode =
-      graphData.nodes.find(
-        (node: IndoorNode) => node.id === normalizedDestinationNodeId
-      ) ?? null;
-
-    if (!matchedNode) return;
-
-    setDestinationNode(matchedNode);
-    setDestText(normalizedDestinationLabel ?? matchedNode.label ?? "");
-
-    if (startNode !== null) return;
-
-    const entryNodes = graphData.nodes.filter(
-      (node: IndoorNode) => node.type === "building_entry_exit"
-    );
-
-    const getDistance = (a: IndoorNode, b: IndoorNode) => {
-      if (a.x == null || a.y == null || b.x == null || b.y == null) {
-        return Number.POSITIVE_INFINITY;
-      }
-      return Math.hypot(a.x - b.x, a.y - b.y);
-    };
-
-    if (entryNodes.length > 0) {
-      const closestEntryNode = entryNodes.reduce((closest, current) => {
-        return getDistance(current, matchedNode) <
-          getDistance(closest, matchedNode)
-          ? current
-          : closest;
-      });
-
-    setStartNode({
-        ...closestEntryNode,
-        label: "Entrance",
-      });
-      setStartText("Entrance");
-      }
-
-    setSelectedOutdoorBuilding(null);
-    setSelectedExternalRoom(null);
-    setActiveField("destination");
-    setCurrentStepIndex(0);
-  }, [
+  useIndoorDeepLinkEffect({
     normalizedDestinationNodeId,
     normalizedDestinationLabel,
     graphData,
-  ]);
+    startNode,
+    setDestinationNode,
+    setDestText,
+    setStartNode,
+    setStartText,
+    setSelectedOutdoorBuilding: () => setSelectedOutdoorBuilding(null),
+    setSelectedExternalRoom: () => setSelectedExternalRoom(null),
+    setActiveField,
+    setCurrentStepIndex,
+  });
 
   const availableFloors = useMemo(() => {
     if (BUILDING_FLOORS[trimmedBuildingId]) {
@@ -186,127 +136,33 @@ export default function IndoorScreen({
     return getFloorData(graphData, selectedFloor);
   }, [graphData, selectedFloor]);
 
-  const suggestions = useMemo(() => {
-    const query = activeField === "start" ? startText : destText;
-    const normalizedQuery = query.trim().toLowerCase();
-
-    const selectedNode = activeField === "start" ? startNode : destinationNode;
-
-    if (!normalizedQuery || selectedNode || !graphData) {
-      return [];
-    }
-
-    if (activeField === "start") {
-      return graphData.nodes
-        .filter((node: IndoorNode) => node.type === "room" && !!node.label)
-        .filter((node: IndoorNode) =>
-          node.label?.toLowerCase().includes(normalizedQuery),
-        )
-        .slice(0, 8);
-    }
-
-    const sameBuildingRooms = graphData.nodes
-      .filter((node: IndoorNode) => node.type === "room" && !!node.label)
-      .filter((node: IndoorNode) =>
-        node.label?.toLowerCase().includes(normalizedQuery),
-      )
-      .slice(0, 4);
-
-    const outdoorBuildings = ALL_BUILDINGS.filter((b) => {
-      const code = b.code?.toLowerCase() ?? "";
-      const name = b.name?.toLowerCase() ?? "";
-      const address = b.address?.toLowerCase() ?? "";
-
-      return (
-        code.includes(normalizedQuery) ||
-        name.includes(normalizedQuery) ||
-        address.includes(normalizedQuery)
-      );
-    })
-      .slice(0, 4)
-      .map((b) => ({
-        type: "outdoor_building" as const,
-        label: `${b.code} - ${b.name}`,
-        building: b,
-      }));
-
-    const externalRooms: MixedSuggestion[] = [];
-
-    Object.entries(indoorData).forEach(([code, data]) => {
-      if (code === trimmedBuildingId) return;
-
-      const targetBuilding = ALL_BUILDINGS.find((b) => b.code === code);
-      if (!targetBuilding) return;
-
-      data.nodes
-        .filter((node: IndoorNode) => node.type === "room" && !!node.label)
-        .filter((node: IndoorNode) =>
-          node.label?.toLowerCase().includes(normalizedQuery),
-        )
-        .slice(0, 2)
-        .forEach((node: IndoorNode) => {
-          externalRooms.push({
-            type: "external_room",
-            label: `${node.label} (${targetBuilding.code})`,
-            building: targetBuilding,
-            roomNode: node,
-          });
-        });
-    });
-
-    return [...sameBuildingRooms, ...outdoorBuildings, ...externalRooms].slice(
-      0,
-      8,
-    );
-  }, [
+  const suggestions = useIndoorSuggestions({
     activeField,
     startText,
     destText,
     startNode,
     destinationNode,
     graphData,
-    ALL_BUILDINGS,
+    allBuildings: ALL_BUILDINGS,
     trimmedBuildingId,
-  ]);
+  });
 
-  const isOutdoorHandoffRoute = useMemo(() => {
-    return !!startNode && (!!selectedOutdoorBuilding || !!selectedExternalRoom);
-  }, [startNode, selectedOutdoorBuilding, selectedExternalRoom]);
-
-  const routeResult = useMemo(() => {
-    if (!startNode || !graphData) {
-      return null;
-    }
-
-    const options: IndoorRoutingOptions = { accessible };
-
-    if (isOutdoorHandoffRoute) {
-      return findShortestPathToBuildingExitWithSteps(
-        graphData.nodes,
-        graphData.edges,
-        startNode.id,
-        options,
-      );
-    }
-
-    if (!destinationNode) {
-      return null;
-    }
-
-    return findShortestIndoorPathWithSteps(
-      graphData.nodes,
-      graphData.edges,
-      startNode.id,
-      destinationNode.id,
-      options,
-    );
-  }, [
+  const {
+    isOutdoorHandoffRoute,
+    routeResult,
+    routeSteps,
+    currentStep,
+    isLastStep,
+    routeFloors,
+  } = useIndoorRouteComputation({
     startNode,
     destinationNode,
     graphData,
     accessible,
-    isOutdoorHandoffRoute,
-  ]);
+    hasSelectedOutdoorBuilding: !!selectedOutdoorBuilding,
+    hasSelectedExternalRoom: !!selectedExternalRoom,
+    currentStepIndex,
+  });
 
   useEffect(() => {
     if (!routeResult?.path?.length) return;
@@ -317,175 +173,44 @@ export default function IndoorScreen({
     }
   }, [routeResult]);
 
-  const routeSteps = routeResult?.steps ?? [];
-
-  const currentStep: IndoorRouteStep | null =
-    routeSteps[currentStepIndex] ?? null;
-
-  const isLastStep =
-    routeSteps.length > 0 && currentStepIndex === routeSteps.length - 1;
-
   const hasSuggestions = suggestions.length > 0;
 
-  const getNodeById = (nodeId: string) => {
-    return (
-      graphData?.nodes.find((node: IndoorNode) => node.id === nodeId) ?? null
-    );
-  };
-
-  const handleAdvanceStep = () => {
-    if (!currentStep || !routeResult) return;
-    if (isLastStep) return;
-
-    if (currentStep.kind === "elevator" || currentStep.kind === "stairs") {
-      const destinationTransportNode = getNodeById(currentStep.toNodeId);
-      if (destinationTransportNode?.floor != null) {
-        setSelectedFloor(destinationTransportNode.floor);
-      }
-    }
-
-    setCurrentStepIndex((prev) => Math.min(prev + 1, routeSteps.length - 1));
-  };
-
-  const handleSwapRouteFields = () => {
-    const previousStart = startNode;
-    const previousDestination = destinationNode;
-
-    setStartNode(previousDestination);
-    setDestinationNode(previousStart);
-    setSelectedOutdoorBuilding(null);
-    setSelectedExternalRoom(null);
-
-    setStartText(previousDestination?.label ?? destText);
-    setDestText(previousStart?.label ?? startText);
-    setCurrentStepIndex(0);
-  };
-
-  const handleChangeStartText = (text: string) => {
-    setActiveField("start");
-    setStartText(text);
-
-    if (startNode) {
-      setStartNode(null);
-    }
-  };
-
-  const handleChangeDestText = (text: string) => {
-    setActiveField("destination");
-    setDestText(text);
-
-    if (destinationNode) {
-      setDestinationNode(null);
-    }
-
-    if (selectedOutdoorBuilding) {
-      setSelectedOutdoorBuilding(null);
-    }
-
-    if (selectedExternalRoom) {
-      setSelectedExternalRoom(null);
-    }
-
-    setCurrentStepIndex(0);
-  };
-
-  const handleClearStart = () => {
-    setStartText("");
-    setStartNode(null);
-    setCurrentStepIndex(0);
-    setActiveField("start");
-  };
-
-  const handleClearDestination = () => {
-    setDestText("");
-    setDestinationNode(null);
-    setSelectedOutdoorBuilding(null);
-    setSelectedExternalRoom(null);
-    setCurrentStepIndex(0);
-    setActiveField("destination");
-  };
-
-  function handlePickIndoorNode(node: any) {
-    if (activeField === "start") {
-      setStartNode(node);
-      setStartText(node.label ?? "");
-      setActiveField("destination");
-      setCurrentStepIndex(0);
-      Keyboard.dismiss();
-      return;
-    }
-
-    if (node.type === "outdoor_building") {
-      setDestinationNode(null);
-      setSelectedExternalRoom(null);
-      setSelectedOutdoorBuilding(node.building);
-      setDestText(node.label ?? "");
-      setCurrentStepIndex(0);
-      Keyboard.dismiss();
-      return;
-    }
-
-    if (node.type === "external_room") {
-      setDestinationNode(null);
-      setSelectedOutdoorBuilding(node.building);
-      setSelectedExternalRoom({
-        building: node.building,
-        roomNode: node.roomNode,
-      });
-      setDestText(node.label ?? "");
-      setCurrentStepIndex(0);
-      Keyboard.dismiss();
-      return;
-    }
-
-    setDestinationNode(node);
-    setSelectedOutdoorBuilding(null);
-    setSelectedExternalRoom(null);
-    setDestText(node.label ?? "");
-    setCurrentStepIndex(0);
-    Keyboard.dismiss();
-  }
-
-const handleContinueToCampusRoute = () => {
-  if (!building || !startNode || !selectedOutdoorBuilding) return;
-
-  const externalRoomNodeId =
-    selectedExternalRoom?.roomNode?.id ??
-    destinationNode?.id ??
-    null;
-
-  const externalRoomLabel =
-    selectedExternalRoom?.roomNode?.label ??
-    destinationNode?.label ??
-    "";
-
-  const externalBuildingCode =
-    selectedExternalRoom?.building?.code ??
-    selectedOutdoorBuilding?.code ??
-    "";
-
-  router.push({
-    pathname: "/(tabs)/map",
-    params: {
-      indoorStartBuildingCode: building.code,
-      indoorStartBuildingId: building.id,
-      indoorStartLabel: startNode.label ?? startText ?? "Selected room",
-
-      destBuildingId: selectedOutdoorBuilding.id,
-
-    
-      externalDestRoomNodeId: externalRoomNodeId,
-      externalDestRoomLabel: externalRoomLabel,
-      externalDestBuildingCode: externalBuildingCode,
-    },
+  const {
+    handleAdvanceStep,
+    handleSwapRouteFields,
+    handleChangeStartText,
+    handleChangeDestText,
+    handleClearStart,
+    handleClearDestination,
+    handlePickIndoorNode,
+    handleContinueToCampusRoute,
+  } = useIndoorRouteHandlers({
+    graphData,
+    routeStepsLength: routeSteps.length,
+    currentStep,
+    routeResultExists: !!routeResult,
+    isLastStep,
+    startNode,
+    destinationNode,
+    selectedOutdoorBuilding,
+    selectedExternalRoom,
+    building,
+    startText,
+    destText,
+    activeField,
+    setSelectedFloor,
+    setCurrentStepIndex,
+    setStartNode,
+    setDestinationNode,
+    setSelectedOutdoorBuilding,
+    setSelectedExternalRoom,
+    setStartText,
+    setDestText,
+    setActiveField,
   });
-};
 
-  const routeFloors = useMemo(() => {
-    return Array.from(
-      new Set(routeResult?.path.map((node: IndoorNode) => node.floor) ?? []),
-    );
-  }, [routeResult]);
+  const currentFloorLabel =
+    selectedFloor === -2 ? "S2" : String(selectedFloor ?? "-");
 
   if (!graphData) {
     return (
@@ -570,7 +295,7 @@ const handleContinueToCampusRoute = () => {
           {hasSuggestions ? (
             <View style={styles.suggestionsOverlay}>
               <IndoorSuggestionsList
-                suggestions={suggestions as any}
+                suggestions={suggestions}
                 onPick={handlePickIndoorNode}
               />
             </View>
@@ -586,48 +311,16 @@ const handleContinueToCampusRoute = () => {
           ) : null}
         </View>
 
-        {currentStep ? (
-          <View
-            pointerEvents="box-none"
-            style={[
-              styles.stepOverlay,
-              hasSuggestions ? styles.stepOverlayWithSuggestions : null,
-            ]}
-          >
-            <View style={styles.stepCard}>
-              <Text style={styles.stepBadge}>
-                Step {currentStepIndex + 1} of {routeSteps.length}
-              </Text>
-              <Text style={styles.stepText}>{currentStep.instruction}</Text>
-
-              {isOutdoorHandoffRoute && isLastStep ? (
-                <Pressable
-                  testID="confirmExitBuildingButton"
-                  onPress={handleContinueToCampusRoute}
-                  style={continueStyles.button}
-                >
-                  <Text style={continueStyles.text}>
-                    Confirm you have exited the building
-                  </Text>
-                </Pressable>
-              ) : isLastStep ? (
-                <View style={styles.arrivedBadge}>
-                  <Text style={styles.arrivedText}>
-                    You have reached this step
-                  </Text>
-                </View>
-              ) : (
-                <Pressable
-                  testID="indoorNextStepButton"
-                  onPress={handleAdvanceStep}
-                  style={styles.nextStepButton}
-                >
-                  <Text style={styles.nextStepText}>Next</Text>
-                </Pressable>
-              )}
-            </View>
-          </View>
-        ) : null}
+        <RouteStepOverlay
+          currentStep={currentStep}
+          currentStepIndex={currentStepIndex}
+          routeStepsLength={routeSteps.length}
+          isOutdoorHandoffRoute={isOutdoorHandoffRoute}
+          isLastStep={isLastStep}
+          hasSuggestions={hasSuggestions}
+          onContinueToCampusRoute={handleContinueToCampusRoute}
+          onAdvanceStep={handleAdvanceStep}
+        />
 
         <View
           style={styles.floorSelectorContainer}
@@ -637,7 +330,7 @@ const handleContinueToCampusRoute = () => {
             style={styles.hiddenFloorTestHook}
             testID="indoor-current-floor"
           >
-            Floor: {selectedFloor === -2 ? "S2" : (selectedFloor ?? "-")}
+            Floor: {currentFloorLabel}
           </Text>
           <FloorSelector
             floors={availableFloors}
@@ -651,6 +344,76 @@ const handleContinueToCampusRoute = () => {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function RouteStepOverlay({
+  currentStep,
+  currentStepIndex,
+  routeStepsLength,
+  isOutdoorHandoffRoute,
+  isLastStep,
+  hasSuggestions,
+  onContinueToCampusRoute,
+  onAdvanceStep,
+}: Readonly<{
+  currentStep: { instruction: string } | null;
+  currentStepIndex: number;
+  routeStepsLength: number;
+  isOutdoorHandoffRoute: boolean;
+  isLastStep: boolean;
+  hasSuggestions: boolean;
+  onContinueToCampusRoute: () => void;
+  onAdvanceStep: () => void;
+}>) {
+  if (!currentStep) return null;
+
+  let action: React.ReactNode = (
+    <Pressable
+      testID="indoorNextStepButton"
+      onPress={onAdvanceStep}
+      style={styles.nextStepButton}
+    >
+      <Text style={styles.nextStepText}>Next</Text>
+    </Pressable>
+  );
+
+  if (isOutdoorHandoffRoute && isLastStep) {
+    action = (
+      <Pressable
+        testID="confirmExitBuildingButton"
+        onPress={onContinueToCampusRoute}
+        style={continueStyles.button}
+      >
+        <Text style={continueStyles.text}>
+          Confirm you have exited the building
+        </Text>
+      </Pressable>
+    );
+  } else if (isLastStep) {
+    action = (
+      <View style={styles.arrivedBadge}>
+        <Text style={styles.arrivedText}>You have reached this step</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.stepOverlay,
+        hasSuggestions ? styles.stepOverlayWithSuggestions : null,
+      ]}
+    >
+      <View style={styles.stepCard}>
+        <Text style={styles.stepBadge}>
+          Step {currentStepIndex + 1} of {routeStepsLength}
+        </Text>
+        <Text style={styles.stepText}>{currentStep.instruction}</Text>
+        {action}
+      </View>
+    </View>
   );
 }
 

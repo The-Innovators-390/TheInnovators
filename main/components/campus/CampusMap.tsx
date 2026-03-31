@@ -16,7 +16,6 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, LatLng } from "react-native-maps";
 import {
   getDeviceLocation,
@@ -92,6 +91,8 @@ import {
   flattenRouteSegmentCoordinates,
   type RouteRenderSegment,
 } from "@/components/campus/helper_methods/routeSegments";
+import { useCampusSearchParams } from "@/hooks/useCampusSearchParams";
+import { useCampusIndoorEffects } from "@/hooks/useCampusIndoorEffects";
 
 // Re-export for backwards compatibility with tests
 export {
@@ -200,11 +201,11 @@ export default function CampusMap() {
 
   const [directionsError, setDirectionsError] = useState<string | null>(null);
   const [directionRetryTick, setDirectionRetryTick] = useState(0);
-  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] = useState(false);
+  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] =
+    useState(false);
 
   const mapRef = useRef<MapView>(null);
   const nav = useNavigation();
-  const router = useRouter();
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const [mapHeading, setMapHeading] = useState(0);
@@ -215,32 +216,24 @@ export default function CampusMap() {
     indoorStartBuildingCode,
     indoorStartBuildingId,
     indoorStartLabel,
-    externalDestRoomNodeId,
-    externalDestRoomLabel,
-    externalDestBuildingCode,
-  } = useLocalSearchParams<{
-    destBuildingId?: string;
-    indoorStartBuildingCode?: string;
-    indoorStartBuildingId?: string;
-    indoorStartLabel?: string;
-    externalDestRoomNodeId?: string;
-    externalDestRoomLabel?: string;
-    externalDestBuildingCode?: string;
-  }>();
+    normalizedExternalDestRoomNodeId,
+    normalizedExternalDestRoomLabel,
+    normalizedExternalDestBuildingCode,
+  } = useCampusSearchParams();
 
-  const normalizedExternalDestRoomNodeId = Array.isArray(externalDestRoomNodeId)
-    ? externalDestRoomNodeId[0]
-    : externalDestRoomNodeId;
+  const isSameRegion = useCallback(
+    (a: Region | null | undefined, b: Region | null | undefined) => {
+      if (!a || !b) return false;
 
-  const normalizedExternalDestRoomLabel = Array.isArray(externalDestRoomLabel)
-    ? externalDestRoomLabel[0]
-    : externalDestRoomLabel;
-
-  const normalizedExternalDestBuildingCode = Array.isArray(
-    externalDestBuildingCode,
-  )
-    ? externalDestBuildingCode[0]
-    : externalDestBuildingCode;
+    return (
+      Math.abs(a.latitude - b.latitude) < 0.00001 &&
+      Math.abs(a.longitude - b.longitude) < 0.00001 &&
+      Math.abs(a.latitudeDelta - b.latitudeDelta) < 0.00001 &&
+      Math.abs(a.longitudeDelta - b.longitudeDelta) < 0.00001
+    );
+    },
+    [],
+  );
 
   const routeStrokeWidth = useMemo(() => {
     const d = region?.latitudeDelta ?? 0.1;
@@ -321,7 +314,6 @@ export default function CampusMap() {
   }, [nav.routeDest?.id]);
 
   const lastCameraUpdateRef = useRef(0);
-  const hasOpenedIndoorDestinationRef = useRef(false);
 
   // Auto fetch user location on mount
   useEffect(() => {
@@ -646,53 +638,20 @@ export default function CampusMap() {
     indoorStartBuilding,
   ]);
 
-  useEffect(() => {
-    if (!indoorStartBuilding) return;
-
-    if (!nav.isRouteMode) {
-      nav.setIsRouteMode(true);
-    }
-
-    nav.setRouteStart(indoorStartBuilding);
-
-    setStartText(
-      indoorStartLabel
-        ? `${indoorStartLabel} (${indoorStartBuilding.code})`
-        : `${indoorStartBuilding.code} - ${indoorStartBuilding.name}`,
-    );
-
-    setSelected(null);
-    setPopupIndex(-1);
-  }, [indoorStartBuilding, indoorStartLabel, nav]);
-
-    useEffect(() => {
-      const shouldShowArrivalConfirm =
-        routeNavigation.isNavigating &&
-        true &&
-        !!nav.routeDest &&
-        !!normalizedExternalDestRoomNodeId &&
-        !!normalizedExternalDestBuildingCode &&
-        nav.routeDest.code === normalizedExternalDestBuildingCode &&
-        !hasOpenedIndoorDestinationRef.current;
-
-      setShowIndoorArrivalConfirm(shouldShowArrivalConfirm);
-    }, [
-      routeNavigation.isNavigating,
-      routeNavigation.isArrived,
-      nav.routeDest,
+  const { handleContinueIndoors, resetIndoorDestinationState } =
+    useCampusIndoorEffects({
+      nav,
+      routeNavigation,
+      indoorStartBuilding,
+      indoorStartLabel,
       normalizedExternalDestRoomNodeId,
+      normalizedExternalDestRoomLabel,
       normalizedExternalDestBuildingCode,
-    ]);
-
-    useEffect(() => {
-      hasOpenedIndoorDestinationRef.current = false;
-      setShowIndoorArrivalConfirm(false);
-    }, [
-      nav.routeStart?.id,
-      nav.routeDest?.id,
-      normalizedExternalDestRoomNodeId,
-      normalizedExternalDestBuildingCode,
-    ]);
+      setStartText,
+      setSelected,
+      setPopupIndex,
+      setShowIndoorArrivalConfirm,
+    });
 
   useEffect(() => {
     const start = nav.routeStart;
@@ -1032,35 +991,6 @@ export default function CampusMap() {
     ],
   );
 
-  const handleContinueIndoors = useCallback(() => {
-    if (
-      !nav.routeDest ||
-      !normalizedExternalDestRoomNodeId ||
-      !normalizedExternalDestBuildingCode ||
-      nav.routeDest.code !== normalizedExternalDestBuildingCode
-    ) {
-      return;
-    }
-
-    hasOpenedIndoorDestinationRef.current = true;
-    setShowIndoorArrivalConfirm(false);
-
-    router.push({
-      pathname: "/(tabs)/indoorscreen",
-      params: {
-        buildingCode: nav.routeDest.code,
-        destinationNodeId: normalizedExternalDestRoomNodeId,
-        destinationLabel: normalizedExternalDestRoomLabel,
-      },
-    });
-  }, [
-    nav.routeDest,
-    normalizedExternalDestRoomNodeId,
-    normalizedExternalDestRoomLabel,
-    normalizedExternalDestBuildingCode,
-    router,
-  ]);
-
   const handleToggleRoutePlanner = useCallback(() => {
     const nextMode = !nav.isRouteMode;
 
@@ -1123,7 +1053,8 @@ export default function CampusMap() {
         toolbarEnabled={false}
         rotateEnabled={false}
         onRegionChangeComplete={(r) => {
-          if (r?.latitude != null && r?.longitude != null) setRegion(r);
+          if (r?.latitude == null || r?.longitude == null) return;
+          setRegion((prev) => (isSameRegion(prev, r) ? prev : r));
         }}
         onPanDrag={() => {
           if (routeNavigation.isNavigating) setIsFollowingUser(false);
@@ -1463,7 +1394,6 @@ export default function CampusMap() {
         </View>
       ) : null}
 
-
       <NavigationOverlay
         isNavigating={routeNavigation.isNavigating}
         isNearStart={routeNavigation.isNearStart}
@@ -1498,8 +1428,7 @@ export default function CampusMap() {
             : "--"
         }
         onExit={() => {
-          hasOpenedIndoorDestinationRef.current = false;
-          setShowIndoorArrivalConfirm(false);
+          resetIndoorDestinationState();
           routeNavigation.exitNavigation();
           clearRouteData();
           clearDisplayedRoutes();
@@ -1598,7 +1527,7 @@ const indoorArrivalStyles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: 180,
-    zIndex: 10000, 
+    zIndex: 10000,
     elevation: 10000,
   },
   button: {
@@ -1621,7 +1550,6 @@ const indoorArrivalStyles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
 
 const nextClassStyles = StyleSheet.create({
   button: {
