@@ -200,6 +200,7 @@ export default function CampusMap() {
 
   const [directionsError, setDirectionsError] = useState<string | null>(null);
   const [directionRetryTick, setDirectionRetryTick] = useState(0);
+  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] = useState(false);
 
   const mapRef = useRef<MapView>(null);
   const nav = useNavigation();
@@ -697,6 +698,7 @@ export default function CampusMap() {
 
   useEffect(() => {
     hasOpenedIndoorDestinationRef.current = false;
+    setShowIndoorArrivalConfirm(false);
   }, [
     nav.routeStart?.id,
     nav.routeDest?.id,
@@ -1041,6 +1043,35 @@ export default function CampusMap() {
       showRoutesForMode,
     ],
   );
+
+  const handleContinueIndoors = useCallback(() => {
+    if (
+      !nav.routeDest ||
+      !normalizedExternalDestRoomNodeId ||
+      !normalizedExternalDestBuildingCode ||
+      nav.routeDest.code !== normalizedExternalDestBuildingCode
+    ) {
+      return;
+    }
+
+    hasOpenedIndoorDestinationRef.current = true;
+    setShowIndoorArrivalConfirm(false);
+
+    router.push({
+      pathname: "/indoorscreen",
+      params: {
+        buildingCode: nav.routeDest.code,
+        destinationNodeId: normalizedExternalDestRoomNodeId,
+        destinationLabel: normalizedExternalDestRoomLabel,
+      },
+    });
+  }, [
+    nav.routeDest,
+    normalizedExternalDestRoomNodeId,
+    normalizedExternalDestRoomLabel,
+    normalizedExternalDestBuildingCode,
+    router,
+  ]);
 
   const handleToggleRoutePlanner = useCallback(() => {
     const nextMode = !nav.isRouteMode;
@@ -1430,6 +1461,21 @@ export default function CampusMap() {
         accentColor={focusedCampus === "SGW" ? "#912338" : "#E0B100"}
       />
 
+      {showIndoorArrivalConfirm ? (
+        <View style={indoorArrivalStyles.container}>
+          <Pressable
+            testID="confirmArrivedAtDestinationBuildingButton"
+            onPress={handleContinueIndoors}
+            style={indoorArrivalStyles.button}
+          >
+            <Text style={indoorArrivalStyles.buttonText}>
+              Confirm that you got to the building
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+
       <NavigationOverlay
         isNavigating={routeNavigation.isNavigating}
         isNearStart={routeNavigation.isNearStart}
@@ -1465,6 +1511,7 @@ export default function CampusMap() {
         }
         onExit={() => {
           hasOpenedIndoorDestinationRef.current = false;
+          setShowIndoorArrivalConfirm(false);
           routeNavigation.exitNavigation();
           clearRouteData();
           clearDisplayedRoutes();
@@ -1556,6 +1603,37 @@ const locationMarkerStyles = StyleSheet.create({
     elevation: 4,
   },
 });
+
+const indoorArrivalStyles = StyleSheet.create({
+  container: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 110,
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  button: {
+    backgroundColor: "#d32f2f",
+    borderRadius: 28,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
+  },
+});
+
 
 const nextClassStyles = StyleSheet.create({
   button: {
