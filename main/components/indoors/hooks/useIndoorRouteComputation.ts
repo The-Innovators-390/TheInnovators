@@ -4,8 +4,8 @@ import {
   findShortestPathToBuildingExitWithSteps,
   type IndoorRoutingOptions,
   type IndoorRouteStep,
-} from "./pathfinding";
-import type { IndoorNode } from "./types";
+} from "../pathfinding";
+import type { IndoorNode } from "../types";
 
 type GraphData = {
   nodes: IndoorNode[];

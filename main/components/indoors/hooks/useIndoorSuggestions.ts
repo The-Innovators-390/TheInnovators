@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { indoorData } from "./indoorData";
-import type { Building } from "../Buildings/types";
-import type { IndoorNode } from "./types";
-import type { SuggestionItem } from "./IndoorSuggestionsList";
+import { indoorData } from "../indoorData";
+import type { Building } from "../../Buildings/types";
+import type { IndoorNode } from "../types";
+import type { SuggestionItem } from "../IndoorSuggestionsList";
 
 type MixedSuggestion =
   | IndoorNode

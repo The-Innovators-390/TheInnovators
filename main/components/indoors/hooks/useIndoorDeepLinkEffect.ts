@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { IndoorNode } from "./types";
+import type { IndoorNode } from "../types";
 
 type GraphData = {
   nodes: IndoorNode[];

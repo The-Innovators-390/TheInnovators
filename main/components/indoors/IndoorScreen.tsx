@@ -15,10 +15,10 @@ import { FloorSelector } from "./FloorSelector";
 import IndoorRouteInput from "./IndoorRouteInput";
 import IndoorSuggestionsList from "./IndoorSuggestionsList";
 import type { IndoorNode } from "./types";
-import { useIndoorDeepLinkEffect } from "./useIndoorDeepLinkEffect";
-import { useIndoorSuggestions } from "./useIndoorSuggestions";
-import { useIndoorRouteHandlers } from "./useIndoorRouteHandlers";
-import { useIndoorRouteComputation } from "./useIndoorRouteComputation";
+import { useIndoorDeepLinkEffect } from "./hooks/useIndoorDeepLinkEffect";
+import { useIndoorSuggestions } from "./hooks/useIndoorSuggestions";
+import { useIndoorRouteHandlers } from "./hooks/useIndoorRouteHandlers";
+import { useIndoorRouteComputation } from "./hooks/useIndoorRouteComputation";
 
 interface IndoorScreenProps {
   buildingId: string;
@@ -174,12 +174,6 @@ export default function IndoorScreen({
   }, [routeResult]);
 
   const hasSuggestions = suggestions.length > 0;
-  const hasRouteEndpoints = !!startNode && !!destinationNode;
-  const shouldShowNoRouteMessage =
-    hasRouteEndpoints &&
-    !isOutdoorHandoffRoute &&
-    routeResult === null &&
-    !hasSuggestions;
 
   const {
     handleAdvanceStep,
@@ -327,14 +321,6 @@ export default function IndoorScreen({
           onContinueToCampusRoute={handleContinueToCampusRoute}
           onAdvanceStep={handleAdvanceStep}
         />
-
-        {shouldShowNoRouteMessage ? (
-          <View style={styles.noRouteOverlay}>
-            <Text style={styles.noRouteText}>
-              No indoor path found between these rooms in current map data.
-            </Text>
-          </View>
-        ) : null}
 
         <View
           style={styles.floorSelectorContainer}
@@ -579,26 +565,6 @@ const styles = StyleSheet.create({
     fontSize: 1,
     lineHeight: 1,
     color: "transparent",
-  },
-  noRouteOverlay: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: INDOOR_LAYOUT.FLOOR_SELECTOR_HEIGHT + 10,
-    zIndex: 7,
-    backgroundColor: "rgba(255, 248, 240, 0.96)",
-    borderColor: "#F59E0B",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  noRouteText: {
-    color: "#7C2D12",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-    textAlign: "center",
   },
   errorContainer: {
     flex: 1,

@@ -1,9 +1,9 @@
 import { useCallback } from "react";
 import { Keyboard } from "react-native";
 import { useRouter } from "expo-router";
-import type { Building } from "../Buildings/types";
-import type { IndoorNode } from "./types";
-import type { SuggestionItem } from "./IndoorSuggestionsList";
+import type { Building } from "../../Buildings/types";
+import type { IndoorNode } from "../types";
+import type { SuggestionItem } from "../IndoorSuggestionsList";
 
 type OutdoorBuildingSuggestion = Extract<
   SuggestionItem,
