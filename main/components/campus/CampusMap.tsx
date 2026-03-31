@@ -225,12 +225,12 @@ export default function CampusMap() {
     (a: Region | null | undefined, b: Region | null | undefined) => {
       if (!a || !b) return false;
 
-    return (
-      Math.abs(a.latitude - b.latitude) < 0.00001 &&
-      Math.abs(a.longitude - b.longitude) < 0.00001 &&
-      Math.abs(a.latitudeDelta - b.latitudeDelta) < 0.00001 &&
-      Math.abs(a.longitudeDelta - b.longitudeDelta) < 0.00001
-    );
+      return (
+        Math.abs(a.latitude - b.latitude) < 0.00001 &&
+        Math.abs(a.longitude - b.longitude) < 0.00001 &&
+        Math.abs(a.latitudeDelta - b.latitudeDelta) < 0.00001 &&
+        Math.abs(a.longitudeDelta - b.longitudeDelta) < 0.00001
+      );
     },
     [],
   );
