@@ -200,8 +200,7 @@ export default function CampusMap() {
 
   const [directionsError, setDirectionsError] = useState<string | null>(null);
   const [directionRetryTick, setDirectionRetryTick] = useState(0);
-  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] =
-    useState(false);
+  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] = useState(false);
 
   const mapRef = useRef<MapView>(null);
   const nav = useNavigation();
@@ -666,46 +665,34 @@ export default function CampusMap() {
     setPopupIndex(-1);
   }, [indoorStartBuilding, indoorStartLabel, nav]);
 
-  useEffect(() => {
-    if (
-      !routeNavigation.isArrived ||
-      !nav.routeDest ||
-      !normalizedExternalDestRoomNodeId ||
-      !normalizedExternalDestBuildingCode ||
-      nav.routeDest.code !== normalizedExternalDestBuildingCode ||
-      hasOpenedIndoorDestinationRef.current
-    ) {
-      return;
-    }
+    useEffect(() => {
+      const shouldShowArrivalConfirm =
+        routeNavigation.isNavigating &&
+        true &&
+        !!nav.routeDest &&
+        !!normalizedExternalDestRoomNodeId &&
+        !!normalizedExternalDestBuildingCode &&
+        nav.routeDest.code === normalizedExternalDestBuildingCode &&
+        !hasOpenedIndoorDestinationRef.current;
 
-    hasOpenedIndoorDestinationRef.current = true;
+      setShowIndoorArrivalConfirm(shouldShowArrivalConfirm);
+    }, [
+      routeNavigation.isNavigating,
+      routeNavigation.isArrived,
+      nav.routeDest,
+      normalizedExternalDestRoomNodeId,
+      normalizedExternalDestBuildingCode,
+    ]);
 
-    router.push({
-      pathname: "/indoorscreen",
-      params: {
-        buildingCode: nav.routeDest.code,
-        destinationNodeId: normalizedExternalDestRoomNodeId,
-        destinationLabel: normalizedExternalDestRoomLabel,
-      },
-    });
-  }, [
-    routeNavigation.isArrived,
-    nav.routeDest,
-    normalizedExternalDestRoomNodeId,
-    normalizedExternalDestRoomLabel,
-    normalizedExternalDestBuildingCode,
-    router,
-  ]);
-
-  useEffect(() => {
-    hasOpenedIndoorDestinationRef.current = false;
-    setShowIndoorArrivalConfirm(false);
-  }, [
-    nav.routeStart?.id,
-    nav.routeDest?.id,
-    normalizedExternalDestRoomNodeId,
-    normalizedExternalDestBuildingCode,
-  ]);
+    useEffect(() => {
+      hasOpenedIndoorDestinationRef.current = false;
+      setShowIndoorArrivalConfirm(false);
+    }, [
+      nav.routeStart?.id,
+      nav.routeDest?.id,
+      normalizedExternalDestRoomNodeId,
+      normalizedExternalDestBuildingCode,
+    ]);
 
   useEffect(() => {
     const start = nav.routeStart;
@@ -1059,7 +1046,7 @@ export default function CampusMap() {
     setShowIndoorArrivalConfirm(false);
 
     router.push({
-      pathname: "/indoorscreen",
+      pathname: "/(tabs)/indoorscreen",
       params: {
         buildingCode: nav.routeDest.code,
         destinationNodeId: normalizedExternalDestRoomNodeId,
@@ -1476,6 +1463,7 @@ export default function CampusMap() {
         </View>
       ) : null}
 
+
       <NavigationOverlay
         isNavigating={routeNavigation.isNavigating}
         isNearStart={routeNavigation.isNearStart}
@@ -1609,9 +1597,9 @@ const indoorArrivalStyles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 110,
-    zIndex: 1000,
-    elevation: 1000,
+    bottom: 180,
+    zIndex: 10000, 
+    elevation: 10000,
   },
   button: {
     backgroundColor: "#d32f2f",
@@ -1633,6 +1621,7 @@ const indoorArrivalStyles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
 
 const nextClassStyles = StyleSheet.create({
   button: {

@@ -101,18 +101,51 @@ export default function IndoorScreen({
 
     const matchedNode =
       graphData.nodes.find(
-        (node: IndoorNode) => node.id === normalizedDestinationNodeId,
+        (node: IndoorNode) => node.id === normalizedDestinationNodeId
       ) ?? null;
 
     if (!matchedNode) return;
 
     setDestinationNode(matchedNode);
     setDestText(normalizedDestinationLabel ?? matchedNode.label ?? "");
+
+    if (startNode !== null) return;
+
+    const entryNodes = graphData.nodes.filter(
+      (node: IndoorNode) => node.type === "building_entry_exit"
+    );
+
+    const getDistance = (a: IndoorNode, b: IndoorNode) => {
+      if (a.x == null || a.y == null || b.x == null || b.y == null) {
+        return Number.POSITIVE_INFINITY;
+      }
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+
+    if (entryNodes.length > 0) {
+      const closestEntryNode = entryNodes.reduce((closest, current) => {
+        return getDistance(current, matchedNode) <
+          getDistance(closest, matchedNode)
+          ? current
+          : closest;
+      });
+
+    setStartNode({
+        ...closestEntryNode,
+        label: "Entrance",
+      });
+      setStartText("Entrance");
+      }
+
     setSelectedOutdoorBuilding(null);
     setSelectedExternalRoom(null);
     setActiveField("destination");
     setCurrentStepIndex(0);
-  }, [normalizedDestinationNodeId, normalizedDestinationLabel, graphData]);
+  }, [
+    normalizedDestinationNodeId,
+    normalizedDestinationLabel,
+    graphData,
+  ]);
 
   const availableFloors = useMemo(() => {
     if (BUILDING_FLOORS[trimmedBuildingId]) {
@@ -381,6 +414,7 @@ export default function IndoorScreen({
       Keyboard.dismiss();
       return;
     }
+
     if (node.type === "outdoor_building") {
       setDestinationNode(null);
       setSelectedExternalRoom(null);
@@ -412,22 +446,40 @@ export default function IndoorScreen({
     Keyboard.dismiss();
   }
 
-  const handleContinueToCampusRoute = () => {
-    if (!building || !startNode || !selectedOutdoorBuilding) return;
+const handleContinueToCampusRoute = () => {
+  if (!building || !startNode || !selectedOutdoorBuilding) return;
 
-    router.push({
-      pathname: "/(tabs)/map",
-      params: {
-        indoorStartBuildingCode: building.code,
-        indoorStartBuildingId: building.id,
-        indoorStartLabel: startNode.label ?? startText ?? "Selected room",
-        destBuildingId: selectedOutdoorBuilding.id,
-        externalDestRoomNodeId: selectedExternalRoom?.roomNode?.id,
-        externalDestRoomLabel: selectedExternalRoom?.roomNode?.label ?? "",
-        externalDestBuildingCode: selectedExternalRoom?.building?.code ?? "",
-      },
-    });
-  };
+  const externalRoomNodeId =
+    selectedExternalRoom?.roomNode?.id ??
+    destinationNode?.id ??
+    null;
+
+  const externalRoomLabel =
+    selectedExternalRoom?.roomNode?.label ??
+    destinationNode?.label ??
+    "";
+
+  const externalBuildingCode =
+    selectedExternalRoom?.building?.code ??
+    selectedOutdoorBuilding?.code ??
+    "";
+
+  router.push({
+    pathname: "/(tabs)/map",
+    params: {
+      indoorStartBuildingCode: building.code,
+      indoorStartBuildingId: building.id,
+      indoorStartLabel: startNode.label ?? startText ?? "Selected room",
+
+      destBuildingId: selectedOutdoorBuilding.id,
+
+    
+      externalDestRoomNodeId: externalRoomNodeId,
+      externalDestRoomLabel: externalRoomLabel,
+      externalDestBuildingCode: externalBuildingCode,
+    },
+  });
+};
 
   const routeFloors = useMemo(() => {
     return Array.from(
@@ -491,6 +543,7 @@ export default function IndoorScreen({
           path={routeResult?.path ?? []}
           currentFloor={selectedFloor ?? 0}
         />
+
         <View style={styles.topOverlay}>
           <View
             style={[
