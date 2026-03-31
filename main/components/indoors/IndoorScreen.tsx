@@ -381,7 +381,6 @@ export default function IndoorScreen({
       Keyboard.dismiss();
       return;
     }
-
     if (node.type === "outdoor_building") {
       setDestinationNode(null);
       setSelectedExternalRoom(null);
@@ -492,7 +491,6 @@ export default function IndoorScreen({
           path={routeResult?.path ?? []}
           currentFloor={selectedFloor ?? 0}
         />
-
         <View style={styles.topOverlay}>
           <View
             style={[
