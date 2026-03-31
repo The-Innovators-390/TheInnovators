@@ -551,9 +551,9 @@ describe("IndoorScreen route panel", () => {
 
     expect(getByText("Step 1 of 2")).toBeTruthy();
     fireEvent.press(getByTestId("indoorNextStepButton"));
-    expect(getByTestId("indoor-current-floor").props.children.join("")).toContain(
-      "2",
-    );
+    expect(
+      getByTestId("indoor-current-floor").props.children.join(""),
+    ).toContain("2");
     expect(getByText("You have reached this step")).toBeTruthy();
   });
 
