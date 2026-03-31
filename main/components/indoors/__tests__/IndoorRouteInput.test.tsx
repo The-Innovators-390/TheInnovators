@@ -73,4 +73,45 @@ describe("IndoorRouteInput", () => {
     expect(queryByTestId("clearIndoorStart")).toBeNull();
     expect(queryByTestId("clearIndoorDestination")).toBeNull();
   });
+
+  it("covers accessible mode with destination focused", () => {
+    const { getByTestId } = render(
+      <IndoorRouteInput
+        {...baseProps}
+        activeField="destination"
+        accessible
+        startText="A"
+        destText="B"
+      />,
+    );
+
+    expect(getByTestId("indoorRouteCard")).toBeTruthy();
+    expect(getByTestId("indoorRouteStartRow")).toBeTruthy();
+    expect(getByTestId("indoorRouteDestRow")).toBeTruthy();
+  });
+
+  it("does not clear when component is disabled", () => {
+    const onClearStart = jest.fn();
+    const onClearDestination = jest.fn();
+
+    const { getByTestId } = render(
+      <IndoorRouteInput
+        {...baseProps}
+        startText="Room A"
+        destText="Room B"
+        disabled
+        onClearStart={onClearStart}
+        onClearDestination={onClearDestination}
+      />,
+    );
+
+    expect(getByTestId("indoorRouteStartInput").props.editable).toBe(false);
+    expect(getByTestId("indoorRouteDestInput").props.editable).toBe(false);
+
+    fireEvent.press(getByTestId("clearIndoorStart"));
+    fireEvent.press(getByTestId("clearIndoorDestination"));
+
+    expect(onClearStart).not.toHaveBeenCalled();
+    expect(onClearDestination).not.toHaveBeenCalled();
+  });
 });
