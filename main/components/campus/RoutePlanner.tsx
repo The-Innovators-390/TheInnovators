@@ -22,9 +22,9 @@ export default function RoutePlanner({
     >
       <MaterialIcons
         testID="routeModeArrowIcon"
-        name="arrow-forward"
+        name={isRouteMode ? "close" : "arrow-forward"}
         size={35}
-        color="#B46BFF"
+        color={isRouteMode ? "#D94444" : "#B46BFF"}
         style={{ transform: [{ rotate: "-45deg" }] }}
       />
     </Pressable>
