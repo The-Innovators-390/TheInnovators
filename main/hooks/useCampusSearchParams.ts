@@ -9,6 +9,8 @@ type CampusSearchParams = {
   externalDestRoomNodeId?: string | string[];
   externalDestRoomLabel?: string | string[];
   externalDestBuildingCode?: string | string[];
+  /** When set (SGW | LOY), CampusMap resets to browse mode and focuses this campus. */
+  exitMapCampus?: string | string[];
 };
 
 const normalizeParam = (value: string | string[] | undefined) =>
@@ -29,6 +31,7 @@ export function clearCampusMapRouteParams(router: Router) {
       externalDestRoomNodeId: undefined,
       externalDestRoomLabel: undefined,
       externalDestBuildingCode: undefined,
+      exitMapCampus: undefined,
     });
   } catch {
     // Partial router mocks in tests (or edge navigation states) may not support setParams.
@@ -53,5 +56,6 @@ export function useCampusSearchParams() {
     normalizedExternalDestBuildingCode: normalizeParam(
       params.externalDestBuildingCode,
     ),
+    exitMapCampus: normalizeParam(params.exitMapCampus),
   };
 }

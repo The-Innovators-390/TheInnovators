@@ -7,12 +7,14 @@ const mockFindShortestIndoorPathWithSteps = jest.fn();
 const mockFindShortestPathToBuildingExitWithSteps = jest.fn();
 const mockIndoorMapViewer = jest.fn();
 const mockRouterPush = jest.fn();
+const mockRouterReplace = jest.fn();
 let mockLocalSearchParams: Record<string, string> = {};
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockLocalSearchParams,
   useRouter: () => ({
     push: mockRouterPush,
+    replace: mockRouterReplace,
   }),
 }));
 
@@ -568,6 +570,12 @@ describe("IndoorScreen route panel", () => {
       getByTestId("indoor-current-floor").props.children.join(""),
     ).toContain("2");
     expect(getByText("You have reached this step")).toBeTruthy();
+    expect(getByTestId("indoorExitToCampusButton")).toBeTruthy();
+    fireEvent.press(getByTestId("indoorExitToCampusButton"));
+    expect(mockRouterReplace).toHaveBeenCalledWith({
+      pathname: "/(tabs)/map",
+      params: { exitMapCampus: "SGW" },
+    });
   });
 
   it("supports outdoor handoff and continues to campus route", () => {
