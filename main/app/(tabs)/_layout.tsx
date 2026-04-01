@@ -11,6 +11,7 @@ const MapTabIcon = ({ color }: { color: string }) => (
   <IconSymbol size={28} name="paperplane.fill" color={color} />
 );
 
+const CalendarHeaderLeft = () => <HeaderBackButton />;
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
@@ -40,7 +41,7 @@ export default function TabLayout() {
           title: "Active Calendar",
           href: null,
           headerShown: true,
-          headerLeft: () => <HeaderBackButton />,
+          headerLeft: CalendarHeaderLeft,
         }}
       />
     </Tabs>
