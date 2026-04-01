@@ -23,9 +23,16 @@ export function useRouteNavigation(params: {
   origin: LatLng | null;
   destination: LatLng | null;
   userLocation: LatLng | null;
+  /**
+   * Trip started from inside the route start building (indoor). Outdoor legs often
+   * never pass within a few metres of the building pin (e.g. exit onto side streets).
+   * When true, treat the user as “at route start” for the live metrics bar and step progression.
+   */
+  indoorOriginHandoff?: boolean;
   onStarted?: () => void; // e.g. close popup
 }) {
-  const { origin, destination, userLocation, onStarted } = params;
+  const { origin, destination, userLocation, indoorOriginHandoff, onStarted } =
+    params;
 
   const [isNavigating, setIsNavigating] = useState(false);
   const [activeSteps, setActiveSteps] = useState<DirectionStep[]>([]);
@@ -50,7 +57,8 @@ export function useRouteNavigation(params: {
 
     // Are we near the starting point?
     const dStart = distanceMeters(userLocation, origin);
-    const near = dStart <= START_THRESHOLD_M;
+    const near =
+      !!indoorOriginHandoff || dStart <= START_THRESHOLD_M;
     setIsNearStart(near);
 
     // Don't advance steps until near the start
@@ -76,6 +84,7 @@ export function useRouteNavigation(params: {
     currentStep,
     activeStepIndex,
     activeSteps.length,
+    indoorOriginHandoff,
   ]);
 
   /**
@@ -162,6 +171,7 @@ export function useRouteNavigation(params: {
     setActiveSummary(null);
     setNavError(null);
     setIsStarting(false);
+    setIsNearStart(false);
   }, []);
 
   const nextStep = useCallback(() => {

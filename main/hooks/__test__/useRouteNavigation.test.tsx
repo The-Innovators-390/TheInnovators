@@ -156,6 +156,40 @@ describe("useRouteNavigation", () => {
     expect(result.current.activeStepIndex).toBe(0);
   });
 
+  it("indoor origin handoff: near start even when far from the building pin", async () => {
+    (fetchDirections as jest.Mock).mockResolvedValue([
+      makeRoute(300, origin, destination),
+    ]);
+
+    (distanceMeters as jest.Mock).mockReturnValue(800);
+
+    const far = makeLatLng(46.0, -74.0);
+
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useRouteNavigation>,
+      HookProps
+    >(
+      ({ userLoc }) =>
+        useRouteNavigation({
+          origin,
+          destination,
+          userLocation: userLoc,
+          indoorOriginHandoff: true,
+        }),
+      { initialProps: { userLoc: far } },
+    );
+
+    await act(async () => {
+      await result.current.startNavigation("walking" as any, 0);
+    });
+
+    await act(async () => {
+      rerender({ userLoc: far });
+    });
+
+    expect(result.current.isNearStart).toBe(true);
+  });
+
   it("exitNavigation resets state", async () => {
     (fetchDirections as jest.Mock).mockResolvedValue([
       makeRoute(300, origin, destination),
