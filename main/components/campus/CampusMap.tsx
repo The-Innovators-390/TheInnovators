@@ -184,6 +184,106 @@ const GOOGLE_MODES: TravelMode[] = [
   "bicycling",
 ];
 
+function getFloatingUiState(params: {
+  isRouteMode: boolean;
+  selected: unknown;
+  isNavigating: boolean;
+  travelPopupVisible: boolean;
+  popupIndex: number;
+  windowHeight: number;
+}) {
+  const {
+    isRouteMode,
+    selected,
+    isNavigating,
+    travelPopupVisible,
+    popupIndex,
+    windowHeight,
+  } = params;
+
+  const hasBuildingPopup = !isRouteMode && !!selected;
+  const hasTravelPopup = isRouteMode && !isNavigating && travelPopupVisible;
+
+  const collapsedBuildingPopupHeight = Math.round(windowHeight * 0.19);
+  const collapsedTravelPopupHeight = Math.max(
+    260,
+    Math.round(windowHeight * 0.28),
+  );
+
+  let floatingBottom = 120;
+  if (hasBuildingPopup) {
+    floatingBottom = collapsedBuildingPopupHeight;
+  } else if (hasTravelPopup) {
+    floatingBottom = collapsedTravelPopupHeight;
+  }
+
+  const shouldShowCompass =
+    isNavigating || !(popupIndex > 0 && (hasBuildingPopup || hasTravelPopup));
+
+  const shouldHideFloatingButtons =
+    popupIndex > 0 && (hasBuildingPopup || hasTravelPopup);
+
+  return {
+    hasBuildingPopup,
+    hasTravelPopup,
+    floatingBottom,
+    shouldShowCompass,
+    shouldHideFloatingButtons,
+  };
+}
+
+function applySelectedRouteRendering(params: {
+  bestMode: TravelMode;
+  selectedSegments: RouteRenderSegment[];
+  selectedCoords: { latitude: number; longitude: number }[];
+  setShowRouteLayer: React.Dispatch<React.SetStateAction<boolean>>;
+  setRenderedRouteSegments: React.Dispatch<React.SetStateAction<RouteRenderSegment[]>>;
+  setRoutePolylineMountKey: React.Dispatch<React.SetStateAction<number>>;
+  setPendingTransitRender: React.Dispatch<
+    React.SetStateAction<PendingTransitRender | null>
+  >;
+  mapRef: React.RefObject<MapView | null>;
+}) {
+  const {
+    bestMode,
+    selectedSegments,
+    selectedCoords,
+    setShowRouteLayer,
+    setRenderedRouteSegments,
+    setRoutePolylineMountKey,
+    setPendingTransitRender,
+    mapRef,
+  } = params;
+
+  if (bestMode === "transit") {
+    setShowRouteLayer(false);
+    setRenderedRouteSegments([]);
+    setRoutePolylineMountKey((k) => k + 1);
+    setPendingTransitRender({
+      segments: selectedSegments,
+      coords: selectedCoords,
+      fitToRoute: true,
+    });
+    return;
+  }
+
+  setRenderedRouteSegments(selectedSegments);
+  setShowRouteLayer(selectedSegments.length > 0);
+  setRoutePolylineMountKey((k) => k + 1);
+
+  if (selectedCoords.length >= 2) {
+    mapRef.current?.fitToCoordinates(selectedCoords, {
+      edgePadding: {
+        top: 90,
+        right: 70,
+        bottom: 260,
+        left: 70,
+      },
+      animated: true,
+    });
+  }
+}
+
 export default function CampusMap() {
   const [focusedCampus, setFocusedCampus] = useState<Campus>("SGW");
 
@@ -270,16 +370,22 @@ export default function CampusMap() {
     useState<PendingTransitRender | null>(null);
   const [showRouteLayer, setShowRouteLayer] = useState(false);
 
+  const routeOrigin = nav.routeStart
+    ? {
+      latitude: nav.routeStart.latitude,
+      longitude: nav.routeStart.longitude,
+    } : null;
+
+    const routeDestination = nav.routeDest
+    ? {
+      latitude: nav.routeDest.latitude,
+      longitude: nav.routeDest.longitude,
+    } : null;
+
+    
   const routeNavigation = useRouteNavigation({
-    origin: nav.routeStart
-      ? {
-          latitude: nav.routeStart.latitude,
-          longitude: nav.routeStart.longitude,
-        }
-      : null,
-    destination: nav.routeDest
-      ? { latitude: nav.routeDest.latitude, longitude: nav.routeDest.longitude }
-      : null,
+    origin: routeOrigin,
+    destination: routeDestination,
     userLocation,
     onStarted: () => setTravelPopupVisible(false),
   });
@@ -288,8 +394,11 @@ export default function CampusMap() {
   const [isFollowingUser, setIsFollowingUser] = useState(true);
 
   // Android: track whether pin images have loaded so we can stop tracksViewChanges
-  const [startPinTracking, setStartPinTracking] = useState(true);
-  const [destPinTracking, setDestPinTracking] = useState(true);
+  const [startPinTracking, setStartPinTracking] = useState(false);
+  const [destPinTracking, setDestPinTracking] = useState(false);
+
+  const shouldTrackStartPin = Platform.OS === "android" ? startPinTracking : false;
+  const shouldTrackDestPin = Platform.OS === "android" ? destPinTracking : false;
 
   const NORTH_ANIMATION_DURATION = 350;
 
@@ -764,33 +873,18 @@ export default function CampusMap() {
         setSelectedRouteIndex(safeIndex);
         setTravelPopupVisible(true);
 
-        if (bestMode === "transit") {
-          setShowRouteLayer(false);
-          setRenderedRouteSegments([]);
-          setRoutePolylineMountKey((k) => k + 1);
-          setPendingTransitRender({
-            segments: selectedSegments,
-            coords: selectedCoords,
-            fitToRoute: true,
-          });
-          return;
-        }
-
-        setRenderedRouteSegments(selectedSegments);
-        setShowRouteLayer(selectedSegments.length > 0);
-        setRoutePolylineMountKey((k) => k + 1);
-
-        if (selectedCoords.length >= 2) {
-          mapRef.current?.fitToCoordinates(selectedCoords, {
-            edgePadding: {
-              top: 90,
-              right: 70,
-              bottom: 260,
-              left: 70,
-            },
-            animated: true,
-          });
-        }
+        applySelectedRouteRendering({
+          bestMode,
+          selectedSegments,
+          selectedCoords,
+          setShowRouteLayer,
+          setRenderedRouteSegments,
+          setRoutePolylineMountKey,
+          setPendingTransitRender,
+          mapRef,
+        });
+        return;
+        
       } catch (e) {
         if (!cancelled) {
           setTravelPopupVisible(false);
@@ -918,30 +1012,46 @@ export default function CampusMap() {
     [showRoutesForMode],
   );
 
-  const hasBuildingPopup = !nav.isRouteMode && !!selected;
-  const hasTravelPopup =
-    nav.isRouteMode && !routeNavigation.isNavigating && travelPopupVisible;
+  const {
+    hasBuildingPopup,
+    hasTravelPopup,
+    floatingBottom,
+    shouldShowCompass,
+    shouldHideFloatingButtons,
+  } = getFloatingUiState({
+    isRouteMode: nav.isRouteMode,
+    selected,
+    isNavigating: routeNavigation.isNavigating,
+    travelPopupVisible,
+    popupIndex,
+    windowHeight,
+  });
 
-  const shouldShowCompass =
-    routeNavigation.isNavigating ||
-    !(popupIndex > 0 && (hasBuildingPopup || hasTravelPopup));
+  const travelModes = [
+    { mode: "driving" as TravelMode, routes: routesByMode.driving },
+    { mode: "transit" as TravelMode, routes: routesByMode.transit },
+    { mode: "walking" as TravelMode, routes: routesByMode.walking },
+    { mode: "bicycling" as TravelMode, routes: routesByMode.bicycling },
+  ];
 
-  const collapsedBuildingPopupHeight = Math.round(windowHeight * 0.19);
-  const collapsedTravelPopupHeight = Math.max(
-    260,
-    Math.round(windowHeight * 0.28),
-  );
+  const arrivalTimeText = routeNavigation.activeSummary
+  ? formatArrivalTimeFromNow(routeNavigation.activeSummary.durationSec)
+  : "--:--";
 
-  let floatingBottom = 120;
+  const durationMinText = routeNavigation.activeSummary
+  ? secondsToMinutesString(routeNavigation.activeSummary.durationSec)
+  : "--";
 
-  if (hasBuildingPopup) {
-    floatingBottom = collapsedBuildingPopupHeight;
-  } else if (hasTravelPopup) {
-    floatingBottom = collapsedTravelPopupHeight;
+  const distanceKmText = routeNavigation.activeSummary
+  ? metersToKmString(routeNavigation.activeSummary.distanceMeters)
+  : "--";
+  
+  if (shuttleDirection !== null && shuttleEligible) {
+    travelModes.push({
+      mode: "shuttle" as TravelMode,
+      routes: routesByMode.shuttle,
+    });
   }
-
-  const shouldHideFloatingButtons =
-    popupIndex > 0 && (hasBuildingPopup || hasTravelPopup);
 
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
@@ -1113,9 +1223,7 @@ export default function CampusMap() {
               longitude: nav.routeStart.longitude,
             }}
             anchor={{ x: 0.5, y: 76 / 80 }}
-            tracksViewChanges={
-              Platform.OS === "android" ? startPinTracking : false
-            }
+            tracksViewChanges={shouldTrackStartPin}
           >
             <BuildingPin
               code={nav.routeStart.code}
@@ -1134,8 +1242,7 @@ export default function CampusMap() {
               longitude: nav.routeDest.longitude,
             }}
             anchor={{ x: 0.5, y: 76 / 80 }}
-            tracksViewChanges={
-              Platform.OS === "android" ? destPinTracking : false
+            tracksViewChanges={shouldTrackDestPin
             }
           >
             <BuildingPin
@@ -1360,20 +1467,7 @@ export default function CampusMap() {
         <TravelOptionsPopup
           campusTheme={focusedCampus}
           visible={travelPopupVisible}
-          modes={[
-            { mode: "driving", routes: routesByMode.driving },
-            { mode: "transit", routes: routesByMode.transit },
-            { mode: "walking", routes: routesByMode.walking },
-            { mode: "bicycling", routes: routesByMode.bicycling },
-            ...(shuttleDirection !== null && shuttleEligible
-              ? [
-                  {
-                    mode: "shuttle" as TravelMode,
-                    routes: routesByMode.shuttle,
-                  },
-                ]
-              : []),
-          ]}
+          modes={travelModes}
           selectedMode={selectedMode}
           selectedRouteIndex={selectedRouteIndex}
           onSelectMode={handleSelectMode}
@@ -1428,23 +1522,9 @@ export default function CampusMap() {
           routeNavigation.currentStep?.instruction ?? ""
         }
         bottomOffset={40}
-        arrivalTimeText={
-          routeNavigation.activeSummary
-            ? formatArrivalTimeFromNow(
-                routeNavigation.activeSummary.durationSec,
-              )
-            : "--:--"
-        }
-        durationMinText={
-          routeNavigation.activeSummary
-            ? secondsToMinutesString(routeNavigation.activeSummary.durationSec)
-            : "--"
-        }
-        distanceKmText={
-          routeNavigation.activeSummary
-            ? metersToKmString(routeNavigation.activeSummary.distanceMeters)
-            : "--"
-        }
+        arrivalTimeText={arrivalTimeText}
+        durationMinText={durationMinText}
+        distanceKmText={distanceKmText}
         onExit={() => {
           resetIndoorDestinationState();
           routeNavigation.exitNavigation();
