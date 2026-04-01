@@ -1016,18 +1016,15 @@ export default function CampusMap() {
     [showRoutesForMode],
   );
 
-  const {
-    floatingBottom,
-    shouldShowCompass,
-    shouldHideFloatingButtons,
-  } = getFloatingUiState({
-    isRouteMode: nav.isRouteMode,
-    selected,
-    isNavigating: routeNavigation.isNavigating,
-    travelPopupVisible,
-    popupIndex,
-    windowHeight,
-  });
+  const { floatingBottom, shouldShowCompass, shouldHideFloatingButtons } =
+    getFloatingUiState({
+      isRouteMode: nav.isRouteMode,
+      selected,
+      isNavigating: routeNavigation.isNavigating,
+      travelPopupVisible,
+      popupIndex,
+      windowHeight,
+    });
 
   const travelModes = [
     { mode: "driving" as TravelMode, routes: routesByMode.driving },
