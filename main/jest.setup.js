@@ -10,9 +10,7 @@ jest.mock("@/hooks/useUserRole", () => ({
 }));
 
 // alert() is not defined in React Native's Jest environment.
-global.alert = jest.fn();
-
-import "@testing-library/jest-native/extend-expect";
+globalThis.alert = jest.fn();
 
 jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
@@ -26,12 +24,12 @@ jest.mock("@gorhom/bottom-sheet", () => {
   const React = require("react");
   const { View, ScrollView } = require("react-native");
 
-  const BottomSheet = React.forwardRef(({ children }, ref) => (
-    <View ref={ref}>{children}</View>
+  const BottomSheet = React.forwardRef((props, ref) => (
+    <View ref={ref}>{props.children}</View>
   ));
 
-  const BottomSheetScrollView = ({ children, ...props }) => (
-    <ScrollView {...props}>{children}</ScrollView>
+  const BottomSheetScrollView = ({ props }) => (
+    <ScrollView {...props}>{props.children}</ScrollView>
   );
 
   return {
@@ -60,16 +58,11 @@ jest.mock("expo-router", () => ({
  */
 jest.mock("expo-linear-gradient", () => {
   const React = require("react");
-  const PropTypes = require("prop-types");
   const { View } = require("react-native");
 
-  function LinearGradient({ children, ...props }) {
-    return React.createElement(View, props, children);
+  function LinearGradient({ props }) {
+    return React.createElement(View, props, props.children);
   }
-
-  LinearGradient.propTypes = {
-    children: PropTypes.node,
-  };
 
   return { LinearGradient };
 });
@@ -82,7 +75,6 @@ globalThis.__animateToRegionMock = jest.fn();
 
 jest.mock("react-native-maps", () => {
   const React = require("react");
-  const PropTypes = require("prop-types");
   const { View } = require("react-native");
 
   const MockMapView = React.forwardRef((props, ref) => {
@@ -95,21 +87,12 @@ jest.mock("react-native-maps", () => {
   });
 
   MockMapView.displayName = "MockMapView";
-  MockMapView.propTypes = {
-    children: PropTypes.node,
-  };
 
   const MockPolygon = (props) =>
     React.createElement(View, props, props.children);
-  MockPolygon.propTypes = {
-    children: PropTypes.node,
-  };
 
   const MockMarker = (props) =>
     React.createElement(View, props, props.children);
-  MockMarker.propTypes = {
-    children: PropTypes.node,
-  };
 
   return {
     __esModule: true,
