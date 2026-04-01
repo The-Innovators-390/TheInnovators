@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
 import { POI_CATEGORIES, type POICategory } from "@/components/POI/types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -54,7 +48,7 @@ export default function POICategoryBar({
                 name={cat.iconName}
                 size={14}
                 color={isActive ? "#ffffff" : "#333333"}
-                />
+              />
               <Text
                 style={[styles.pillLabel, isActive && styles.pillLabelActive]}
               >

@@ -79,7 +79,7 @@ function POIRow({
             name={config?.iconName ?? "map-marker"}
             size={18}
             color="#333333"
-            />
+          />
         </View>
         <View style={styles.rowInfo}>
           <Text style={styles.rowName} numberOfLines={1}>
@@ -152,9 +152,7 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
       }
     }, [status]);
 
-    const categoryConfig = POI_CATEGORIES.find(
-      (c) => c.key === activeCategory,
-    );
+    const categoryConfig = POI_CATEGORIES.find((c) => c.key === activeCategory);
 
     const renderItem = useCallback(
       ({ item }: { item: POI }) => (
@@ -239,17 +237,17 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           {/* Header */}
           <View style={styles.sheetHeader}>
             <View style={styles.sheetTitleRow}>
-                {categoryConfig && (
-                    <MaterialCommunityIcons
-                    name={categoryConfig.iconName}
-                    size={20}
-                    color="#1a1a1a"
-                    />
-                )}
-                <Text style={styles.sheetTitle}>
-                    {categoryConfig ? categoryConfig.label : "Nearby Places"}
-                </Text>
-                </View>
+              {categoryConfig && (
+                <MaterialCommunityIcons
+                  name={categoryConfig.iconName}
+                  size={20}
+                  color="#1a1a1a"
+                />
+              )}
+              <Text style={styles.sheetTitle}>
+                {categoryConfig ? categoryConfig.label : "Nearby Places"}
+              </Text>
+            </View>
             <Pressable
               testID="poi-sheet-close"
               onPress={onClose}
@@ -416,8 +414,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   sheetTitleRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 8,
-},
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
 });

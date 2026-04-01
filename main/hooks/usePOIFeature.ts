@@ -60,13 +60,7 @@ export function usePOIFeature({
 
       searchPOIs(category, origin.latitude, origin.longitude);
     },
-    [
-      userLocation,
-      focusedCampus,
-      searchPOIs,
-      clearPOIs,
-      setActiveCategory,
-    ],
+    [userLocation, focusedCampus, searchPOIs, clearPOIs, setActiveCategory],
   );
 
   const handleSelectPOI = useCallback(

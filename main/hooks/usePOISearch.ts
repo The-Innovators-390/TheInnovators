@@ -1,5 +1,10 @@
 import { useState, useCallback, useRef } from "react";
-import { POI_CATEGORIES, type POI, type POICategory, type POICategoryConfig } from "@/components/POI/types";
+import {
+  POI_CATEGORIES,
+  type POI,
+  type POICategory,
+  type POICategoryConfig,
+} from "@/components/POI/types";
 
 // Fixed radius around campus centre (metres)
 const SEARCH_RADIUS = 800;
@@ -28,8 +33,7 @@ function haversineDistance(
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
   const a =
-    Math.sin(Δφ / 2) ** 2 +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -37,21 +41,21 @@ export function usePOISearch() {
   const [pois, setPois] = useState<POI[]>([]);
   const [status, setStatus] = useState<POISearchStatus>("idle");
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
-  const [activeCategory, setActiveCategory] = useState<POICategory | null>(null);
+  const [activeCategory, setActiveCategory] = useState<POICategory | null>(
+    null,
+  );
   const abortRef = useRef<AbortController | null>(null);
 
   const searchPOIs = useCallback(
-    async (
-      category: POICategory,
-      originLat: number,
-      originLng: number,
-    ) => {
+    async (category: POICategory, originLat: number, originLng: number) => {
       // Abort any in-flight request
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const config = POI_CATEGORIES.find((c: POICategoryConfig) => c.key === category);
+      const config = POI_CATEGORIES.find(
+        (c: POICategoryConfig) => c.key === category,
+      );
       if (!config) return;
 
       setStatus("loading");

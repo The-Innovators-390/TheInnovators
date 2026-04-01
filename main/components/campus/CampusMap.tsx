@@ -97,6 +97,10 @@ import {
   useCampusSearchParams,
 } from "@/hooks/useCampusSearchParams";
 import { useCampusIndoorEffects } from "@/hooks/useCampusIndoorEffects";
+import { usePOIFeature } from "@/hooks/usePOIFeature";
+import POICategoryBar from "@/components/POI/POICategoryBar";
+import POIMarkers from "@/components/POI/POIMarkers";
+import POIBottomSheet from "@/components/POI/POIBottomSheet";
 import { getFloatingUiState } from "./helper_methods/campusMap.ui";
 import {
   applySelectedRouteRendering,
@@ -350,6 +354,11 @@ export default function CampusMap() {
   }, [nav.routeDest?.id]);
 
   const lastCameraUpdateRef = useRef(0);
+
+  const poi = usePOIFeature({
+    focusedCampus,
+    userLocation,
+  });
 
   // Auto fetch user location on mount
   useEffect(() => {
@@ -1216,6 +1225,11 @@ export default function CampusMap() {
             />
           </Marker>
         )}
+        <POIMarkers
+          pois={poi.pois}
+          selectedPOI={poi.selectedPOI}
+          onPress={poi.handleSelectPOI}
+        />
       </MapView>
 
       <View style={styles.topOverlay} testID="topOverlay">
@@ -1274,6 +1288,11 @@ export default function CampusMap() {
               onPick={handlePickBuilding}
               testIdPrefix="suggestion"
               containerTestID="suggestions"
+            />
+            <POICategoryBar
+              activeCategory={poi.activeCategory}
+              onSelect={poi.handleCategorySelect}
+              disabled={suggestions.length > 0}
             />
           </>
         )}
@@ -1499,6 +1518,16 @@ export default function CampusMap() {
           clearRouteData();
           clearDisplayedRoutes();
         }}
+      />
+      <POIBottomSheet
+        ref={poi.poiSheetRef}
+        pois={poi.pois}
+        status={poi.status}
+        activeCategory={poi.activeCategory}
+        selectedPOI={poi.selectedPOI}
+        onSelectPOI={poi.handleSelectPOI}
+        onGetDirections={poi.handleGetDirections}
+        onClose={poi.handleSheetClose}
       />
 
       <BrandBar
