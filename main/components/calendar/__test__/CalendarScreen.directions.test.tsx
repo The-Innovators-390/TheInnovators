@@ -11,6 +11,9 @@ import {
   fetchUserCalendars,
 } from "@/services/googleCalendar";
 import { parseLocationDetails } from "@/services/calendarUtils";
+import { findRoomNode } from "@/services/indoorNavigationMapping";
+import { getDeviceLocation } from "@/components/campus/helper_methods/locationUtils";
+import { getBuildingContainingPoint } from "@/components/campus/helper_methods/campusMap.buildings";
 
 jest.mock("@react-navigation/native", () => ({
   useIsFocused: () => true,
@@ -43,6 +46,24 @@ jest.mock("@/services/googleCalendar", () => ({
 
 jest.mock("@/services/calendarUtils", () => ({
   parseLocationDetails: jest.fn(),
+}));
+
+jest.mock("@/services/indoorNavigationMapping", () => ({
+  findRoomNode: jest.fn(),
+}));
+
+jest.mock("@/components/campus/helper_methods/locationUtils", () => ({
+  getDeviceLocation: jest.fn(),
+}));
+
+jest.mock("@/components/campus/helper_methods/campusMap.buildings", () => ({
+  getBuildingContainingPoint: jest.fn(),
+}));
+
+jest.mock("@/components/indoors/indoorData", () => ({
+  indoorData: {
+    H: {},
+  },
 }));
 
 jest.mock("@/hooks/useCalendarDerived", () => ({
@@ -130,6 +151,9 @@ describe("CalendarScreen directions handling", () => {
     ]);
 
     (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue([]);
+    (getDeviceLocation as jest.Mock).mockResolvedValue(null);
+    (findRoomNode as jest.Mock).mockReturnValue(null);
+    (getBuildingContainingPoint as jest.Mock).mockReturnValue(null);
   });
 
   it("shows alert when event has no location", async () => {
@@ -182,10 +206,71 @@ describe("CalendarScreen directions handling", () => {
 
     fireEvent.press(getByTestId("press-valid-location"));
 
-    expect(parseLocationDetails).toHaveBeenCalledWith("Hall Building");
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: "/(tabs)/map",
-      params: { destBuildingId: "h" },
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/(tabs)/map",
+        params: { destBuildingId: "h" },
+      });
+    });
+  });
+
+  it("navigates with indoor destination params when room is found", async () => {
+    (parseLocationDetails as jest.Mock).mockReturnValue({
+      building: { id: "h-id", code: "H" },
+      room: "820",
+    });
+    (findRoomNode as jest.Mock).mockReturnValue({
+      id: "h1-node",
+      label: "H-820",
+    });
+
+    const { getByTestId, getByText } = render(<CalendarScreen />);
+    await waitFor(() => expect(getByText("MonthCalendarCard")).toBeTruthy());
+
+    fireEvent.press(getByTestId("press-valid-location"));
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/(tabs)/map",
+        params: {
+          destBuildingId: "h-id",
+          externalDestRoomNodeId: "h1-node",
+          externalDestRoomLabel: "H-820",
+          externalDestBuildingCode: "H",
+        },
+      });
+    });
+  });
+
+  it("navigates with indoor start params when user is inside a building", async () => {
+    (parseLocationDetails as jest.Mock).mockReturnValue({
+      building: { id: "mb-id", code: "MB" },
+    });
+    (getDeviceLocation as jest.Mock).mockResolvedValue({
+      latitude: 45.497,
+      longitude: -73.578,
+    });
+    (getBuildingContainingPoint as jest.Mock).mockReturnValue({
+      id: "h-id",
+      code: "H",
+    });
+    // indoorData.H is already mocked to exist in the top-level mock
+
+    const { getByTestId, getByText } = render(<CalendarScreen />);
+    await waitFor(() => expect(getByText("MonthCalendarCard")).toBeTruthy());
+
+    fireEvent.press(getByTestId("press-valid-location"));
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/(tabs)/map",
+        params: {
+          destBuildingId: "mb-id",
+          indoorStartBuildingCode: "H",
+          indoorStartBuildingId: "h-id",
+          indoorStartLabel: "Your current room",
+        },
+      });
     });
   });
 });

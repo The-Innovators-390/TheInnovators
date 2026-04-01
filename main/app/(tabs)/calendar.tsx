@@ -26,6 +26,13 @@ import {
 } from "@/services/googleCalendar";
 
 import { parseLocationDetails } from "@/services/calendarUtils";
+import { findRoomNode } from "@/services/indoorNavigationMapping";
+
+import { SGW_BUILDINGS } from "@/components/Buildings/SGW/SGWBuildings";
+import { LOYOLA_BUILDINGS } from "@/components/Buildings/Loyola/LoyolaBuildings";
+import { getDeviceLocation } from "@/components/campus/helper_methods/locationUtils";
+import { getBuildingContainingPoint } from "@/components/campus/helper_methods/campusMap.buildings";
+import { indoorData } from "@/components/indoors/indoorData";
 
 import { styles } from "@/components/calendar/calendarStyles";
 
@@ -74,13 +81,13 @@ export default function CalendarScreen() {
     router.replace("/(tabs)/map");
   }, []);
 
-  const handlePressDirections = useCallback((event: CalendarEvent) => {
+  const handlePressDirections = useCallback(async (event: CalendarEvent) => {
     if (!event.location?.trim()) {
       Alert.alert("No Location", "This event has no location information.");
       return;
     }
 
-    const { building } = parseLocationDetails(event.location);
+    const { building, room } = parseLocationDetails(event.location);
 
     if (!building) {
       Alert.alert(
@@ -90,9 +97,43 @@ export default function CalendarScreen() {
       return;
     }
 
+    let extraParams = {};
+    if (room) {
+      const roomNode = findRoomNode(building.code, room);
+      if (roomNode) {
+        extraParams = {
+          externalDestRoomNodeId: roomNode.id,
+          externalDestRoomLabel: roomNode.label ?? room,
+          externalDestBuildingCode: building.code,
+        };
+      }
+    }
+
+    const startLocation = await getDeviceLocation().catch(() => null);
+    if (startLocation) {
+      const allBuildings = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
+      const startBuilding = getBuildingContainingPoint(
+        allBuildings,
+        startLocation.latitude,
+        startLocation.longitude,
+      );
+
+      if (startBuilding && indoorData[startBuilding.code]) {
+        extraParams = {
+          ...extraParams,
+          indoorStartBuildingCode: startBuilding.code,
+          indoorStartBuildingId: startBuilding.id,
+          indoorStartLabel: "Your current room",
+        };
+      }
+    }
+
     router.push({
       pathname: "/(tabs)/map",
-      params: { destBuildingId: building.id },
+      params: {
+        destBuildingId: building.id,
+        ...extraParams,
+      },
     });
   }, []);
 

@@ -10,18 +10,19 @@ import {
   Text,
   TextInput,
   Pressable,
+  Image,
   Keyboard,
   Platform,
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
 import MapView, { PROVIDER_GOOGLE, Marker, LatLng } from "react-native-maps";
 import {
   getDeviceLocation,
   LocationError,
 } from "@/components/campus/helper_methods/locationUtils";
 import { StatusBar } from "expo-status-bar";
+import { MaterialIcons } from "@expo/vector-icons";
 import { SGW_BUILDINGS } from "@/components/Buildings/SGW/SGWBuildings";
 import { LOYOLA_BUILDINGS } from "@/components/Buildings/Loyola/LoyolaBuildings";
 import {
@@ -90,6 +91,8 @@ import {
   flattenRouteSegmentCoordinates,
   type RouteRenderSegment,
 } from "@/components/campus/helper_methods/routeSegments";
+import { useCampusSearchParams } from "@/hooks/useCampusSearchParams";
+import { useCampusIndoorEffects } from "@/hooks/useCampusIndoorEffects";
 
 // Re-export for backwards compatibility with tests
 export {
@@ -193,19 +196,45 @@ export default function CampusMap() {
 
   const [startText, setStartText] = useState("");
   const [destText, setDestText] = useState("");
+  const [isDisabilityMode, setIsDisabilityMode] = useState(false);
   const [popupIndex, setPopupIndex] = useState(-1);
 
   const [directionsError, setDirectionsError] = useState<string | null>(null);
   const [directionRetryTick, setDirectionRetryTick] = useState(0);
+  const [showIndoorArrivalConfirm, setShowIndoorArrivalConfirm] =
+    useState(false);
 
   const mapRef = useRef<MapView>(null);
   const nav = useNavigation();
+  const appliedRouteParamsSignatureRef = useRef<string | null>(null);
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const [mapHeading, setMapHeading] = useState(0);
   const { height: windowHeight } = useWindowDimensions();
 
-  const { destBuildingId } = useLocalSearchParams<{ destBuildingId: string }>();
+  const {
+    destBuildingId,
+    indoorStartBuildingCode,
+    indoorStartBuildingId,
+    indoorStartLabel,
+    normalizedExternalDestRoomNodeId,
+    normalizedExternalDestRoomLabel,
+    normalizedExternalDestBuildingCode,
+  } = useCampusSearchParams();
+
+  const isSameRegion = useCallback(
+    (a: Region | null | undefined, b: Region | null | undefined) => {
+      if (!a || !b) return false;
+
+      return (
+        Math.abs(a.latitude - b.latitude) < 0.00001 &&
+        Math.abs(a.longitude - b.longitude) < 0.00001 &&
+        Math.abs(a.latitudeDelta - b.latitudeDelta) < 0.00001 &&
+        Math.abs(a.longitudeDelta - b.longitudeDelta) < 0.00001
+      );
+    },
+    [],
+  );
 
   const routeStrokeWidth = useMemo(() => {
     const d = region?.latitudeDelta ?? 0.1;
@@ -309,6 +338,17 @@ export default function CampusMap() {
     () => buildAllBuildings(SGW_BUILDINGS, LOYOLA_BUILDINGS),
     [],
   );
+
+  const indoorStartBuilding = useMemo(() => {
+    if (!indoorStartBuildingCode && !indoorStartBuildingId) return null;
+
+    return (
+      ALL_BUILDINGS.find(
+        (b) =>
+          b.code === indoorStartBuildingCode || b.id === indoorStartBuildingId,
+      ) ?? null
+    );
+  }, [ALL_BUILDINGS, indoorStartBuildingCode, indoorStartBuildingId]);
 
   const handleLocationFound = useCallback(
     (location: UserLocation) => {
@@ -573,25 +613,63 @@ export default function CampusMap() {
 
   useEffect(() => {
     if (!destBuildingId) return;
+    const routeParamsSignature = [
+      destBuildingId,
+      indoorStartBuildingCode ?? "",
+      indoorStartBuildingId ?? "",
+      indoorStartLabel ?? "",
+      normalizedExternalDestRoomNodeId ?? "",
+      normalizedExternalDestRoomLabel ?? "",
+      normalizedExternalDestBuildingCode ?? "",
+    ].join("|");
+    if (appliedRouteParamsSignatureRef.current === routeParamsSignature) return;
 
     const targetBuilding = ALL_BUILDINGS.find((b) => b.id === destBuildingId);
-    if (targetBuilding) {
-      if (!nav.isRouteMode) nav.setIsRouteMode(true);
-      nav.setRouteDest(targetBuilding);
-      setDestText(`${targetBuilding.code} - ${targetBuilding.name}`);
+    if (!targetBuilding || (indoorStartBuilding && !nav.routeStart)) return;
+    appliedRouteParamsSignatureRef.current = routeParamsSignature;
+
+    if (!nav.isRouteMode) nav.setIsRouteMode(true);
+
+    nav.setRouteDest(targetBuilding);
+    setDestText(`${targetBuilding.code} - ${targetBuilding.name}`);
+
+    if (!indoorStartBuilding && !nav.routeStart) {
       void setStartToCurrentLocation();
-      setSelected(null);
-      setPopupIndex(-1);
-      setQuery("");
-      focusBuilding(targetBuilding);
     }
+
+    setSelected(null);
+    setPopupIndex(-1);
+    setQuery("");
+    focusBuilding(targetBuilding);
   }, [
     destBuildingId,
     ALL_BUILDINGS,
     nav,
     setStartToCurrentLocation,
     focusBuilding,
+    indoorStartBuilding,
+    indoorStartBuildingCode,
+    indoorStartBuildingId,
+    indoorStartLabel,
+    normalizedExternalDestRoomNodeId,
+    normalizedExternalDestRoomLabel,
+    normalizedExternalDestBuildingCode,
   ]);
+
+  const { handleContinueIndoors, resetIndoorDestinationState } =
+    useCampusIndoorEffects({
+      nav,
+      routeNavigation,
+      indoorStartBuilding,
+      indoorStartLabel,
+      normalizedExternalDestRoomNodeId,
+      normalizedExternalDestRoomLabel,
+      normalizedExternalDestBuildingCode,
+      setStartText,
+      setSelected,
+      setPopupIndex,
+      setShowIndoorArrivalConfirm,
+    });
 
   useEffect(() => {
     const start = nav.routeStart;
@@ -942,7 +1020,18 @@ export default function CampusMap() {
       nav.setActiveField("destination");
       setQuery(destText);
       nav.setRouteError(null);
-      void setStartToCurrentLocation();
+
+      if (indoorStartBuilding) {
+        nav.setRouteStart(indoorStartBuilding);
+        setStartText(
+          indoorStartLabel
+            ? `${indoorStartLabel} (${indoorStartBuilding.code})`
+            : `${indoorStartBuilding.code} - ${indoorStartBuilding.name}`,
+        );
+      } else if (!nav.routeStart) {
+        void setStartToCurrentLocation();
+      }
+
       return;
     }
 
@@ -962,6 +1051,8 @@ export default function CampusMap() {
     setStartToCurrentLocation,
     clearRouteData,
     clearDisplayedRoutes,
+    indoorStartBuilding,
+    indoorStartLabel,
   ]);
 
   return (
@@ -980,7 +1071,8 @@ export default function CampusMap() {
         toolbarEnabled={false}
         rotateEnabled={false}
         onRegionChangeComplete={(r) => {
-          if (r?.latitude != null && r?.longitude != null) setRegion(r);
+          if (r?.latitude == null || r?.longitude == null) return;
+          setRegion((prev) => (isSameRegion(prev, r) ? prev : r));
         }}
         onPanDrag={() => {
           if (routeNavigation.isNavigating) setIsFollowingUser(false);
@@ -1185,6 +1277,7 @@ export default function CampusMap() {
                   clearDisplayedRoutes();
                 }}
                 onUseMyLocation={setStartToCurrentLocation}
+                disabilityMode={isDisabilityMode}
               />
             </View>
 
@@ -1214,6 +1307,34 @@ export default function CampusMap() {
 
           <View style={[floatingStyles.container, { bottom: floatingBottom }]}>
             <CurrentLocationButton onLocationFound={handleLocationFound} />
+
+            {nav.isRouteMode && !routeNavigation.isNavigating && (
+              <Pressable
+                testID="accessibleRouteButton"
+                style={floatingStyles.accessibilityButton}
+                accessibilityRole="button"
+                accessibilityLabel="Accessibility routes"
+                accessibilityState={{ selected: isDisabilityMode }}
+                onPress={() => setIsDisabilityMode((prev) => !prev)}
+              >
+                {isDisabilityMode ? (
+                  <View style={floatingStyles.accessibilityButtonActive}>
+                    <MaterialIcons
+                      name="close"
+                      size={28}
+                      color="#FFFFFF"
+                      style={floatingStyles.accessibilityCloseIcon}
+                    />
+                  </View>
+                ) : (
+                  <Image
+                    source={require("@/assets/icons/accessibility-button.png")}
+                    style={floatingStyles.accessibilityIcon}
+                    resizeMode="cover"
+                  />
+                )}
+              </Pressable>
+            )}
 
             {!routeNavigation.isNavigating && (
               <RoutePlanner
@@ -1277,6 +1398,20 @@ export default function CampusMap() {
         accentColor={focusedCampus === "SGW" ? "#912338" : "#E0B100"}
       />
 
+      {showIndoorArrivalConfirm ? (
+        <View style={indoorArrivalStyles.container}>
+          <Pressable
+            testID="confirmArrivedAtDestinationBuildingButton"
+            onPress={handleContinueIndoors}
+            style={indoorArrivalStyles.button}
+          >
+            <Text style={indoorArrivalStyles.buttonText}>
+              Confirm that you got to the building
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <NavigationOverlay
         isNavigating={routeNavigation.isNavigating}
         isNearStart={routeNavigation.isNearStart}
@@ -1311,6 +1446,7 @@ export default function CampusMap() {
             : "--"
         }
         onExit={() => {
+          resetIndoorDestinationState();
           routeNavigation.exitNavigation();
           clearRouteData();
           clearDisplayedRoutes();
@@ -1350,10 +1486,39 @@ const floatingStyles = StyleSheet.create({
   container: {
     position: "absolute",
     right: 16,
-    gap: 30,
+    gap: 20,
     alignItems: "center",
     zIndex: 999,
     elevation: 999,
+  },
+  accessibilityButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  accessibilityButtonActive: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#1E90FF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  accessibilityCloseIcon: {
+    textAlign: "center",
+  },
+  accessibilityIcon: {
+    width: 64,
+    height: 64,
   },
 });
 
@@ -1371,6 +1536,36 @@ const locationMarkerStyles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
+  },
+});
+
+const indoorArrivalStyles = StyleSheet.create({
+  container: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 180,
+    zIndex: 10000,
+    elevation: 10000,
+  },
+  button: {
+    backgroundColor: "#d32f2f",
+    borderRadius: 28,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
   },
 });
 

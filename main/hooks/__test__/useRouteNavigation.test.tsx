@@ -99,12 +99,7 @@ describe("useRouteNavigation", () => {
       makeRoute(300, origin, destination),
     ]);
 
-    // useEffect calls distanceMeters twice:
-    // 1) dStart (user->origin) <= 35 => near start
-    // 2) dEnd (user->currentStep.end) <= 25 => advance
-    (distanceMeters as jest.Mock)
-      .mockReturnValueOnce(10) // dStart
-      .mockReturnValueOnce(10); // dEnd
+    (distanceMeters as jest.Mock).mockReturnValue(10); // always near
 
     const nowSpy = jest.spyOn(Date, "now").mockReturnValue(10_000);
 
@@ -112,7 +107,7 @@ describe("useRouteNavigation", () => {
       useRouteNavigation({
         origin,
         destination,
-        userLocation: origin, // already near start
+        userLocation: origin,
       }),
     );
 
@@ -120,7 +115,6 @@ describe("useRouteNavigation", () => {
       await result.current.startNavigation("walking" as any, 0);
     });
 
-    // Effect may advance immediately after startNavigation
     await waitFor(() => {
       expect(result.current.activeStepIndex).toBe(1);
     });
@@ -133,8 +127,7 @@ describe("useRouteNavigation", () => {
       makeRoute(300, origin, destination),
     ]);
 
-    // dStart far (>35) so not near start; should not evaluate step end / advance
-    (distanceMeters as jest.Mock).mockReturnValueOnce(100);
+    (distanceMeters as jest.Mock).mockReturnValue(100); // always far
 
     const far = makeLatLng(46.0, -74.0);
 
@@ -155,7 +148,6 @@ describe("useRouteNavigation", () => {
       await result.current.startNavigation("walking" as any, 0);
     });
 
-    // Trigger the effect with the same far location
     await act(async () => {
       rerender({ userLoc: far });
     });
@@ -194,5 +186,56 @@ describe("useRouteNavigation", () => {
     expect(result.current.activeSummary).toBeNull();
     expect(result.current.navError).toBeNull();
     expect(result.current.isStarting).toBe(false);
+  });
+
+  it("isArrived is true only when on last step AND near destination", async () => {
+    const destination = makeLatLng(45.01, -73.01);
+    const nearDest = makeLatLng(45.01001, -73.01001);
+    const farFromDest = makeLatLng(45.0, -73.0);
+
+    (fetchDirections as jest.Mock).mockResolvedValue([
+      makeRoute(300, origin, destination),
+    ]);
+
+    // First, far from destination
+    (distanceMeters as jest.Mock)
+      .mockReturnValueOnce(0) // dStart near
+      .mockReturnValueOnce(100); // dEnd far (for step advance check)
+
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useRouteNavigation>,
+      { userLoc: LatLng }
+    >(
+      ({ userLoc }) =>
+        useRouteNavigation({
+          origin,
+          destination,
+          userLocation: userLoc,
+        }),
+      { initialProps: { userLoc: farFromDest } },
+    );
+
+    await act(async () => {
+      await result.current.startNavigation("walking" as any, 0);
+    });
+
+    // Manually go to last step (index 1)
+    act(() => {
+      result.current.setActiveStepIndex(1);
+    });
+
+    // Check isArrived when far
+    (distanceMeters as jest.Mock).mockReturnValue(100); // dEnd far
+    await act(async () => {
+      rerender({ userLoc: farFromDest });
+    });
+    expect(result.current.isArrived).toBe(false);
+
+    // Check isArrived when near
+    (distanceMeters as jest.Mock).mockReturnValue(10); // dEnd near (<= 25)
+    await act(async () => {
+      rerender({ userLoc: nearDest });
+    });
+    expect(result.current.isArrived).toBe(true);
   });
 });

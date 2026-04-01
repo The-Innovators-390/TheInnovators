@@ -3,7 +3,18 @@ import { fireEvent, render } from "@testing-library/react-native";
 import IndoorScreen from "../IndoorScreen";
 
 const mockFindShortestIndoorPath = jest.fn();
+const mockFindShortestIndoorPathWithSteps = jest.fn();
+const mockFindShortestPathToBuildingExitWithSteps = jest.fn();
 const mockIndoorMapViewer = jest.fn();
+const mockRouterPush = jest.fn();
+let mockLocalSearchParams: Record<string, string> = {};
+
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: () => mockLocalSearchParams,
+  useRouter: () => ({
+    push: mockRouterPush,
+  }),
+}));
 
 jest.mock("react-native-safe-area-context", () => {
   const { View } = jest.requireActual("react-native");
@@ -40,6 +51,10 @@ jest.mock("../../ui/HeaderBackButton", () => {
 jest.mock("../pathfinding", () => ({
   findShortestIndoorPath: (...args: unknown[]) =>
     mockFindShortestIndoorPath(...args),
+  findShortestIndoorPathWithSteps: (...args: unknown[]) =>
+    mockFindShortestIndoorPathWithSteps(...args),
+  findShortestPathToBuildingExitWithSteps: (...args: unknown[]) =>
+    mockFindShortestPathToBuildingExitWithSteps(...args),
 }));
 
 jest.mock("../IndoorMapViewer", () => {
@@ -60,7 +75,6 @@ jest.mock("../IndoorMapViewer", () => {
 });
 
 jest.mock("../IndoorRouteInput", () => {
-  const React = jest.requireActual("react");
   const { View, Text, TextInput, Pressable } =
     jest.requireActual("react-native");
 
@@ -114,26 +128,25 @@ jest.mock("../IndoorRouteInput", () => {
 });
 
 jest.mock("../IndoorSuggestionsList", () => {
-  const React = jest.requireActual("react");
   const { View, Text, Pressable } = jest.requireActual("react-native");
 
   const MockIndoorSuggestionsList = ({
     suggestions,
     onPick,
   }: {
-    suggestions: Array<{ id: string; label?: string }>;
-    onPick: (node: { id: string; label?: string }) => void;
+    suggestions: Array<{ id?: string; label?: string }>;
+    onPick: (node: { id?: string; label?: string }) => void;
   }): React.JSX.Element => (
     <View>
       <Text testID="suggestions-count">{String(suggestions.length)}</Text>
 
       {suggestions.map((node) => (
         <Pressable
-          key={node.id}
-          testID={`suggestion-${node.id}`}
+          key={node.id ?? node.label}
+          testID={`suggestion-${node.id ?? node.label}`}
           onPress={() => onPick(node)}
         >
-          <Text>{node.label ?? node.id}</Text>
+          <Text>{node.label ?? node.id ?? "Suggestion"}</Text>
         </Pressable>
       ))}
     </View>
@@ -215,20 +228,49 @@ jest.mock("../indoorData", () => ({
         },
       ],
     },
+    CC: {
+      meta: { buildingId: "CC" },
+      nodes: [
+        {
+          id: "cc1",
+          type: "room",
+          buildingId: "CC",
+          floor: 1,
+          x: 12,
+          y: 24,
+          label: "CC Room 10",
+        },
+      ],
+      edges: [],
+    },
   },
 }));
 
 jest.mock("../../Buildings/SGW/SGWBuildings", () => ({
-  SGW_BUILDINGS: [{ code: "H", name: "Hall Building", campus: "SGW" }],
+  SGW_BUILDINGS: [
+    { code: "H", id: "hall-id", name: "Hall Building", campus: "SGW" },
+  ],
 }));
 
 jest.mock("../../Buildings/Loyola/LoyolaBuildings", () => ({
-  LOYOLA_BUILDINGS: [{ code: "CC", name: "CC Building", campus: "LOY" }],
+  LOYOLA_BUILDINGS: [
+    {
+      code: "CC",
+      id: "cc-id",
+      name: "CC Building",
+      address: "7141 Sherbrooke St W",
+      campus: "LOY",
+    },
+  ],
 }));
 
 describe("IndoorScreen route panel", () => {
   beforeEach(() => {
+    mockLocalSearchParams = {};
+    mockRouterPush.mockReset();
     mockFindShortestIndoorPath.mockReset();
+    mockFindShortestIndoorPathWithSteps.mockReset();
+    mockFindShortestPathToBuildingExitWithSteps.mockReset();
     mockIndoorMapViewer.mockClear();
 
     mockFindShortestIndoorPath.mockReturnValue({
@@ -254,6 +296,33 @@ describe("IndoorScreen route panel", () => {
       ],
       distance: 5,
     });
+
+    mockFindShortestIndoorPathWithSteps.mockReturnValue({
+      path: [
+        {
+          id: "n1",
+          type: "room",
+          buildingId: "H",
+          floor: 1,
+          x: 10,
+          y: 20,
+          label: "Room A",
+        },
+        {
+          id: "n2",
+          type: "room",
+          buildingId: "H",
+          floor: 1,
+          x: 30,
+          y: 40,
+          label: "Room B",
+        },
+      ],
+      distance: 5,
+      steps: [],
+    });
+
+    mockFindShortestPathToBuildingExitWithSteps.mockReturnValue(null);
   });
 
   it("shows start suggestions from the current floor when typing", () => {
@@ -271,22 +340,26 @@ describe("IndoorScreen route panel", () => {
   });
 
   it("returns no suggestions when the query is empty", () => {
-    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+    const { getByTestId, queryByTestId } = render(
+      <IndoorScreen buildingId="H" />,
+    );
 
     fireEvent.changeText(getByTestId("start-input"), "");
 
-    expect(getByTestId("suggestions-count").props.children).toBe("0");
+    expect(queryByTestId("suggestions-count")).toBeNull();
   });
 
   it("picking a start suggestion fills start and switches focus to destination", () => {
-    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+    const { getByTestId, queryByTestId } = render(
+      <IndoorScreen buildingId="H" />,
+    );
 
     fireEvent.changeText(getByTestId("start-input"), "Room A");
     fireEvent.press(getByTestId("suggestion-n1"));
 
     expect(getByTestId("start-input").props.value).toBe("Room A");
     expect(getByTestId("active-field").props.children).toBe("destination");
-    expect(getByTestId("suggestions-count").props.children).toBe("0");
+    expect(queryByTestId("suggestions-count")).toBeNull();
     expect(mockFindShortestIndoorPath).not.toHaveBeenCalled();
   });
 
@@ -300,8 +373,8 @@ describe("IndoorScreen route panel", () => {
     fireEvent.press(getByTestId("suggestion-n2"));
 
     expect(getByTestId("dest-input").props.value).toBe("Room B");
-    expect(mockFindShortestIndoorPath).toHaveBeenCalledTimes(1);
-    expect(mockFindShortestIndoorPath).toHaveBeenCalledWith(
+    expect(mockFindShortestIndoorPathWithSteps).toHaveBeenCalledTimes(1);
+    expect(mockFindShortestIndoorPathWithSteps).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ id: "n1" }),
         expect.objectContaining({ id: "n2" }),
@@ -365,13 +438,13 @@ describe("IndoorScreen route panel", () => {
     fireEvent.changeText(getByTestId("start-input"), "Room A");
     fireEvent.press(getByTestId("suggestion-n1"));
 
-    mockFindShortestIndoorPath.mockClear();
+    mockFindShortestIndoorPathWithSteps.mockClear();
 
     fireEvent.changeText(getByTestId("start-input"), "room");
 
     expect(getByTestId("active-field").props.children).toBe("start");
     expect(getByTestId("suggestions-count").props.children).toBe("3");
-    expect(mockFindShortestIndoorPath).not.toHaveBeenCalled();
+    expect(mockFindShortestIndoorPathWithSteps).not.toHaveBeenCalled();
   });
 
   it("editing destination text after selecting a node clears the selected destination node", () => {
@@ -383,13 +456,13 @@ describe("IndoorScreen route panel", () => {
     fireEvent.changeText(getByTestId("dest-input"), "Room B");
     fireEvent.press(getByTestId("suggestion-n2"));
 
-    mockFindShortestIndoorPath.mockClear();
+    mockFindShortestIndoorPathWithSteps.mockClear();
 
     fireEvent.changeText(getByTestId("dest-input"), "room");
 
     expect(getByTestId("active-field").props.children).toBe("destination");
-    expect(getByTestId("suggestions-count").props.children).toBe("3");
-    expect(mockFindShortestIndoorPath).not.toHaveBeenCalled();
+    expect(getByTestId("suggestions-count").props.children).toBe("4");
+    expect(mockFindShortestIndoorPathWithSteps).not.toHaveBeenCalled();
   });
 
   it("picking a destination suggestion on a different floor triggers pathfinding", () => {
@@ -404,13 +477,141 @@ describe("IndoorScreen route panel", () => {
     fireEvent.press(getByTestId("suggestion-n4"));
 
     expect(getByTestId("dest-input").props.value).toBe("Room C");
-    expect(mockFindShortestIndoorPath).toHaveBeenCalledTimes(1);
-    expect(mockFindShortestIndoorPath).toHaveBeenCalledWith(
+    expect(mockFindShortestIndoorPathWithSteps).toHaveBeenCalledTimes(1);
+    expect(mockFindShortestIndoorPathWithSteps).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       "n1",
       "n4",
       { accessible: false },
+    );
+  });
+
+  it("uses deep-link destination params when node id matches", () => {
+    mockLocalSearchParams = {
+      destinationNodeId: "n2",
+      destinationLabel: "Deep linked room",
+    };
+
+    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+
+    expect(getByTestId("dest-input").props.value).toBe("Deep linked room");
+    expect(getByTestId("active-field").props.children).toBe("destination");
+  });
+
+  it("uses deep-link destination params when room label matches", () => {
+    mockLocalSearchParams = {
+      destinationNodeId: "some-invalid-id",
+      destinationLabel: "Room A",
+    };
+
+    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+
+    expect(getByTestId("dest-input").props.value).toBe("Room A");
+    // Should still pick n1 because its label "Room A" matches (case-insensitive)
+    // Actually the mock data has nodes with labels like "Room A"
+  });
+
+  it("advances through route steps and updates floor after transport step", () => {
+    mockFindShortestIndoorPathWithSteps.mockReturnValue({
+      path: [
+        {
+          id: "n1",
+          type: "room",
+          buildingId: "H",
+          floor: 1,
+          x: 10,
+          y: 20,
+          label: "Room A",
+        },
+        {
+          id: "n4",
+          type: "room",
+          buildingId: "H",
+          floor: 2,
+          x: 70,
+          y: 80,
+          label: "Room C",
+        },
+      ],
+      distance: 10,
+      steps: [
+        {
+          kind: "elevator",
+          instruction: "Take the elevator to 2nd floor",
+          floor: 1,
+          fromNodeId: "n1",
+          toNodeId: "n4",
+          distance: 5,
+        },
+        {
+          kind: "walk",
+          instruction: "Proceed to Room C",
+          floor: 2,
+          fromNodeId: "n4",
+          toNodeId: "n4",
+          distance: 1,
+        },
+      ],
+    });
+
+    const { getByTestId, getByText } = render(<IndoorScreen buildingId="H" />);
+
+    fireEvent.changeText(getByTestId("start-input"), "Room A");
+    fireEvent.press(getByTestId("suggestion-n1"));
+    fireEvent.changeText(getByTestId("dest-input"), "Room C");
+    fireEvent.press(getByTestId("suggestion-n4"));
+
+    expect(getByText("Step 1 of 2")).toBeTruthy();
+    fireEvent.press(getByTestId("indoorNextStepButton"));
+    expect(
+      getByTestId("indoor-current-floor").props.children.join(""),
+    ).toContain("2");
+    expect(getByText("You have reached this step")).toBeTruthy();
+  });
+
+  it("supports outdoor handoff and continues to campus route", () => {
+    mockFindShortestPathToBuildingExitWithSteps.mockReturnValue({
+      path: [
+        {
+          id: "n1",
+          type: "room",
+          buildingId: "H",
+          floor: 1,
+          x: 10,
+          y: 20,
+          label: "Room A",
+        },
+      ],
+      distance: 1,
+      steps: [
+        {
+          kind: "exit",
+          instruction: "Exit the building",
+          floor: 1,
+          fromNodeId: "n1",
+          toNodeId: "n1",
+          distance: 1,
+        },
+      ],
+    });
+
+    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+
+    fireEvent.changeText(getByTestId("start-input"), "Room A");
+    fireEvent.press(getByTestId("suggestion-n1"));
+    fireEvent.changeText(getByTestId("dest-input"), "cc");
+    fireEvent.press(getByTestId("suggestion-CC - CC Building"));
+    fireEvent.press(getByTestId("confirmExitBuildingButton"));
+
+    expect(mockRouterPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/(tabs)/map",
+        params: expect.objectContaining({
+          indoorStartBuildingCode: "H",
+          destBuildingId: "cc-id",
+        }),
+      }),
     );
   });
 });

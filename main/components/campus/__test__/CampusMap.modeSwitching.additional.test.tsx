@@ -255,6 +255,11 @@ jest.mock("react-native-maps", () => {
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(() => ({})),
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  })),
 }));
 
 import CampusMap from "@/components/campus/CampusMap";

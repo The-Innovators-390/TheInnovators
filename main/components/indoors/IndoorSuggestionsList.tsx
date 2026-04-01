@@ -2,9 +2,42 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { IndoorNode } from "./types";
 
+export type SuggestionItem =
+  | IndoorNode
+  | {
+      type: "outdoor_building";
+      label: string;
+      building: { id?: string; code?: string };
+    }
+  | {
+      type: "external_room";
+      label: string;
+      building: { id?: string; code?: string };
+      roomNode: IndoorNode;
+    };
+
+function suggestionKey(item: SuggestionItem, index: number): string {
+  if ("roomNode" in item) {
+    const b = item.building;
+    return `external-${item.roomNode.id}-${b?.id ?? b?.code ?? index}`;
+  }
+  if ("building" in item) {
+    const b = item.building;
+    return `outdoor-${b?.id ?? b?.code ?? index}`;
+  }
+  return `${item.id}-${index}`;
+}
+
+function suggestionTestId(item: SuggestionItem, index: number): string {
+  if ("building" in item) {
+    return suggestionKey(item, index);
+  }
+  return item.id;
+}
+
 interface IndoorSuggestionsListProps {
-  suggestions: IndoorNode[];
-  onPick: (node: IndoorNode) => void;
+  suggestions: SuggestionItem[];
+  onPick: (node: SuggestionItem) => void;
 }
 
 export default function IndoorSuggestionsList({
@@ -18,16 +51,19 @@ export default function IndoorSuggestionsList({
   return (
     <View style={styles.container} testID="indoor-route-suggestions">
       <ScrollView keyboardShouldPersistTaps="handled" style={styles.scroll}>
-        {suggestions.map((node) => (
+        {suggestions.map((node, index) => (
           <Pressable
-            key={node.id}
+            key={suggestionKey(node, index)}
             style={styles.item}
             onPress={() => onPick(node)}
-            testID={`indoorSuggestion-${node.id}`}
+            testID={`indoorSuggestion-${suggestionTestId(node, index)}`}
           >
-            <Text style={styles.title}>{node.label ?? node.id}</Text>
+            <Text style={styles.title}>
+              {(node as IndoorNode).label ?? (node as IndoorNode).id}
+            </Text>
             <Text style={styles.subtitle}>
-              Floor {node.floor} • {node.buildingId}
+              Floor {(node as IndoorNode).floor} •{" "}
+              {(node as IndoorNode).buildingId}
             </Text>
           </Pressable>
         ))}

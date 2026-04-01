@@ -11,6 +11,7 @@ type RouteFieldRowProps = {
   activeField: FieldName;
   placeholder: string;
   disabled?: boolean;
+  accessible?: boolean;
   testIDRow: string;
   testIDInput: string;
   testIDClear: string;
@@ -31,10 +32,16 @@ function RouteFieldRow({
   onFocusField,
   onChangeText,
   onClear,
+  accessible,
 }: Readonly<RouteFieldRowProps>) {
   return (
     <View
-      style={[s.inputRow, activeField === field && s.inputRowActive]}
+      style={[
+        s.inputRow,
+        activeField === field && !accessible && s.inputRowActive,
+        accessible && s.inputRowAccessible,
+        accessible && activeField === field && s.inputRowAccessibleFocused,
+      ]}
       testID={testIDRow}
     >
       <TextInput
@@ -76,6 +83,8 @@ type Props = {
   onChangeStartText: (t: string) => void;
   onChangeDestText: (t: string) => void;
   disabled?: boolean;
+  /** When true, outer card uses a blue frame and inputs stay on white (accessible routing). */
+  accessible?: boolean;
   onClearStart: () => void;
   onClearDestination: () => void;
 };
@@ -91,6 +100,7 @@ export default function IndoorRouteInput({
   onChangeStartText,
   onChangeDestText,
   disabled,
+  accessible = false,
   onClearStart,
   onClearDestination,
 }: Readonly<Props>) {
@@ -98,10 +108,13 @@ export default function IndoorRouteInput({
   const destValue = destination?.label ?? destText;
 
   return (
-    <View style={s.card} testID="indoorRouteCard">
+    <View
+      style={[s.card, accessible && s.cardAccessible]}
+      testID="indoorRouteCard"
+    >
       <View style={s.rail} pointerEvents="none">
         <MaterialIcons name="radio-button-checked" size={14} color="#111" />
-        <View style={s.dots} />
+        <View style={[s.dots, accessible && s.dotsAccessible]} />
         <MaterialIcons name="place" size={16} color="#D32F2F" />
       </View>
 
@@ -112,6 +125,7 @@ export default function IndoorRouteInput({
           activeField={activeField}
           placeholder="Enter your starting room"
           disabled={disabled}
+          accessible={accessible}
           testIDRow="indoorRouteStartRow"
           testIDInput="indoorRouteStartInput"
           testIDClear="clearIndoorStart"
@@ -128,6 +142,7 @@ export default function IndoorRouteInput({
           activeField={activeField}
           placeholder="Enter your destination room"
           disabled={disabled}
+          accessible={accessible}
           testIDRow="indoorRouteDestRow"
           testIDInput="indoorRouteDestInput"
           testIDClear="clearIndoorDestination"
@@ -145,7 +160,7 @@ export default function IndoorRouteInput({
         accessibilityRole="button"
         accessibilityLabel="Swap start and destination"
       >
-        <Text style={s.swapText}>⇅</Text>
+        <Text style={[s.swapText, accessible && s.swapTextAccessible]}>⇅</Text>
       </Pressable>
     </View>
   );
@@ -165,6 +180,12 @@ const s = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
   },
+  /** Blue frame only; inner rows stay white (see inputRowAccessible). */
+  cardAccessible: {
+    backgroundColor: "#3D8AF7",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+  },
 
   rail: {
     width: 18,
@@ -178,6 +199,9 @@ const s = StyleSheet.create({
     marginVertical: 6,
     borderRadius: 1,
     backgroundColor: "rgba(17,17,17,0.25)",
+  },
+  dotsAccessible: {
+    backgroundColor: "rgba(255,255,255,0.85)",
   },
 
   inputs: {
@@ -195,6 +219,13 @@ const s = StyleSheet.create({
 
   inputRowActive: {
     backgroundColor: "rgba(17,17,17,0.07)",
+  },
+  inputRowAccessible: {
+    backgroundColor: "#ffffff",
+  },
+  inputRowAccessibleFocused: {
+    borderWidth: 1.5,
+    borderColor: "#93c5fd",
   },
 
   input: {
@@ -220,6 +251,9 @@ const s = StyleSheet.create({
     fontSize: 18,
     color: "#111",
     fontWeight: "800",
+  },
+  swapTextAccessible: {
+    color: "#ffffff",
   },
 
   clearButton: {
