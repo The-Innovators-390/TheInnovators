@@ -28,7 +28,7 @@ jest.mock("@gorhom/bottom-sheet", () => {
     <View ref={ref}>{props.children}</View>
   ));
 
-  const BottomSheetScrollView = ({ props }) => (
+  const BottomSheetScrollView = (props) => (
     <ScrollView {...props}>{props.children}</ScrollView>
   );
 
@@ -60,7 +60,7 @@ jest.mock("expo-linear-gradient", () => {
   const React = require("react");
   const { View } = require("react-native");
 
-  function LinearGradient({ props }) {
+  function LinearGradient(props) {
     return React.createElement(View, props, props.children);
   }
 
