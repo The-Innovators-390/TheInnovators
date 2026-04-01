@@ -225,6 +225,7 @@ export default function CampusMap() {
     normalizedExternalDestRoomNodeId,
     normalizedExternalDestRoomLabel,
     normalizedExternalDestBuildingCode,
+    exitMapCampus,
   } = useCampusSearchParams();
 
   const isSameRegion = useCallback(
@@ -1082,6 +1083,47 @@ export default function CampusMap() {
     clearCampusMapUrlParams,
     indoorStartBuilding,
     indoorStartLabel,
+  ]);
+
+  useEffect(() => {
+    if (!exitMapCampus) return;
+    if (exitMapCampus !== "SGW" && exitMapCampus !== "LOY") {
+      clearCampusMapUrlParams();
+      return;
+    }
+
+    const campus = exitMapCampus as Campus;
+
+    resetIndoorDestinationState();
+    routeNavigation.exitNavigation();
+    clearRouteData();
+    clearDisplayedRoutes();
+    setStepsOpen(false);
+    nav.setIsRouteMode(false);
+    nav.setRouteStart(null);
+    nav.setRouteDest(null);
+    nav.setRouteError(null);
+    setStartText("");
+    setDestText("");
+    setQuery("");
+    setSelected(null);
+    setPopupIndex(-1);
+    setDirectionsError(null);
+
+    handleCampusChange(campus);
+    clearCampusMapUrlParams();
+  }, [
+    exitMapCampus,
+    resetIndoorDestinationState,
+    routeNavigation.exitNavigation,
+    clearRouteData,
+    clearDisplayedRoutes,
+    nav.setIsRouteMode,
+    nav.setRouteStart,
+    nav.setRouteDest,
+    nav.setRouteError,
+    handleCampusChange,
+    clearCampusMapUrlParams,
   ]);
 
   return (

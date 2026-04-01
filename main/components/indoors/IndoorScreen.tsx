@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { HeaderBackButton } from "../ui/HeaderBackButton";
 import { indoorData } from "./indoorData";
 import { floorMaps } from "./floorMaps";
@@ -19,6 +19,7 @@ import { useIndoorDeepLinkEffect } from "./hooks/useIndoorDeepLinkEffect";
 import { useIndoorSuggestions } from "./hooks/useIndoorSuggestions";
 import { useIndoorRouteHandlers } from "./hooks/useIndoorRouteHandlers";
 import { useIndoorRouteComputation } from "./hooks/useIndoorRouteComputation";
+import type { Campus } from "../Buildings/types";
 
 interface IndoorScreenProps {
   buildingId: string;
@@ -27,6 +28,7 @@ interface IndoorScreenProps {
 export default function IndoorScreen({
   buildingId,
 }: Readonly<IndoorScreenProps>) {
+  const router = useRouter();
   const trimmedBuildingId = buildingId.trim();
 
   const building = useMemo(() => {
@@ -38,6 +40,21 @@ export default function IndoorScreen({
   const campus = building?.campus;
 
   const campusTheme = useMemo(() => getCampusTheme(campus), [campus]);
+
+  const exitMapCampus = useMemo((): Campus => {
+    if (building?.campus) return building.campus;
+    if (LOYOLA_BUILDINGS.some((b) => b.code === trimmedBuildingId)) {
+      return "LOY";
+    }
+    return "SGW";
+  }, [building, trimmedBuildingId]);
+
+  const handleExitToCampusMap = useCallback(() => {
+    router.replace({
+      pathname: "/(tabs)/map",
+      params: { exitMapCampus },
+    });
+  }, [router, exitMapCampus]);
 
   const [startNode, setStartNode] = useState<IndoorNode | null>(null);
   const [destinationNode, setDestinationNode] = useState<IndoorNode | null>(
@@ -320,6 +337,7 @@ export default function IndoorScreen({
           hasSuggestions={hasSuggestions}
           onContinueToCampusRoute={handleContinueToCampusRoute}
           onAdvanceStep={handleAdvanceStep}
+          onExitToCampusMap={handleExitToCampusMap}
         />
 
         <View
@@ -356,6 +374,7 @@ function RouteStepOverlay({
   hasSuggestions,
   onContinueToCampusRoute,
   onAdvanceStep,
+  onExitToCampusMap,
 }: Readonly<{
   currentStep: { instruction: string } | null;
   currentStepIndex: number;
@@ -365,6 +384,7 @@ function RouteStepOverlay({
   hasSuggestions: boolean;
   onContinueToCampusRoute: () => void;
   onAdvanceStep: () => void;
+  onExitToCampusMap: () => void;
 }>) {
   if (!currentStep) return null;
 
@@ -392,8 +412,20 @@ function RouteStepOverlay({
     );
   } else if (isLastStep) {
     action = (
-      <View style={styles.arrivedBadge}>
-        <Text style={styles.arrivedText}>You have reached this step</Text>
+      <View style={styles.lastStepArrivedRow}>
+        <View style={styles.arrivedBadge}>
+          <Text style={styles.arrivedText}>You have reached this step</Text>
+        </View>
+        <Pressable
+          testID="indoorExitToCampusButton"
+          onPress={onExitToCampusMap}
+          style={({ pressed }) => [
+            styles.indoorExitButtonInline,
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          <Text style={styles.indoorExitButtonText}>Exit</Text>
+        </Pressable>
       </View>
     );
   }
@@ -524,9 +556,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
   },
-  arrivedBadge: {
+  lastStepArrivedRow: {
     marginTop: 8,
-    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  arrivedBadge: {
+    flexShrink: 1,
     backgroundColor: "#E5E7EB",
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -536,6 +573,21 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "600",
     fontSize: 13,
+  },
+  indoorExitButtonInline: {
+    marginLeft: "auto",
+    flexShrink: 0,
+    backgroundColor: "#E53935",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  indoorExitButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 14,
   },
   floorSelectorContainer: {
     position: "absolute",
