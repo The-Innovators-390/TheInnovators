@@ -57,8 +57,7 @@ export function useRouteNavigation(params: {
 
     // Are we near the starting point?
     const dStart = distanceMeters(userLocation, origin);
-    const near =
-      !!indoorOriginHandoff || dStart <= START_THRESHOLD_M;
+    const near = !!indoorOriginHandoff || dStart <= START_THRESHOLD_M;
     setIsNearStart(near);
 
     // Don't advance steps until near the start
