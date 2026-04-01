@@ -34,21 +34,6 @@ jest.mock("@/components/ui/StepsDropdown", () => {
   };
 });
 
-jest.mock("@/components/ui/StartLiveBanner", () => {
-  const React = require("react");
-  const { Text } = require("react-native");
-  return {
-    StartLiveBanner: ({ visible, onExit }: any) =>
-      visible
-        ? React.createElement(
-            Text,
-            { testID: "start-banner", onPress: onExit },
-            "StartBanner",
-          )
-        : null,
-  };
-});
-
 jest.mock("@/components/ui/BottomNavigationBar", () => {
   const React = require("react");
   const { Text } = require("react-native");
@@ -58,13 +43,16 @@ jest.mock("@/components/ui/BottomNavigationBar", () => {
       arrivalTimeText,
       durationMinText,
       distanceKmText,
+      hintText,
       onExit,
     }: any) =>
       visible
         ? React.createElement(
             Text,
             { testID: "bottom-bar", onPress: onExit },
-            `${arrivalTimeText} | ${durationMinText} | ${distanceKmText}`,
+            `${arrivalTimeText} | ${durationMinText} | ${distanceKmText}${
+              hintText ? ` | HINT:${hintText}` : ""
+            }`,
           )
         : null,
   };
@@ -104,12 +92,11 @@ describe("NavigationOverlay", () => {
 
     expect(queryByTestId("top-card")).toBeNull();
     expect(queryByTestId("steps-dd")).toBeNull();
-    expect(queryByTestId("start-banner")).toBeNull();
     expect(queryByTestId("bottom-bar")).toBeNull();
   });
 
-  it("shows start banner when navigating, not near start, not arrived", () => {
-    const { getByTestId, queryByTestId } = render(
+  it("shows bottom bar with go-to-start hint when navigating, not near start, not arrived", () => {
+    const { getByTestId } = render(
       <NavigationOverlay
         isNavigating={true}
         isNearStart={false}
@@ -130,8 +117,9 @@ describe("NavigationOverlay", () => {
     );
 
     expect(getByTestId("top-card")).toBeTruthy();
-    expect(getByTestId("start-banner")).toBeTruthy();
-    expect(queryByTestId("bottom-bar")).toBeNull();
+    const bottom = getByTestId("bottom-bar");
+    expect(bottom).toBeTruthy();
+    expect(bottom.props.children).toContain("HINT:Go to start to begin live navigation");
   });
 
   it("shows bottom bar when near start and not arrived", () => {
@@ -156,7 +144,6 @@ describe("NavigationOverlay", () => {
     );
 
     expect(getByTestId("bottom-bar")).toBeTruthy();
-    expect(queryByTestId("start-banner")).toBeNull();
   });
 
   it("shows arrived state in top card when arrived", () => {

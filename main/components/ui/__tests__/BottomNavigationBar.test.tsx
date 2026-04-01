@@ -63,4 +63,20 @@ describe("BottomNavigationBar", () => {
     fireEvent.press(getByText("Exit"));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
+
+  it("renders hint when hintText is provided", () => {
+    const { getByText } = render(
+      <BottomNavigationBar
+        visible={true}
+        bottomOffset={40}
+        arrivalTimeText="10:30"
+        durationMinText="12"
+        distanceKmText="1.2"
+        hintText="Go to start to begin live navigation"
+        onExit={jest.fn()}
+      />,
+    );
+
+    expect(getByText("Go to start to begin live navigation")).toBeTruthy();
+  });
 });

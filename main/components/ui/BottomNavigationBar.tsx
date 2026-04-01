@@ -7,6 +7,8 @@ type Props = {
   arrivalTimeText: string;
   durationMinText: string;
   distanceKmText: string;
+  /** Shown above metrics (e.g. when user must reach route start first). */
+  hintText?: string | null;
   onExit: () => void;
 };
 
@@ -16,31 +18,44 @@ export function BottomNavigationBar({
   arrivalTimeText,
   durationMinText,
   distanceKmText,
+  hintText,
   onExit,
 }: Readonly<Props>) {
   if (!visible) return null;
 
+  const padded = !!hintText?.trim();
+
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.wrap, { bottom: bottomOffset }]}
+      style={[
+        styles.wrap,
+        { bottom: bottomOffset },
+        padded ? styles.wrapWithHint : null,
+      ]}
     >
-      <View style={styles.bar}>
-        <View style={styles.metrics}>
-          <Metric value={arrivalTimeText} label="arrival" />
-          <Metric value={durationMinText} label="min" />
-          <Metric value={distanceKmText} label="km" />
-        </View>
+      <View style={[styles.card, padded ? styles.cardFloating : styles.cardFull]}>
+        {padded ? (
+          <Text style={styles.hint}>{hintText}</Text>
+        ) : null}
 
-        <Pressable
-          onPress={onExit}
-          style={({ pressed }) => [
-            styles.exitBtn,
-            pressed && { opacity: 0.92 },
-          ]}
-        >
-          <Text style={styles.exitText}>Exit</Text>
-        </Pressable>
+        <View style={styles.bar}>
+          <View style={styles.metrics}>
+            <Metric value={arrivalTimeText} label="arrival" />
+            <Metric value={durationMinText} label="min" />
+            <Metric value={distanceKmText} label="km" />
+          </View>
+
+          <Pressable
+            onPress={onExit}
+            style={({ pressed }) => [
+              styles.exitBtn,
+              pressed && { opacity: 0.92 },
+            ]}
+          >
+            <Text style={styles.exitText}>Exit</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -73,15 +88,35 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9998,
   },
-  bar: {
+  wrapWithHint: {
+    paddingHorizontal: 12,
+  },
+  card: {
     backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
+    overflow: "hidden",
+  },
+  cardFull: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(0,0,0,0.10)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     ...shadow,
+  },
+  cardFloating: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    ...shadow,
+  },
+  hint: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 10,
+  },
+  bar: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   metrics: {
     flexDirection: "row",

@@ -5,7 +5,6 @@ import type { DirectionStep } from "@/components/campus/helper_methods/googleDir
 
 import { TopDirectionsCard } from "@/components/ui/TopDirectionsCard";
 import { StepsDropdown } from "@/components/ui/StepsDropdown";
-import { StartLiveBanner } from "@/components/ui/StartLiveBanner";
 import { BottomNavigationBar } from "@/components/ui/BottomNavigationBar";
 
 type Props = {
@@ -84,18 +83,15 @@ export function NavigationOverlay({
         onClose={onCloseSteps}
       />
 
-      <StartLiveBanner
-        visible={isNavigating && !isNearStart && !isArrived}
-        bottomOffset={bottomOffset}
-        onExit={onExit}
-      />
-
       <BottomNavigationBar
-        visible={isNavigating && isNearStart && !isArrived}
+        visible={isNavigating && !isArrived}
         bottomOffset={bottomOffset}
         arrivalTimeText={arrivalTimeText}
         durationMinText={durationMinText}
         distanceKmText={distanceKmText}
+        hintText={
+          isNearStart ? null : "Go to start to begin live navigation"
+        }
         onExit={onExit}
       />
     </View>

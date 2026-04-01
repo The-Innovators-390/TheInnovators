@@ -22,6 +22,7 @@ import {
   LocationError,
 } from "@/components/campus/helper_methods/locationUtils";
 import { StatusBar } from "expo-status-bar";
+import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { SGW_BUILDINGS } from "@/components/Buildings/SGW/SGWBuildings";
 import { LOYOLA_BUILDINGS } from "@/components/Buildings/Loyola/LoyolaBuildings";
@@ -205,8 +206,17 @@ export default function CampusMap() {
     useState(false);
 
   const mapRef = useRef<MapView>(null);
+  const router = useRouter();
   const nav = useNavigation();
   const appliedRouteParamsSignatureRef = useRef<string | null>(null);
+
+  const clearOutdoorIndoorHandoffUrlParams = useCallback(() => {
+    router.setParams({
+      externalDestRoomNodeId: undefined,
+      externalDestRoomLabel: undefined,
+      externalDestBuildingCode: undefined,
+    });
+  }, [router]);
 
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const [mapHeading, setMapHeading] = useState(0);
@@ -864,6 +874,7 @@ export default function CampusMap() {
     async (destination: Building) => {
       if (!nav.isRouteMode) nav.toggleRouteMode();
 
+      clearOutdoorIndoorHandoffUrlParams();
       nav.setRouteDest(destination);
       setDestText(`${destination.code} - ${destination.name}`);
 
@@ -873,7 +884,7 @@ export default function CampusMap() {
       setPopupIndex(-1);
       setQuery("");
     },
-    [nav, setStartToCurrentLocation],
+    [nav, setStartToCurrentLocation, clearOutdoorIndoorHandoffUrlParams],
   );
 
   const focusRouteField = useCallback(
@@ -890,6 +901,12 @@ export default function CampusMap() {
       Keyboard.dismiss();
 
       if (nav.isRouteMode) {
+        if (
+          nav.activeField === "destination" &&
+          b.id !== nav.routeDest?.id
+        ) {
+          clearOutdoorIndoorHandoffUrlParams();
+        }
         nav.setFieldFromBuilding(b);
 
         const label = `${b.code} - ${b.name}`;
@@ -908,7 +925,7 @@ export default function CampusMap() {
       setSelected(b);
       focusBuilding(b);
     },
-    [nav, focusBuilding, focusRouteField],
+    [nav, focusBuilding, focusRouteField, clearOutdoorIndoorHandoffUrlParams],
   );
 
   const applySelection = useCallback(
@@ -1217,6 +1234,7 @@ export default function CampusMap() {
                 activeField={nav.activeField}
                 onFocusField={focusRouteField}
                 onSwap={() => {
+                  clearOutdoorIndoorHandoffUrlParams();
                   clearRouteData();
                   clearDisplayedRoutes();
 
@@ -1247,6 +1265,7 @@ export default function CampusMap() {
                 }}
                 onChangeDestText={(t) => {
                   nav.setActiveField("destination");
+                  clearOutdoorIndoorHandoffUrlParams();
                   setDestText(t);
                   setQuery(t);
                   nav.setRouteError(null);
@@ -1268,6 +1287,7 @@ export default function CampusMap() {
                   clearDisplayedRoutes();
                 }}
                 onClearDestination={() => {
+                  clearOutdoorIndoorHandoffUrlParams();
                   setDestText("");
                   nav.setRouteDest(null);
                   setQuery("");
@@ -1446,6 +1466,7 @@ export default function CampusMap() {
             : "--"
         }
         onExit={() => {
+          clearOutdoorIndoorHandoffUrlParams();
           resetIndoorDestinationState();
           routeNavigation.exitNavigation();
           clearRouteData();
