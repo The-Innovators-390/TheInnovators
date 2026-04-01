@@ -24,12 +24,14 @@ jest.mock("@gorhom/bottom-sheet", () => {
   const React = require("react");
   const { View, ScrollView } = require("react-native");
 
-  const BottomSheet = React.forwardRef((props, ref) => (
-    <View ref={ref}>{props.children}</View>
+  const BottomSheet = React.forwardRef(({ children, ...props }, ref) => (
+    <View ref={ref} {...props}>
+      {children}
+    </View>
   ));
 
-  const BottomSheetScrollView = (props) => (
-    <ScrollView {...props}>{props.children}</ScrollView>
+  const BottomSheetScrollView = ({ children, ...props }) => (
+    <ScrollView {...props}>{children}</ScrollView>
   );
 
   return {
@@ -60,8 +62,8 @@ jest.mock("expo-linear-gradient", () => {
   const React = require("react");
   const { View } = require("react-native");
 
-  function LinearGradient(props) {
-    return React.createElement(View, props, props.children);
+  function LinearGradient({ children, ...props }) {
+    return React.createElement(View, props, children);
   }
 
   return { LinearGradient };
@@ -88,11 +90,11 @@ jest.mock("react-native-maps", () => {
 
   MockMapView.displayName = "MockMapView";
 
-  const MockPolygon = (props) =>
-    React.createElement(View, props, props.children);
+  const MockPolygon = ({ children, ...props }) =>
+    React.createElement(View, props, children);
 
-  const MockMarker = (props) =>
-    React.createElement(View, props, props.children);
+  const MockMarker = ({ children, ...props }) =>
+    React.createElement(View, props, children);
 
   return {
     __esModule: true,
