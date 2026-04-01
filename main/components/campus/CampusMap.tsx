@@ -1017,8 +1017,6 @@ export default function CampusMap() {
   );
 
   const {
-    hasBuildingPopup,
-    hasTravelPopup,
     floatingBottom,
     shouldShowCompass,
     shouldHideFloatingButtons,
