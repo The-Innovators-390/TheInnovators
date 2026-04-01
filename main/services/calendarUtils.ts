@@ -56,7 +56,7 @@ export function formatDayHeader(d: Date) {
     suffix = "st";
   } else if (day % 10 === 2 && day !== 12) {
     suffix = "nd";
-  } else if (day % 10 ===  3 && day !== 13) {
+  } else if (day % 10 === 3 && day !== 13) {
     suffix = "rd";
   }
 

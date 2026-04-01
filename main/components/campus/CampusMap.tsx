@@ -237,7 +237,9 @@ function applySelectedRouteRendering(params: {
   selectedSegments: RouteRenderSegment[];
   selectedCoords: { latitude: number; longitude: number }[];
   setShowRouteLayer: React.Dispatch<React.SetStateAction<boolean>>;
-  setRenderedRouteSegments: React.Dispatch<React.SetStateAction<RouteRenderSegment[]>>;
+  setRenderedRouteSegments: React.Dispatch<
+    React.SetStateAction<RouteRenderSegment[]>
+  >;
   setRoutePolylineMountKey: React.Dispatch<React.SetStateAction<number>>;
   setPendingTransitRender: React.Dispatch<
     React.SetStateAction<PendingTransitRender | null>
@@ -372,17 +374,18 @@ export default function CampusMap() {
 
   const routeOrigin = nav.routeStart
     ? {
-      latitude: nav.routeStart.latitude,
-      longitude: nav.routeStart.longitude,
-    } : null;
+        latitude: nav.routeStart.latitude,
+        longitude: nav.routeStart.longitude,
+      }
+    : null;
 
-    const routeDestination = nav.routeDest
+  const routeDestination = nav.routeDest
     ? {
-      latitude: nav.routeDest.latitude,
-      longitude: nav.routeDest.longitude,
-    } : null;
+        latitude: nav.routeDest.latitude,
+        longitude: nav.routeDest.longitude,
+      }
+    : null;
 
-    
   const routeNavigation = useRouteNavigation({
     origin: routeOrigin,
     destination: routeDestination,
@@ -397,8 +400,10 @@ export default function CampusMap() {
   const [startPinTracking, setStartPinTracking] = useState(false);
   const [destPinTracking, setDestPinTracking] = useState(false);
 
-  const shouldTrackStartPin = Platform.OS === "android" ? startPinTracking : false;
-  const shouldTrackDestPin = Platform.OS === "android" ? destPinTracking : false;
+  const shouldTrackStartPin =
+    Platform.OS === "android" ? startPinTracking : false;
+  const shouldTrackDestPin =
+    Platform.OS === "android" ? destPinTracking : false;
 
   const NORTH_ANIMATION_DURATION = 350;
 
@@ -884,7 +889,6 @@ export default function CampusMap() {
           mapRef,
         });
         return;
-        
       } catch (e) {
         if (!cancelled) {
           setTravelPopupVisible(false);
@@ -1035,17 +1039,17 @@ export default function CampusMap() {
   ];
 
   const arrivalTimeText = routeNavigation.activeSummary
-  ? formatArrivalTimeFromNow(routeNavigation.activeSummary.durationSec)
-  : "--:--";
+    ? formatArrivalTimeFromNow(routeNavigation.activeSummary.durationSec)
+    : "--:--";
 
   const durationMinText = routeNavigation.activeSummary
-  ? secondsToMinutesString(routeNavigation.activeSummary.durationSec)
-  : "--";
+    ? secondsToMinutesString(routeNavigation.activeSummary.durationSec)
+    : "--";
 
   const distanceKmText = routeNavigation.activeSummary
-  ? metersToKmString(routeNavigation.activeSummary.distanceMeters)
-  : "--";
-  
+    ? metersToKmString(routeNavigation.activeSummary.distanceMeters)
+    : "--";
+
   if (shuttleDirection !== null && shuttleEligible) {
     travelModes.push({
       mode: "shuttle" as TravelMode,
@@ -1242,8 +1246,7 @@ export default function CampusMap() {
               longitude: nav.routeDest.longitude,
             }}
             anchor={{ x: 0.5, y: 76 / 80 }}
-            tracksViewChanges={shouldTrackDestPin
-            }
+            tracksViewChanges={shouldTrackDestPin}
           >
             <BuildingPin
               code={nav.routeDest.code}
