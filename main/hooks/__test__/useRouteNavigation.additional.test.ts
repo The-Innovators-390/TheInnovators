@@ -7,6 +7,8 @@ import type {
 } from "@/components/campus/helper_methods/googleDirections";
 import { fetchDirections } from "@/components/campus/helper_methods/googleDirections";
 
+import { distanceMeters } from "@/components/campus/helper_methods/geo";
+
 jest.mock("@/components/campus/helper_methods/googleDirections", () => ({
   fetchDirections: jest.fn(),
 }));
@@ -260,19 +262,42 @@ describe("nextStep and prevStep", () => {
     expect(result.current.activeStepIndex).toBe(0);
   });
 
-  it("isArrived is true when on the last step", async () => {
+  it("isArrived is true when on the last step AND near destination", async () => {
     const steps = [
       makeStep("Step 1", origin, makeLatLng(45.005, -73.005)),
       makeStep("Step 2", makeLatLng(45.005, -73.005), destination),
     ];
 
-    const result = await startWithSteps(steps);
+    (distanceMeters as jest.Mock).mockReturnValue(999);
+    const { result, rerender } = renderHook(
+      ({ userLoc }) =>
+        useRouteNavigation({ origin, destination, userLocation: userLoc }),
+      { initialProps: { userLoc: origin } },
+    );
+
+    act(() => {
+      result.current.startNavigationWithSteps(steps, {
+        mode: "walking" as any,
+        durationText: "5 min",
+        durationSec: 300,
+        distanceText: "0.5 km",
+        distanceMeters: 500,
+        summary: "Walk",
+      });
+    });
 
     expect(result.current.isArrived).toBe(false);
 
     act(() => {
       result.current.nextStep();
     });
+
+    // Still false because we're far (999m)
+    expect(result.current.isArrived).toBe(false);
+
+    // Mock being near destination (<= 25m)
+    (distanceMeters as jest.Mock).mockReturnValue(10);
+    rerender({ userLoc: destination });
 
     expect(result.current.isArrived).toBe(true);
   });

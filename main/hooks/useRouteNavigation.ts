@@ -144,8 +144,16 @@ export function useRouteNavigation(params: {
   const isArrived = useMemo(() => {
     if (!isNavigating) return false;
     if (!activeSteps.length) return false;
-    return activeStepIndex >= activeSteps.length - 1;
-  }, [isNavigating, activeSteps.length, activeStepIndex]);
+
+    // If we're on the last step, check if we're close enough to the destination
+    const lastStep = activeSteps.at(-1);
+    if (!lastStep || !userLocation) return false;
+
+    const dEnd = distanceMeters(userLocation, lastStep.end);
+    return (
+      activeStepIndex >= activeSteps.length - 1 && dEnd <= STEP_END_THRESHOLD_M
+    );
+  }, [isNavigating, activeSteps, activeStepIndex, userLocation]);
 
   const exitNavigation = useCallback(() => {
     setIsNavigating(false);

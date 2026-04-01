@@ -38,8 +38,13 @@ export function useIndoorDeepLinkEffect({
     if (!normalizedDestinationNodeId || !graphData) return;
 
     const matchedNode =
-      graphData.nodes.find((node) => node.id === normalizedDestinationNodeId) ??
-      null;
+      graphData.nodes.find(
+        (node) =>
+          node.id === normalizedDestinationNodeId ||
+          (node.type === "room" &&
+            node.label?.toLowerCase() ===
+              normalizedDestinationLabel?.toLowerCase()),
+      ) ?? null;
 
     if (!matchedNode) return;
 

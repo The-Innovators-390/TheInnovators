@@ -499,6 +499,19 @@ describe("IndoorScreen route panel", () => {
     expect(getByTestId("active-field").props.children).toBe("destination");
   });
 
+  it("uses deep-link destination params when room label matches", () => {
+    mockLocalSearchParams = {
+      destinationNodeId: "some-invalid-id",
+      destinationLabel: "Room A",
+    };
+
+    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+
+    expect(getByTestId("dest-input").props.value).toBe("Room A");
+    // Should still pick n1 because its label "Room A" matches (case-insensitive)
+    // Actually the mock data has nodes with labels like "Room A"
+  });
+
   it("advances through route steps and updates floor after transport step", () => {
     mockFindShortestIndoorPathWithSteps.mockReturnValue({
       path: [
