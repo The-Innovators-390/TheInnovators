@@ -46,7 +46,7 @@ function EventRow({
           style={styles.directionsBtn}
           onPress={() => onPressDirections(event)}
         >
-          <Text style={styles.directionsIcon}>↗</Text>
+          <Text style={styles.directionsIcon}>Get Directions</Text>
         </Pressable>
       )}
     </View>

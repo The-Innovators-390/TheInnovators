@@ -165,14 +165,16 @@ export const styles = StyleSheet.create({
   eventTitle: { fontSize: 14, color: "#333" },
 
   directionsBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#1da1f2",
+    borderWidth: 1.5,
+    borderColor: "#7c1f32",
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
-  directionsIcon: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  directionsIcon: { color: "#7c1f32", fontSize: 13, fontWeight: "700" },
   otherTitle: {
     fontSize: 22,
     fontWeight: "800",
