@@ -34,21 +34,6 @@ jest.mock("@/components/ui/StepsDropdown", () => {
   };
 });
 
-jest.mock("@/components/ui/StartLiveBanner", () => {
-  const React = require("react");
-  const { Text } = require("react-native");
-  return {
-    StartLiveBanner: ({ visible, onExit }: any) =>
-      visible
-        ? React.createElement(
-            Text,
-            { testID: "start-banner", onPress: onExit },
-            "StartBanner",
-          )
-        : null,
-  };
-});
-
 jest.mock("@/components/ui/BottomNavigationBar", () => {
   const React = require("react");
   const { Text } = require("react-native");
@@ -85,7 +70,6 @@ describe("NavigationOverlay", () => {
     const { queryByTestId } = render(
       <NavigationOverlay
         isNavigating={false}
-        isNearStart={false}
         isArrived={false}
         stepsOpen={false}
         onToggleSteps={jest.fn()}
@@ -104,15 +88,13 @@ describe("NavigationOverlay", () => {
 
     expect(queryByTestId("top-card")).toBeNull();
     expect(queryByTestId("steps-dd")).toBeNull();
-    expect(queryByTestId("start-banner")).toBeNull();
     expect(queryByTestId("bottom-bar")).toBeNull();
   });
 
-  it("shows start banner when navigating, not near start, not arrived", () => {
-    const { getByTestId, queryByTestId } = render(
+  it("shows bottom bar when navigating and not arrived (including before route start)", () => {
+    const { getByTestId } = render(
       <NavigationOverlay
         isNavigating={true}
-        isNearStart={false}
         isArrived={false}
         stepsOpen={false}
         onToggleSteps={jest.fn()}
@@ -130,40 +112,13 @@ describe("NavigationOverlay", () => {
     );
 
     expect(getByTestId("top-card")).toBeTruthy();
-    expect(getByTestId("start-banner")).toBeTruthy();
-    expect(queryByTestId("bottom-bar")).toBeNull();
-  });
-
-  it("shows bottom bar when near start and not arrived", () => {
-    const { getByTestId, queryByTestId } = render(
-      <NavigationOverlay
-        isNavigating={true}
-        isNearStart={true}
-        isArrived={false}
-        stepsOpen={false}
-        onToggleSteps={jest.fn()}
-        onCloseSteps={jest.fn()}
-        activeSteps={[step(1), step(2)]}
-        activeStepIndex={0}
-        currentStepDistanceText="10m"
-        currentStepInstructionText="Turn right"
-        bottomOffset={40}
-        arrivalTimeText="10:10"
-        durationMinText="5"
-        distanceKmText="0.3"
-        onExit={jest.fn()}
-      />,
-    );
-
     expect(getByTestId("bottom-bar")).toBeTruthy();
-    expect(queryByTestId("start-banner")).toBeNull();
   });
 
   it("shows arrived state in top card when arrived", () => {
-    const { getByTestId } = render(
+    const { getByTestId, queryByTestId } = render(
       <NavigationOverlay
         isNavigating={true}
-        isNearStart={true}
         isArrived={true}
         stepsOpen={false}
         onToggleSteps={jest.fn()}
@@ -181,6 +136,7 @@ describe("NavigationOverlay", () => {
     );
 
     expect(getByTestId("top-card").props.children).toContain("Arrived");
+    expect(queryByTestId("bottom-bar")).toBeNull();
   });
 
   it("toggles steps and calls exit handlers", () => {
@@ -191,7 +147,6 @@ describe("NavigationOverlay", () => {
     const { getByTestId, rerender } = render(
       <NavigationOverlay
         isNavigating={true}
-        isNearStart={true}
         isArrived={false}
         stepsOpen={false}
         onToggleSteps={onToggleSteps}
@@ -214,7 +169,6 @@ describe("NavigationOverlay", () => {
     rerender(
       <NavigationOverlay
         isNavigating={true}
-        isNearStart={true}
         isArrived={false}
         stepsOpen={true}
         onToggleSteps={onToggleSteps}
