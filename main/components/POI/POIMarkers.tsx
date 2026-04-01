@@ -23,23 +23,25 @@ export default function POIMarkers({
         const isSelected = selectedPOI?.id === poi.id;
 
         return (
-        <Marker
+          <Marker
             key={poi.id}
             testID={`poi-marker-${poi.id}`}
             coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
             onPress={() => onPress(poi)}
             anchor={{ x: 0.5, y: 1 }}
             tracksViewChanges={false}
-        >
+          >
             <View style={[styles.pin, isSelected && styles.pinSelected]}>
-            <MaterialCommunityIcons
+              <MaterialCommunityIcons
                 name={config?.iconName ?? "map-marker"}
                 size={18}
                 color="#ffffff"
-            />
-            <View style={[styles.pinTip, isSelected && styles.pinTipSelected]} />
+              />
+              <View
+                style={[styles.pinTip, isSelected && styles.pinTipSelected]}
+              />
             </View>
-        </Marker>
+          </Marker>
         );
       })}
     </>
