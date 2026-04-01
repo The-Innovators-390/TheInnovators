@@ -16,7 +16,7 @@ export const POI_CATEGORIES: POICategoryConfig[] = [
     iconName: "silverware-fork-knife",
     placeType: "restaurant",
   },
-  { key: "cafe", label: "Café", iconName: "coffee", placeType: "cafe" },
+  { key: "cafe", label: "Coffee", iconName: "coffee", placeType: "cafe" },
   { key: "gym", label: "Gym", iconName: "dumbbell", placeType: "gym" },
   {
     key: "parking",

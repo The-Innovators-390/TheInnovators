@@ -2,22 +2,26 @@ import React from "react";
 import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
 import { POI_CATEGORIES, type POICategory } from "@/components/POI/types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { Campus } from "@/components/Buildings/types";
 
 interface POICategoryBarProps {
   activeCategory: POICategory | null;
   onSelect: (category: POICategory | null) => void;
   disabled?: boolean;
+  focusedCampus: Campus;
 }
 
 export default function POICategoryBar({
   activeCategory,
   onSelect,
   disabled = false,
+  focusedCampus,
 }: Readonly<POICategoryBarProps>) {
   const handlePress = (key: POICategory) => {
     // Toggle: tap same pill to deselect
     onSelect(activeCategory === key ? null : key);
   };
+  const activeColor = focusedCampus === "SGW" ? "#912338" : "#e3ac20";
 
   return (
     <View style={styles.wrapper}>
@@ -37,9 +41,9 @@ export default function POICategoryBar({
               disabled={disabled}
               style={[
                 styles.pill,
-                isActive && styles.pillActive,
+                isActive && { backgroundColor: activeColor, borderColor: activeColor },
                 disabled && styles.pillDisabled,
-              ]}
+                ]}
               accessibilityRole="button"
               accessibilityLabel={`${cat.label} points of interest`}
               accessibilityState={{ selected: isActive }}
@@ -50,7 +54,7 @@ export default function POICategoryBar({
                 color={isActive ? "#ffffff" : "#333333"}
               />
               <Text
-                style={[styles.pillLabel, isActive && styles.pillLabelActive]}
+                style={[styles.pillLabel, isActive && { color: "#ffffff" }]}
               >
                 {cat.label}
               </Text>
@@ -99,9 +103,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     color: "#333333",
-  },
-  pillLabelActive: {
-    color: "#ffffff",
-    fontWeight: "600",
   },
 });
