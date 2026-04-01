@@ -10,7 +10,7 @@ export function findRoomNode(
   roomName: string,
 ): IndoorNode | null {
   const data = indoorData[buildingCode];
-  if (!data || !data.nodes) return null;
+  if (!data?.nodes) return null;
 
   const normalizedRoom = roomName.trim().toLowerCase();
 
