@@ -62,8 +62,8 @@ jest.mock("expo-linear-gradient", () => {
   const React = require("react");
   const { View } = require("react-native");
 
-  function LinearGradient({ children, ...props }) {
-    return React.createElement(View, props, children);
+  function LinearGradient(componentProps) {
+    return React.createElement(View, componentProps, componentProps.children);
   }
 
   return { LinearGradient };
@@ -90,11 +90,11 @@ jest.mock("react-native-maps", () => {
 
   MockMapView.displayName = "MockMapView";
 
-  const MockPolygon = ({ children, ...props }) =>
-    React.createElement(View, props, children);
+  const MockPolygon = (componentProps) =>
+    React.createElement(View, componentProps, componentProps.children);
 
-  const MockMarker = ({ children, ...props }) =>
-    React.createElement(View, props, children);
+  const MockMarker = (componentProps) =>
+    React.createElement(View, componentProps, componentProps.children);
 
   return {
     __esModule: true,
