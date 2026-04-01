@@ -1293,6 +1293,7 @@ export default function CampusMap() {
               activeCategory={poi.activeCategory}
               onSelect={poi.handleCategorySelect}
               disabled={suggestions.length > 0}
+              focusedCampus={focusedCampus}
             />
           </>
         )}
