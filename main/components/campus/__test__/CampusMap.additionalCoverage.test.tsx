@@ -2,6 +2,7 @@
 import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+import { Platform } from "react-native";
 
 const mockAnimateToRegion = jest.fn();
 const mockFitToCoordinates = jest.fn();
@@ -48,8 +49,25 @@ let mockNavState: any;
 let mockRouteNavigationState: any;
 let mockTravelPopupProps: any = null;
 
+/**
+ * Single stable router object for expo-router (name prefixed with `mock`
+ * so the jest.mock factory may reference it). Reassign methods after
+ * `clearAllMocks()` for a fresh spy per test.
+ */
+const mockExpoRouterObj = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  back: jest.fn(),
+  setParams: jest.fn(),
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
+
+  mockExpoRouterObj.push = jest.fn();
+  mockExpoRouterObj.replace = jest.fn();
+  mockExpoRouterObj.back = jest.fn();
+  mockExpoRouterObj.setParams = jest.fn();
 
   mockLocalSearchParams = {};
 
@@ -90,11 +108,7 @@ jest.mock("expo-status-bar", () => ({
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockLocalSearchParams,
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-  }),
+  useRouter: () => mockExpoRouterObj,
 }));
 
 jest.mock("@/hooks/useNavigation", () => ({
@@ -246,7 +260,7 @@ jest.mock("@/components/campus/helper_methods/mapCompass", () => ({
 
 jest.mock("react-native-maps", () => {
   const ReactActual = require("react");
-  const { View } = require("react-native");
+  const { View, Pressable } = require("react-native");
 
   const MockMapView = ReactActual.forwardRef((props: any, ref: any) => {
     ReactActual.useImperativeHandle(ref, () => ({
@@ -256,7 +270,7 @@ jest.mock("react-native-maps", () => {
     }));
 
     return ReactActual.createElement(
-      View,
+      Pressable,
       { ...props, testID: props.testID || "mapView" },
       props.children,
     );
@@ -331,11 +345,22 @@ jest.mock("@/components/campus/CurrentLocationButton", () => {
 
 jest.mock("@/components/campus/BuildingPopup", () => {
   const ReactActual = require("react");
-  const { View } = require("react-native");
+  const { View, Pressable, Text } = require("react-native");
   return {
     __esModule: true,
-    default: () =>
-      ReactActual.createElement(View, { testID: "building-popup" }),
+    default: ({ onSheetChange }: { onSheetChange?: (index: number) => void }) =>
+      ReactActual.createElement(
+        View,
+        { testID: "building-popup" },
+        ReactActual.createElement(
+          Pressable,
+          {
+            testID: "building-popup-sheet-change",
+            onPress: () => onSheetChange?.(2),
+          },
+          ReactActual.createElement(Text, null, "Sheet"),
+        ),
+      ),
   };
 });
 
@@ -351,19 +376,55 @@ jest.mock("@/components/layout/BrandBar", () => {
 
 jest.mock("@/components/campus/RoutePlanner", () => {
   const ReactActual = require("react");
-  const { View } = require("react-native");
+  const { Pressable } = require("react-native");
   return {
     __esModule: true,
-    default: () => ReactActual.createElement(View, { testID: "route-planner" }),
+    default: ({ onToggle }: { onToggle: () => void }) =>
+      ReactActual.createElement(Pressable, {
+        testID: "route-planner",
+        onPress: onToggle,
+      }),
   };
 });
 
 jest.mock("@/components/campus/RouteInput", () => {
   const ReactActual = require("react");
-  const { View } = require("react-native");
+  const { View, Pressable, Text } = require("react-native");
   return {
     __esModule: true,
-    default: () => ReactActual.createElement(View, { testID: "route-input" }),
+    default: (props: {
+      onChangeStartText: (t: string) => void;
+      onChangeDestText: (t: string) => void;
+      onSwap: () => void;
+    }) =>
+      ReactActual.createElement(
+        View,
+        { testID: "route-input" },
+        ReactActual.createElement(
+          Pressable,
+          {
+            testID: "mock-route-change-start",
+            onPress: () => props.onChangeStartText("typed-start"),
+          },
+          ReactActual.createElement(Text, null, "ChStart"),
+        ),
+        ReactActual.createElement(
+          Pressable,
+          {
+            testID: "mock-route-change-dest",
+            onPress: () => props.onChangeDestText("typed-dest"),
+          },
+          ReactActual.createElement(Text, null, "ChDest"),
+        ),
+        ReactActual.createElement(
+          Pressable,
+          {
+            testID: "mock-route-swap",
+            onPress: props.onSwap,
+          },
+          ReactActual.createElement(Text, null, "Swap"),
+        ),
+      ),
   };
 });
 
@@ -388,11 +449,15 @@ jest.mock("@/components/campus/NextClassButton", () => {
 
 jest.mock("@/components/campus/RoutePolylines", () => {
   const ReactActual = require("react");
-  const { View } = require("react-native");
+  const { Pressable, Text } = require("react-native");
   return {
     __esModule: true,
-    default: () =>
-      ReactActual.createElement(View, { testID: "route-polylines" }),
+    default: ({ onPress }: { onPress?: () => void }) =>
+      ReactActual.createElement(
+        Pressable,
+        { testID: "route-polylines", onPress },
+        ReactActual.createElement(Text, null, "Polyline"),
+      ),
   };
 });
 
@@ -738,5 +803,305 @@ describe("CampusMap additional coverage", () => {
     const a11yBtn = getByTestId("accessibleRouteButton");
     fireEvent.press(a11yBtn);
     fireEvent.press(a11yBtn);
+  });
+
+  it("exitMapCampus effect resets navigation and focuses campus", async () => {
+    mockLocalSearchParams = { exitMapCampus: "LOY" };
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+
+    render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(mockExitNavigation).toHaveBeenCalled();
+      expect(mockSetIsRouteMode).toHaveBeenCalledWith(false);
+      expect(mockSetRouteStart).toHaveBeenCalledWith(null);
+      expect(mockSetRouteDest).toHaveBeenCalledWith(null);
+    });
+
+    expect(mockAnimateToRegion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latitude: 45.458,
+        longitude: -73.64,
+      }),
+      500,
+    );
+    await waitFor(() => {
+      expect(mockExpoRouterObj.setParams).toHaveBeenCalled();
+    });
+  });
+
+  it("shows indoor arrival confirm after navigation starts with external room params", async () => {
+    mockLocalSearchParams = {
+      externalDestRoomNodeId: "room-node-1",
+      externalDestBuildingCode: "CJ",
+    };
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+    mockRouteNavigationState = {
+      ...mockRouteNavigationState,
+      isNavigating: false,
+    };
+
+    const { rerender, getByTestId, queryByText } = render(<CampusMap />);
+
+    expect(
+      queryByText("Confirm that you got to the building"),
+    ).toBeNull();
+
+    mockRouteNavigationState.isNavigating = true;
+    rerender(<CampusMap />);
+
+    await waitFor(() => {
+      expect(
+        queryByText("Confirm that you got to the building"),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("confirmArrivedAtDestinationBuildingButton"));
+
+    expect(mockExpoRouterObj.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/(tabs)/indoorscreen",
+        params: expect.objectContaining({
+          buildingCode: "CJ",
+          destinationNodeId: "room-node-1",
+        }),
+      }),
+    );
+  });
+
+  it("invokes BuildingPopup onSheetChange", async () => {
+    const { getByTestId } = render(<CampusMap />);
+
+    fireEvent.changeText(getByTestId("searchInput"), "cj");
+    fireEvent.press(getByTestId("suggestion-LOY-CJ"));
+    fireEvent.press(getByTestId("building-popup-sheet-change"));
+
+    expect(getByTestId("building-popup")).toBeTruthy();
+  });
+
+  it("clears selected building when search text changes", async () => {
+    const { getByTestId, queryByTestId } = render(<CampusMap />);
+
+    fireEvent.changeText(getByTestId("searchInput"), "cj");
+    fireEvent.press(getByTestId("suggestion-LOY-CJ"));
+    expect(getByTestId("building-popup")).toBeTruthy();
+
+    fireEvent.changeText(getByTestId("searchInput"), "cjx");
+    expect(queryByTestId("building-popup")).toBeNull();
+  });
+
+  it("MapView onPress clears browse selection", async () => {
+    const { getByTestId, queryByTestId } = render(<CampusMap />);
+
+    fireEvent.changeText(getByTestId("searchInput"), "cj");
+    fireEvent.press(getByTestId("suggestion-LOY-CJ"));
+    expect(getByTestId("building-popup")).toBeTruthy();
+
+    fireEvent.press(getByTestId("mapView"));
+
+    expect(queryByTestId("building-popup")).toBeNull();
+  });
+
+  it("MapView onRegionChangeComplete ignores null coords and updates region", () => {
+    const { getByTestId } = render(<CampusMap />);
+    const map = getByTestId("mapView");
+
+    map.props.onRegionChangeComplete?.({
+      latitude: null,
+      longitude: -73,
+    });
+    map.props.onRegionChangeComplete?.({
+      latitude: 45.5,
+      longitude: -73.6,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    });
+    map.props.onRegionChangeComplete?.({
+      latitude: 45.5,
+      longitude: -73.6,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    });
+  });
+
+  it("MapView onPanDrag stops following user while navigating", () => {
+    mockRouteNavigationState = {
+      ...mockRouteNavigationState,
+      isNavigating: true,
+    };
+
+    const { getByTestId } = render(<CampusMap />);
+    getByTestId("mapView").props.onPanDrag?.();
+  });
+
+  it("uses PROVIDER_GOOGLE on Android", () => {
+    const originalOs = Platform.OS;
+    try {
+      Object.defineProperty(Platform, "OS", {
+        configurable: true,
+        value: "android",
+      });
+      const { getByTestId } = render(<CampusMap />);
+      expect(getByTestId("mapView").props.provider).toBe("google");
+    } finally {
+      Object.defineProperty(Platform, "OS", {
+        configurable: true,
+        value: originalOs,
+      });
+    }
+  });
+
+  it("pressing route polylines calls applySelection", async () => {
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+    mockFetchDirections.mockResolvedValue([
+      {
+        summary: "Drive",
+        polyline: "ab",
+        durationSec: 600,
+        durationText: "10 min",
+        distanceMeters: 2000,
+        distanceText: "2 km",
+      },
+    ]);
+    mockPickFastestRoute.mockImplementation(
+      (...args: any[]) => args[0]?.[0] ?? null,
+    );
+
+    const { getByTestId } = render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(getByTestId("route-polylines")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("route-polylines"));
+  });
+
+  it("entering route mode with indoor start sets route start from handoff building", () => {
+    mockLocalSearchParams = { indoorStartBuildingCode: "CJ" };
+
+    const { getByTestId } = render(<CampusMap />);
+
+    fireEvent.press(getByTestId("route-planner"));
+
+    expect(mockSetRouteStart).toHaveBeenCalledWith(deepLinkBuilding);
+  });
+
+  it("entering route mode with indoor start uses indoorStartLabel in start text", () => {
+    mockLocalSearchParams = {
+      indoorStartBuildingCode: "CJ",
+      indoorStartLabel: "Room 101",
+    };
+
+    const { getByTestId } = render(<CampusMap />);
+
+    fireEvent.press(getByTestId("route-planner"));
+
+    expect(mockSetRouteStart).toHaveBeenCalledWith(deepLinkBuilding);
+  });
+
+  it("route text changes clear pinned start or destination", () => {
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+
+    const { getByTestId } = render(<CampusMap />);
+
+    fireEvent.press(getByTestId("mock-route-change-start"));
+    expect(mockSetRouteStart).toHaveBeenCalledWith(null);
+
+    fireEvent.press(getByTestId("mock-route-change-dest"));
+    expect(mockSetRouteDest).toHaveBeenCalledWith(null);
+  });
+
+  it("route swap uses destText for setQuery when activeField is start", () => {
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      activeField: "start",
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+
+    const { getByTestId } = render(<CampusMap />);
+    fireEvent.press(getByTestId("mock-route-swap"));
+  });
+
+  it("route swap uses startText for setQuery when activeField is destination", () => {
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      activeField: "destination",
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+
+    const { getByTestId } = render(<CampusMap />);
+    fireEvent.press(getByTestId("mock-route-swap"));
   });
 });
