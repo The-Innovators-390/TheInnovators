@@ -869,17 +869,13 @@ describe("CampusMap additional coverage", () => {
 
     const { rerender, getByTestId, queryByText } = render(<CampusMap />);
 
-    expect(
-      queryByText("Confirm that you got to the building"),
-    ).toBeNull();
+    expect(queryByText("Confirm that you got to the building")).toBeNull();
 
     mockRouteNavigationState.isNavigating = true;
     rerender(<CampusMap />);
 
     await waitFor(() => {
-      expect(
-        queryByText("Confirm that you got to the building"),
-      ).toBeTruthy();
+      expect(queryByText("Confirm that you got to the building")).toBeTruthy();
     });
 
     fireEvent.press(getByTestId("confirmArrivedAtDestinationBuildingButton"));
