@@ -419,6 +419,10 @@ function RouteStepOverlay({
         <Pressable
           testID="indoorExitToCampusButton"
           onPress={onExitToCampusMap}
+          testOnly_pressed={
+            typeof process !== "undefined" &&
+            process.env.INDOOR_EXIT_BTN_TEST_PRESSED === "1"
+          }
           style={({ pressed }) => [
             styles.indoorExitButtonInline,
             pressed && { opacity: 0.92 },
@@ -433,6 +437,7 @@ function RouteStepOverlay({
   return (
     <View
       pointerEvents="box-none"
+      testID="indoor-route-step-overlay"
       style={[
         styles.stepOverlay,
         hasSuggestions ? styles.stepOverlayWithSuggestions : null,
