@@ -44,6 +44,35 @@ const MOCK_INITIAL_REGION = {
   longitudeDelta: 0.1,
 };
 
+jest.mock("@/components/POI/POICategoryBar", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIBottomSheet", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIMarkers", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/hooks/usePOIFeature", () => ({
+  usePOIFeature: () => ({
+    poiSheetRef: { current: null },
+    pois: [],
+    status: "idle",
+    selectedPOI: null,
+    activeCategory: null,
+    handleCategorySelect: jest.fn(),
+    handleSelectPOI: jest.fn(),
+    handleGetDirections: jest.fn(),
+    handleSheetClose: jest.fn(),
+  }),
+}));
+
 jest.mock("@/components/campus/helper_methods/campusMap.constants", () => ({
   __esModule: true,
   SGW_REGION: {
