@@ -12,6 +12,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
+  useWindowDimensions,
 } from "react-native";
 import BottomSheet, {
   BottomSheetView,
@@ -19,7 +20,6 @@ import BottomSheet, {
   BottomSheetHandleProps,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useWindowDimensions } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { POI, POICategory } from "@/components/POI/types";
 import { POI_CATEGORIES } from "@/components/POI/types";
@@ -64,13 +64,13 @@ function POIRow({
   onPress,
   onGetDirections,
   brandColor,
-}: {
+}: Readonly<{
   poi: POI;
   isSelected: boolean;
   onPress: () => void;
   onGetDirections: () => void;
   brandColor: string;
-}) {
+}>) {
   const config = POI_CATEGORIES.find((c) => c.key === poi.category);
 
   return (
@@ -215,17 +215,21 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
     );
 
     const renderItem = useCallback(
-      ({ item }: { item: POI }) => (
-        <POIRow
-          poi={item}
-          isSelected={selectedPOI?.id === item.id}
-          onPress={() => onSelectPOI(item)}
-          onGetDirections={() => onGetDirections(item)}
-          brandColor={theme.brand}
-        />
-      ),
+      ({ item }: { item: POI }) => {
+        return (
+          <POIRow
+            poi={item}
+            isSelected={selectedPOI?.id === item.id}
+            onPress={() => onSelectPOI(item)}
+            onGetDirections={() => onGetDirections(item)}
+            brandColor={theme.brand}
+          />
+        );
+      },
       [selectedPOI, onSelectPOI, onGetDirections, theme.brand],
     );
+
+    const Separator = () => <View style={styles.separator} />;
 
     const renderContent = () => {
       if (status === "loading") {
@@ -267,7 +271,7 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={Separator}
         />
       );
     };
