@@ -13,7 +13,6 @@ const CAMPUS_CENTRES: Record<Campus, { latitude: number; longitude: number }> =
 
 interface UsePOIFeatureProps {
   focusedCampus: Campus;
-  /** Pass userLocation if available; null triggers location_unavailable state */
   userLocation: { latitude: number; longitude: number } | null;
 }
 
@@ -51,7 +50,7 @@ export function usePOIFeature({
       setActiveCategory(category);
 
       // Prefer real user location; fall back to campus centre
-      const origin = userLocation ?? CAMPUS_CENTRES[focusedCampus];
+      const origin = CAMPUS_CENTRES[focusedCampus];
 
       if (!userLocation) {
         // Still search from campus centre but note unavailability
@@ -73,10 +72,12 @@ export function usePOIFeature({
   );
 
   /** Placeholder — coworker will implement routing logic */
-  const handleGetDirections = useCallback((poi: POI) => {
-    // TODO: hand off poi.latitude / poi.longitude to nav route flow
-    console.log("Get directions to:", poi.name, poi.latitude, poi.longitude);
-  }, []);
+  const handleGetDirections = useCallback(
+    (poi: POI) => {
+      clearPOIs();
+    },
+    [clearPOIs],
+  );
 
   const handleSheetClose = useCallback(() => {
     clearPOIs();

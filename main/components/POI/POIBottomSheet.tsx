@@ -1,14 +1,13 @@
 import React, {
   useCallback,
   useEffect,
-  useImperativeHandle,
   useRef,
   forwardRef,
+  useImperativeHandle,
 } from "react";
 import {
   View,
   Text,
-  FlatList,
   Pressable,
   StyleSheet,
   ActivityIndicator,
@@ -17,13 +16,17 @@ import {
 import BottomSheet, {
   BottomSheetView,
   BottomSheetFlatList,
+  BottomSheetHandleProps,
 } from "@gorhom/bottom-sheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useWindowDimensions } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { POI, POICategory } from "@/components/POI/types";
 import { POI_CATEGORIES } from "@/components/POI/types";
 import type { POISearchStatus } from "@/hooks/usePOISearch";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { Campus } from "@/components/Buildings/types";
 
-const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? "";
+const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export interface POIBottomSheetRef {
   expand: () => void;
@@ -35,9 +38,11 @@ interface POIBottomSheetProps {
   status: POISearchStatus;
   activeCategory: POICategory | null;
   selectedPOI: POI | null;
+  campusTheme: Campus;
   onSelectPOI: (poi: POI) => void;
   onGetDirections: (poi: POI) => void;
   onClose: () => void;
+  onSheetChange?: (index: number) => void;
 }
 
 function photoUrl(ref: string) {
@@ -52,16 +57,19 @@ function formatDistance(metres: number): string {
   return `${(metres / 1000).toFixed(1)} km`;
 }
 
+// ─── Single POI row ───────────────────────────────────────────────────────────
 function POIRow({
   poi,
   isSelected,
   onPress,
   onGetDirections,
+  brandColor,
 }: {
   poi: POI;
   isSelected: boolean;
   onPress: () => void;
   onGetDirections: () => void;
+  brandColor: string;
 }) {
   const config = POI_CATEGORIES.find((c) => c.key === poi.category);
 
@@ -74,11 +82,13 @@ function POIRow({
       accessibilityLabel={`${poi.name}, ${formatDistance(poi.distance ?? 0)} away`}
     >
       <View style={styles.rowLeft}>
-        <View style={styles.iconBadge}>
+        <View
+          style={[styles.iconBadge, { backgroundColor: brandColor + "18" }]}
+        >
           <MaterialCommunityIcons
             name={config?.iconName ?? "map-marker"}
-            size={18}
-            color="#333333"
+            size={20}
+            color={brandColor}
           />
         </View>
         <View style={styles.rowInfo}>
@@ -86,7 +96,7 @@ function POIRow({
             {poi.name}
           </Text>
           {poi.distance !== undefined && (
-            <Text style={styles.rowDistance}>
+            <Text style={[styles.rowDistance, { color: brandColor }]}>
               {formatDistance(poi.distance)}
             </Text>
           )}
@@ -122,6 +132,7 @@ function POIRow({
   );
 }
 
+// ─── Bottom sheet ─────────────────────────────────────────────────────────────
 const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
   (
     {
@@ -129,21 +140,43 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
       status,
       activeCategory,
       selectedPOI,
+      campusTheme,
       onSelectPOI,
       onGetDirections,
       onClose,
+      onSheetChange,
     },
     ref,
   ) => {
     const sheetRef = useRef<BottomSheet>(null);
-    const snapPoints = ["40%", "80%"];
+    const insets = useSafeAreaInsets();
+    const { height: windowHeight } = useWindowDimensions();
+
+    const theme =
+      campusTheme === "SGW"
+        ? {
+            brand: "#912338",
+            border: "rgba(145,35,56,0.25)",
+            closeBg: "rgba(145,35,56,0.14)",
+          }
+        : {
+            brand: "#E0B100",
+            border: "rgba(224,177,0,0.25)",
+            closeBg: "rgba(224,177,0,0.18)",
+          };
+
+    const snapPoints = React.useMemo(() => {
+      const collapsed = Math.max(260, Math.round(windowHeight * 0.35));
+      const topBuffer = insets.top - 6;
+      const expanded = Math.max(300, windowHeight - topBuffer);
+      return [collapsed, expanded];
+    }, [windowHeight, insets.top]);
 
     useImperativeHandle(ref, () => ({
       expand: () => sheetRef.current?.snapToIndex(0),
       close: () => sheetRef.current?.close(),
     }));
 
-    // Auto-open when status changes to loading/success/no_results
     useEffect(() => {
       if (status === "idle") {
         sheetRef.current?.close();
@@ -154,6 +187,33 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
 
     const categoryConfig = POI_CATEGORIES.find((c) => c.key === activeCategory);
 
+    const Handle = useCallback(
+      (_props: BottomSheetHandleProps) => (
+        <View style={styles.handleWrap}>
+          <Pressable
+            onPress={() => sheetRef.current?.snapToIndex(1)}
+            style={styles.handleTapArea}
+            testID="poiSheet-handle"
+          >
+            <View style={styles.handleIndicator} />
+          </Pressable>
+          <Pressable
+            onPress={onClose}
+            hitSlop={14}
+            style={[styles.handleCloseBtn, { backgroundColor: theme.closeBg }]}
+            testID="poi-sheet-close"
+            accessibilityRole="button"
+            accessibilityLabel="Close POI panel"
+          >
+            <Text style={[styles.handleCloseText, { color: theme.brand }]}>
+              ✕
+            </Text>
+          </Pressable>
+        </View>
+      ),
+      [onClose, theme],
+    );
+
     const renderItem = useCallback(
       ({ item }: { item: POI }) => (
         <POIRow
@@ -161,35 +221,25 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           isSelected={selectedPOI?.id === item.id}
           onPress={() => onSelectPOI(item)}
           onGetDirections={() => onGetDirections(item)}
+          brandColor={theme.brand}
         />
       ),
-      [selectedPOI, onSelectPOI, onGetDirections],
+      [selectedPOI, onSelectPOI, onGetDirections, theme.brand],
     );
 
     const renderContent = () => {
       if (status === "loading") {
         return (
           <View style={styles.centred}>
-            <ActivityIndicator size="large" color="#912338" />
+            <ActivityIndicator size="large" color={theme.brand} />
             <Text style={styles.statusText}>Searching nearby places…</Text>
           </View>
         );
       }
-
-      if (status === "location_unavailable") {
-        return (
-          <View style={styles.centred}>
-            <Text style={styles.statusTitle}>Location unavailable</Text>
-            <Text style={styles.statusSub}>
-              Enable location access so we can find POIs near you.
-            </Text>
-          </View>
-        );
-      }
-
       if (status === "error") {
         return (
           <View style={styles.centred}>
+            <Text style={styles.statusEmoji}>⚠️</Text>
             <Text style={styles.statusTitle}>Something went wrong</Text>
             <Text style={styles.statusSub}>
               Could not fetch nearby places. Check your connection and try
@@ -198,10 +248,10 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           </View>
         );
       }
-
       if (status === "no_results") {
         return (
           <View style={styles.centred}>
+            <Text style={styles.statusEmoji}>🔍</Text>
             <Text style={styles.statusTitle}>No results found</Text>
             <Text style={styles.statusSub}>
               No {categoryConfig?.label.toLowerCase() ?? "places"} found near
@@ -210,9 +260,8 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           </View>
         );
       }
-
       return (
-        <BottomSheetFlatList
+        <BottomSheetFlatList<POI>
           data={pois}
           keyExtractor={(item: POI) => item.id}
           renderItem={renderItem}
@@ -230,35 +279,29 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
         snapPoints={snapPoints}
         enablePanDownToClose
         onClose={onClose}
-        backgroundStyle={styles.sheetBackground}
-        handleIndicatorStyle={styles.handleIndicator}
+        onChange={(index) => onSheetChange?.(index)}
+        handleComponent={Handle}
+        topInset={Math.max(0, insets.top - 6)}
+        backgroundStyle={[
+          styles.sheetBackground,
+          { borderColor: theme.border },
+        ]}
       >
         <BottomSheetView style={styles.sheetInner}>
-          {/* Header */}
           <View style={styles.sheetHeader}>
             <View style={styles.sheetTitleRow}>
               {categoryConfig && (
                 <MaterialCommunityIcons
                   name={categoryConfig.iconName}
                   size={20}
-                  color="#1a1a1a"
+                  color="#111"
                 />
               )}
               <Text style={styles.sheetTitle}>
                 {categoryConfig ? categoryConfig.label : "Nearby Places"}
               </Text>
             </View>
-            <Pressable
-              testID="poi-sheet-close"
-              onPress={onClose}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Close POI panel"
-            >
-              <Text style={styles.closeBtn}>✕</Text>
-            </Pressable>
           </View>
-
           {renderContent()}
         </BottomSheetView>
       </BottomSheet>
@@ -269,52 +312,76 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
 POIBottomSheet.displayName = "POIBottomSheet";
 export default POIBottomSheet;
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   sheetBackground: {
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 12,
-  },
-  handleIndicator: {
-    backgroundColor: "#d0d0d0",
-    width: 40,
+    borderWidth: 1,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.98)",
   },
   sheetInner: {
     flex: 1,
   },
+  // Handle — mirrors TravelOptionsPopup exactly
+  handleWrap: {
+    paddingTop: 6,
+    paddingBottom: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  handleTapArea: {
+    width: "100%",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  handleIndicator: {
+    width: 44,
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: "rgba(0,0,0,0.18)",
+  },
+  handleCloseBtn: {
+    position: "absolute",
+    right: 16,
+    top: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  handleCloseText: {
+    fontSize: 24,
+    fontWeight: "900",
+    lineHeight: 24,
+  },
+  // Header
   sheetHeader: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 10,
+  },
+  sheetTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e8e8e8",
+    gap: 8,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: "#111",
   },
-  closeBtn: {
-    fontSize: 16,
-    color: "#666",
-    fontWeight: "600",
-  },
+  // List
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingBottom: 32,
-    paddingTop: 8,
+    paddingTop: 4,
+    gap: 4,
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "#efefef",
-    marginVertical: 4,
+    backgroundColor: "rgba(0,0,0,0.07)",
+    marginVertical: 2,
   },
   // Row
   row: {
@@ -322,11 +389,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor: "rgba(17,17,17,0.04)",
+    marginVertical: 3,
   },
   rowSelected: {
-    backgroundColor: "#fdf1f3",
+    backgroundColor: "rgba(17,17,17,0.08)",
   },
   rowLeft: {
     flexDirection: "row",
@@ -335,10 +404,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   iconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#f5f5f5",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -346,47 +414,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1a1a1a",
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111",
   },
   rowDistance: {
     fontSize: 12,
-    color: "#912338",
-    fontWeight: "500",
+    fontWeight: "700",
     marginTop: 2,
   },
   rowAddress: {
     fontSize: 12,
-    color: "#888",
+    color: "rgba(17,17,17,0.55)",
     marginTop: 1,
+    fontWeight: "600",
   },
   rowRight: {
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     marginLeft: 8,
   },
   photo: {
     width: 72,
-    height: 56,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 10,
   },
   photoPlaceholder: {
     width: 72,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.06)",
   },
   directionsBtn: {
-    backgroundColor: "#2d7a2d",
+    backgroundColor: "#22C55E",
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
+    borderRadius: 10,
   },
   directionsBtnText: {
     color: "#fff",
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "900",
   },
   // Status screens
   centred: {
@@ -396,6 +464,10 @@ const styles = StyleSheet.create({
     padding: 32,
     gap: 8,
   },
+  statusEmoji: {
+    fontSize: 36,
+    marginBottom: 4,
+  },
   statusTitle: {
     fontSize: 16,
     fontWeight: "700",
@@ -404,18 +476,15 @@ const styles = StyleSheet.create({
   },
   statusSub: {
     fontSize: 13,
-    color: "#888",
+    color: "rgba(17,17,17,0.55)",
     textAlign: "center",
     lineHeight: 19,
+    fontWeight: "600",
   },
   statusText: {
     fontSize: 14,
-    color: "#666",
+    color: "rgba(17,17,17,0.55)",
+    fontWeight: "700",
     marginTop: 12,
-  },
-  sheetTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
   },
 });

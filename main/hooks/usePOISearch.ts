@@ -11,7 +11,7 @@ const SEARCH_RADIUS = 800;
 // Max results returned per search
 const MAX_RESULTS = 10;
 
-const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? "";
+const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export type POISearchStatus =
   | "idle"

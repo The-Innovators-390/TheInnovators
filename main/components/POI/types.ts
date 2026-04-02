@@ -6,6 +6,7 @@ export interface POICategoryConfig {
   key: POICategory;
   label: string;
   iconName: keyof typeof MaterialCommunityIcons.glyphMap;
+  emoji: string;
   placeType: string; // Google Places API type
 }
 
@@ -14,20 +15,35 @@ export const POI_CATEGORIES: POICategoryConfig[] = [
     key: "restaurant",
     label: "Restaurants",
     iconName: "silverware-fork-knife",
+    emoji: "🍴",
     placeType: "restaurant",
   },
-  { key: "cafe", label: "Coffee", iconName: "coffee", placeType: "cafe" },
-  { key: "gym", label: "Gym", iconName: "dumbbell", placeType: "gym" },
+  {
+    key: "cafe",
+    label: "Café",
+    iconName: "coffee",
+    emoji: "☕",
+    placeType: "cafe",
+  },
+  {
+    key: "gym",
+    label: "Gym",
+    iconName: "dumbbell",
+    emoji: "🏋️",
+    placeType: "gym",
+  },
   {
     key: "parking",
     label: "Parking",
     iconName: "parking",
+    emoji: "🅿️",
     placeType: "parking",
   },
   {
     key: "library",
     label: "Library",
     iconName: "bookshelf",
+    emoji: "📚",
     placeType: "library",
   },
 ];
