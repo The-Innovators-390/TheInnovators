@@ -20,7 +20,7 @@ export const POI_CATEGORIES: POICategoryConfig[] = [
   },
   {
     key: "cafe",
-    label: "Café",
+    label: "Coffee",
     iconName: "coffee",
     emoji: "☕",
     placeType: "cafe",
