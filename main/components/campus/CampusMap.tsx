@@ -97,6 +97,7 @@ import {
   useCampusSearchParams,
 } from "@/hooks/useCampusSearchParams";
 import { useCampusIndoorEffects } from "@/hooks/useCampusIndoorEffects";
+import type { POI } from "@/components/POI/types";
 import { usePOIFeature } from "@/hooks/usePOIFeature";
 import POICategoryBar from "@/components/POI/POICategoryBar";
 import POIMarkers from "@/components/POI/POIMarkers";
@@ -355,10 +356,7 @@ export default function CampusMap() {
 
   const lastCameraUpdateRef = useRef(0);
 
-  const poi = usePOIFeature({
-    focusedCampus,
-    userLocation,
-  });
+  const [poiSheetIndex, setPoiSheetIndex] = useState(-1);
 
   // Auto fetch user location on mount
   useEffect(() => {
@@ -721,6 +719,37 @@ export default function CampusMap() {
       setShowIndoorArrivalConfirm,
     });
 
+  const poi = usePOIFeature({ focusedCampus, userLocation });
+
+  const handlePOIGetDirections = useCallback(
+    async (selectedPoi: POI) => {
+      if (!nav.isRouteMode) nav.toggleRouteMode();
+
+      const destBuilding = makeUserLocationBuilding(
+        selectedPoi.latitude,
+        selectedPoi.longitude,
+        focusedCampus,
+      );
+      destBuilding.id = selectedPoi.id;
+      destBuilding.name = selectedPoi.name;
+      destBuilding.code = "";
+
+      nav.setRouteDest(destBuilding);
+      setDestText(selectedPoi.name);
+
+      await setStartToCurrentLocation();
+
+      const startCampus = nav.routeStart?.campus ?? focusedCampus;
+      destBuilding.campus = startCampus;
+      nav.setRouteDest({ ...destBuilding, campus: startCampus });
+
+      poi.poiSheetRef.current?.close();
+      setPoiSheetIndex(-1);
+      setQuery("");
+    },
+    [nav, focusedCampus, setStartToCurrentLocation, poi],
+  );
+
   useEffect(() => {
     const start = nav.routeStart;
     const dest = nav.routeDest;
@@ -969,6 +998,17 @@ export default function CampusMap() {
     routesByMode,
     shuttleDirection,
     shuttleEligible,
+  const hasPOISheet = poi.status !== "idle";
+
+  const shouldShowCompass =
+    routeNavigation.isNavigating ||
+    (!(popupIndex > 0 && (hasBuildingPopup || hasTravelPopup)) &&
+      !(poiSheetIndex > 0 && hasPOISheet));
+
+  const collapsedBuildingPopupHeight = Math.round(windowHeight * 0.19);
+  const collapsedTravelPopupHeight = Math.max(
+    260,
+    Math.round(windowHeight * 0.28),
   );
 
   const arrivalTimeText = routeNavigation.activeSummary
@@ -978,10 +1018,20 @@ export default function CampusMap() {
   const durationMinText = routeNavigation.activeSummary
     ? secondsToMinutesString(routeNavigation.activeSummary.durationSec)
     : "--";
+  if (hasBuildingPopup) {
+    floatingBottom = collapsedBuildingPopupHeight;
+  } else if (hasTravelPopup) {
+    floatingBottom = collapsedTravelPopupHeight;
+  } else if (hasPOISheet) {
+    floatingBottom = collapsedTravelPopupHeight;
+  }
 
   const distanceKmText = routeNavigation.activeSummary
     ? metersToKmString(routeNavigation.activeSummary.distanceMeters)
     : "--";
+  const shouldHideFloatingButtons =
+    (popupIndex > 0 && (hasBuildingPopup || hasTravelPopup)) ||
+    (poiSheetIndex > 0 && hasPOISheet);
 
   const handleSelectMode = useCallback(
     (mode: TravelMode) => {
@@ -1526,9 +1576,11 @@ export default function CampusMap() {
         status={poi.status}
         activeCategory={poi.activeCategory}
         selectedPOI={poi.selectedPOI}
+        campusTheme={focusedCampus}
         onSelectPOI={poi.handleSelectPOI}
-        onGetDirections={poi.handleGetDirections}
+        onGetDirections={handlePOIGetDirections}
         onClose={poi.handleSheetClose}
+        onSheetChange={(index) => setPoiSheetIndex(index)}
       />
 
       <BrandBar

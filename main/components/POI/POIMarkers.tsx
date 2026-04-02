@@ -1,9 +1,8 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet, Text } from "react-native";
 import { Marker } from "react-native-maps";
 import type { POI } from "@/components/POI/types";
 import { POI_CATEGORIES } from "@/components/POI/types";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 interface POIMarkersProps {
   pois: POI[];
@@ -19,7 +18,7 @@ export default function POIMarkers({
   return (
     <>
       {pois.map((poi) => {
-        const config = POI_CATEGORIES.find((c) => c.key === poi.category);
+        const config = POI_CATEGORIES.find((c: any) => c.key === poi.category);
         const isSelected = selectedPOI?.id === poi.id;
 
         return (
@@ -29,16 +28,18 @@ export default function POIMarkers({
             coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
             onPress={() => onPress(poi)}
             anchor={{ x: 0.5, y: 1 }}
-            tracksViewChanges={false}
+            tracksViewChanges={isSelected}
           >
-            <View style={[styles.pin, isSelected && styles.pinSelected]}>
-              <MaterialCommunityIcons
-                name={config?.iconName ?? "map-marker"}
-                size={18}
-                color="#ffffff"
-              />
+            <View style={styles.container}>
+              {/* Pin head — circle with icon */}
               <View
-                style={[styles.pinTip, isSelected && styles.pinTipSelected]}
+                style={[styles.pinHead, isSelected && styles.pinHeadSelected]}
+              >
+                <Text style={styles.pinIcon}>{config?.emoji ?? "📍"}</Text>
+              </View>
+              {/* Pin tail */}
+              <View
+                style={[styles.pinTail, isSelected && styles.pinTailSelected]}
               />
             </View>
           </Marker>
@@ -49,36 +50,48 @@ export default function POIMarkers({
 }
 
 const styles = StyleSheet.create({
-  pin: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  container: {
+    alignItems: "center",
+  },
+  pinHead: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#2d7a2d",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#ffffff",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 3,
-    elevation: 4,
+    elevation: 5,
   },
-  pinSelected: {
+  pinHeadSelected: {
     backgroundColor: "#1a5c1a",
-    transform: [{ scale: 1.2 }],
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  pinTip: {
-    position: "absolute",
-    bottom: -6,
+  pinTail: {
     width: 0,
     height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 12,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
     borderTopColor: "#2d7a2d",
+    marginTop: -1,
   },
-  pinTipSelected: {
+  pinTailSelected: {
     borderTopColor: "#1a5c1a",
+    borderLeftWidth: 9,
+    borderRightWidth: 9,
+    borderTopWidth: 14,
+  },
+  pinIcon: {
+    fontSize: 20,
   },
 });

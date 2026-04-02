@@ -41,9 +41,12 @@ export default function POICategoryBar({
               disabled={disabled}
               style={[
                 styles.pill,
-                isActive && { backgroundColor: activeColor, borderColor: activeColor },
+                isActive && {
+                  backgroundColor: activeColor,
+                  borderColor: activeColor,
+                },
                 disabled && styles.pillDisabled,
-                ]}
+              ]}
               accessibilityRole="button"
               accessibilityLabel={`${cat.label} points of interest`}
               accessibilityState={{ selected: isActive }}
