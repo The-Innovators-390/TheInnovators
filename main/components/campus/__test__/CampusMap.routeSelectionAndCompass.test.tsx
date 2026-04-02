@@ -60,6 +60,34 @@ jest.mock("expo-router", () => ({
     back: jest.fn(),
   })),
 }));
+jest.mock("@/components/POI/POICategoryBar", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIBottomSheet", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIMarkers", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/hooks/usePOIFeature", () => ({
+  usePOIFeature: () => ({
+    poiSheetRef: { current: null },
+    pois: [],
+    status: "idle",
+    selectedPOI: null,
+    activeCategory: null,
+    handleCategorySelect: jest.fn(),
+    handleSelectPOI: jest.fn(),
+    handleGetDirections: jest.fn(),
+    handleSheetClose: jest.fn(),
+  }),
+}));
 
 jest.mock("expo-status-bar", () => ({
   StatusBar: () => null,

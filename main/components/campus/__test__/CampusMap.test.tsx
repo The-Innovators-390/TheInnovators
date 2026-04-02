@@ -3,6 +3,34 @@ import React from "react";
 import { render, fireEvent, act } from "@testing-library/react-native";
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
 import { Animated } from "react-native";
+jest.mock("@/components/POI/POICategoryBar", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIBottomSheet", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIMarkers", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/hooks/usePOIFeature", () => ({
+  usePOIFeature: () => ({
+    poiSheetRef: { current: null },
+    pois: [],
+    status: "idle",
+    selectedPOI: null,
+    activeCategory: null,
+    handleCategorySelect: jest.fn(),
+    handleSelectPOI: jest.fn(),
+    handleGetDirections: jest.fn(),
+    handleSheetClose: jest.fn(),
+  }),
+}));
 
 jest.mock("@expo/vector-icons", () => {
   return new Proxy(

@@ -10,6 +10,34 @@ import React from "react";
 import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 
 jest.mock("expo-status-bar", () => ({ StatusBar: () => null }));
+jest.mock("@/components/POI/POICategoryBar", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIBottomSheet", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIMarkers", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/hooks/usePOIFeature", () => ({
+  usePOIFeature: () => ({
+    poiSheetRef: { current: null },
+    pois: [],
+    status: "idle",
+    selectedPOI: null,
+    activeCategory: null,
+    handleCategorySelect: jest.fn(),
+    handleSelectPOI: jest.fn(),
+    handleGetDirections: jest.fn(),
+    handleSheetClose: jest.fn(),
+  }),
+}));
 
 jest.mock("expo-router", () => ({
   __esModule: true,
