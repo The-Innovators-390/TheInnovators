@@ -444,6 +444,7 @@ jest.mock("@/components/campus/TravelOptionsPopup", () => {
       onSelectMode,
       selectedMode,
       onClose,
+      onSheetChange,
     }: any) => {
       mockTravelPopupProps = { visible, modes, selectedMode };
 
@@ -466,6 +467,12 @@ jest.mock("@/components/campus/TravelOptionsPopup", () => {
           </Pressable>
           <Pressable testID="close-travel-popup" onPress={onClose}>
             <Text>Close</Text>
+          </Pressable>
+          <Pressable
+            testID="travel-popup-sheet-change"
+            onPress={() => onSheetChange?.(1)}
+          >
+            <Text>Sheet</Text>
           </Pressable>
         </View>
       );
@@ -638,5 +645,98 @@ describe("CampusMap additional coverage", () => {
 
     fireEvent.press(getByTestId("overlay-toggle-steps"));
     fireEvent.press(getByTestId("overlay-close-steps"));
+  });
+
+  it("shows building popup after picking a search suggestion in browse mode", async () => {
+    const { getByTestId } = render(<CampusMap />);
+
+    fireEvent.changeText(getByTestId("searchInput"), "cj");
+    fireEvent.press(getByTestId("suggestion-LOY-CJ"));
+
+    expect(getByTestId("building-popup")).toBeTruthy();
+  });
+
+  it("covers TravelOptionsPopup onSheetChange updating popup index", async () => {
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+    mockFetchDirections.mockResolvedValue([
+      {
+        summary: "Driving",
+        polyline: "ab",
+        durationSec: 600,
+        durationText: "10 min",
+        distanceMeters: 2000,
+        distanceText: "2 km",
+      },
+    ]);
+    mockPickFastestRoute.mockImplementation(
+      (...args: any[]) => args[0]?.[0] ?? null,
+    );
+
+    const { getByTestId, queryByTestId } = render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(getByTestId("travel-popup")).toBeTruthy();
+    });
+
+    expect(queryByTestId("accessibleRouteButton")).toBeTruthy();
+
+    fireEvent.press(getByTestId("travel-popup-sheet-change"));
+
+    await waitFor(() => {
+      expect(queryByTestId("accessibleRouteButton")).toBeNull();
+    });
+  });
+
+  it("toggles accessible route mode while planning a campus route", async () => {
+    mockNavState = {
+      ...mockNavState,
+      isRouteMode: true,
+      routeStart: {
+        id: "H",
+        code: "H",
+        name: "Hall",
+        address: "",
+        latitude: 45.497,
+        longitude: -73.579,
+        campus: "SGW",
+      },
+      routeDest: deepLinkBuilding,
+    };
+    mockFetchDirections.mockResolvedValue([
+      {
+        summary: "Driving",
+        polyline: "ab",
+        durationSec: 600,
+        durationText: "10 min",
+        distanceMeters: 2000,
+        distanceText: "2 km",
+      },
+    ]);
+    mockPickFastestRoute.mockImplementation(
+      (...args: any[]) => args[0]?.[0] ?? null,
+    );
+
+    const { getByTestId } = render(<CampusMap />);
+
+    await waitFor(() => {
+      expect(getByTestId("travel-popup")).toBeTruthy();
+    });
+
+    const a11yBtn = getByTestId("accessibleRouteButton");
+    fireEvent.press(a11yBtn);
+    fireEvent.press(a11yBtn);
   });
 });

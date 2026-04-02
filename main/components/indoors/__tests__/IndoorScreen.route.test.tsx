@@ -165,6 +165,9 @@ jest.mock("../floorMaps", () => ({
       "1": "hall-floor-1",
       "2": "hall-floor-2",
     },
+    ZART: {
+      "1": "zart-floor-1",
+    },
   },
 }));
 
@@ -245,6 +248,37 @@ jest.mock("../indoorData", () => ({
       ],
       edges: [],
     },
+    ZART: {
+      meta: { buildingId: "ZART" },
+      nodes: [
+        {
+          id: "z1",
+          type: "room",
+          buildingId: "ZART",
+          floor: 1,
+          x: 1,
+          y: 1,
+          label: "Z Annex A",
+        },
+        {
+          id: "z2",
+          type: "room",
+          buildingId: "ZART",
+          floor: 1,
+          x: 2,
+          y: 2,
+          label: "Z Annex B",
+        },
+      ],
+      edges: [
+        {
+          source: "z1",
+          target: "z2",
+          type: "path",
+          weight: 1,
+        },
+      ],
+    },
   },
 }));
 
@@ -263,6 +297,12 @@ jest.mock("../../Buildings/Loyola/LoyolaBuildings", () => ({
       address: "7141 Sherbrooke St W",
       campus: "LOY",
     },
+    {
+      code: "ZART",
+      id: "zart-id",
+      name: "Zart Building",
+      address: "",
+    },
   ],
 }));
 
@@ -270,6 +310,7 @@ describe("IndoorScreen route panel", () => {
   beforeEach(() => {
     mockLocalSearchParams = {};
     mockRouterPush.mockReset();
+    mockRouterReplace.mockReset();
     mockFindShortestIndoorPath.mockReset();
     mockFindShortestIndoorPathWithSteps.mockReset();
     mockFindShortestPathToBuildingExitWithSteps.mockReset();
@@ -575,6 +616,69 @@ describe("IndoorScreen route panel", () => {
     expect(mockRouterReplace).toHaveBeenCalledWith({
       pathname: "/(tabs)/map",
       params: { exitMapCampus: "SGW" },
+    });
+  });
+
+  it("exit to campus uses LOY when the Loyola listing omits campus", () => {
+    mockFindShortestIndoorPathWithSteps.mockReturnValue({
+      path: [
+        {
+          id: "z1",
+          type: "room",
+          buildingId: "ZART",
+          floor: 1,
+          x: 1,
+          y: 1,
+          label: "Z Annex A",
+        },
+        {
+          id: "z2",
+          type: "room",
+          buildingId: "ZART",
+          floor: 1,
+          x: 2,
+          y: 2,
+          label: "Z Annex B",
+        },
+      ],
+      distance: 2,
+      steps: [
+        {
+          kind: "walk",
+          instruction: "Walk toward annex B",
+          floor: 1,
+          fromNodeId: "z1",
+          toNodeId: "z2",
+          distance: 1,
+        },
+        {
+          kind: "walk",
+          instruction: "Arrive at Z Annex B",
+          floor: 1,
+          fromNodeId: "z2",
+          toNodeId: "z2",
+          distance: 0,
+        },
+      ],
+    });
+
+    const { getByTestId, getByText } = render(
+      <IndoorScreen buildingId="ZART" />,
+    );
+
+    fireEvent.changeText(getByTestId("start-input"), "Z Annex A");
+    fireEvent.press(getByTestId("suggestion-z1"));
+    fireEvent.changeText(getByTestId("dest-input"), "Z Annex B");
+    fireEvent.press(getByTestId("suggestion-z2"));
+
+    expect(getByText("Step 1 of 2")).toBeTruthy();
+    fireEvent.press(getByTestId("indoorNextStepButton"));
+    expect(getByTestId("indoorExitToCampusButton")).toBeTruthy();
+    fireEvent.press(getByTestId("indoorExitToCampusButton"));
+
+    expect(mockRouterReplace).toHaveBeenCalledWith({
+      pathname: "/(tabs)/map",
+      params: { exitMapCampus: "LOY" },
     });
   });
 
