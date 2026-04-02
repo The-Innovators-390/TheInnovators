@@ -625,7 +625,9 @@ describe("IndoorScreen route panel", () => {
         ],
       });
 
-      const { getByTestId, getByText } = render(<IndoorScreen buildingId="H" />);
+      const { getByTestId, getByText } = render(
+        <IndoorScreen buildingId="H" />,
+      );
 
       fireEvent.changeText(getByTestId("start-input"), "Room A");
       fireEvent.press(getByTestId("suggestion-n1"));
