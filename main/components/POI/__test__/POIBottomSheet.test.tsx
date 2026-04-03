@@ -44,13 +44,18 @@ jest.mock("react-native-gesture-handler", () => ({
 
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
+  const RN = require("react-native");
+
+  const MockAnimatedImage = React.forwardRef((props: any, ref: any) => {
+    return <RN.Image ref={ref} {...props} />;
+  });
+
+  MockAnimatedImage.displayName = "MockAnimatedImage";
+
   return {
     __esModule: true,
     default: {
-      Image: React.forwardRef((props: any, ref: any) => {
-        const RN = require("react-native");
-        return <RN.Image ref={ref} {...props} />;
-      }),
+      Image: MockAnimatedImage,
     },
     useSharedValue: (initial: number) => ({ value: initial }),
     useAnimatedStyle: (fn: () => any) => fn(),
@@ -61,7 +66,7 @@ jest.mock("@react-native-community/slider", () => {
   const React = require("react");
   const RN = require("react-native");
 
-  return function MockSlider(props: any) {
+  function MockSlider(props: any) {
     return (
       <RN.View>
         <RN.Text testID="mock-slider-value">{String(props.value)}</RN.Text>
@@ -73,7 +78,10 @@ jest.mock("@react-native-community/slider", () => {
         </RN.Pressable>
       </RN.View>
     );
-  };
+  }
+
+  MockSlider.displayName = "MockSlider";
+  return MockSlider;
 });
 
 jest.mock("@gorhom/bottom-sheet", () => {
@@ -134,6 +142,8 @@ jest.mock("@gorhom/bottom-sheet", () => {
       ListHeaderComponent={props.ListHeaderComponent}
     />
   );
+
+  BottomSheetFlatList.displayName = "BottomSheetFlatList";
 
   return {
     __esModule: true,
