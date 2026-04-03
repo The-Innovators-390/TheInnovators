@@ -102,6 +102,7 @@ import { usePOIFeature } from "@/hooks/usePOIFeature";
 import POICategoryBar from "@/components/POI/POICategoryBar";
 import POIMarkers from "@/components/POI/POIMarkers";
 import POIBottomSheet from "@/components/POI/POIBottomSheet";
+import { usePOIDirections } from "@/hooks/usePOIDirections";
 import { getFloatingUiState } from "./helper_methods/campusMap.ui";
 import {
   applySelectedRouteRendering,
@@ -721,34 +722,17 @@ export default function CampusMap() {
 
   const poi = usePOIFeature({ focusedCampus, userLocation });
 
-  const handlePOIGetDirections = useCallback(
-    async (selectedPoi: POI) => {
-      if (!nav.isRouteMode) nav.toggleRouteMode();
-
-      const destBuilding = makeUserLocationBuilding(
-        selectedPoi.latitude,
-        selectedPoi.longitude,
-        focusedCampus,
-      );
-      destBuilding.id = selectedPoi.id;
-      destBuilding.name = selectedPoi.name;
-      destBuilding.code = "";
-
-      nav.setRouteDest(destBuilding);
-      setDestText(selectedPoi.name);
-
-      await setStartToCurrentLocation();
-
-      const startCampus = nav.routeStart?.campus ?? focusedCampus;
-      destBuilding.campus = startCampus;
-      nav.setRouteDest({ ...destBuilding, campus: startCampus });
-
-      poi.poiSheetRef.current?.close();
-      setPoiSheetIndex(-1);
-      setQuery("");
-    },
-    [nav, focusedCampus, setStartToCurrentLocation, poi],
-  );
+  const { handlePOIGetDirections } = usePOIDirections({
+    focusedCampus,
+    isRouteMode: nav.isRouteMode,
+    toggleRouteMode: nav.toggleRouteMode,
+    setRouteDest: nav.setRouteDest,
+    setDestText,
+    setStartToCurrentLocation,
+    closePOISheet: () => poi.poiSheetRef.current?.close(),
+    setPoiSheetIndex,
+    setQuery,
+  });
 
   useEffect(() => {
     const start = nav.routeStart;
