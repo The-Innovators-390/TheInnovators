@@ -153,6 +153,13 @@ jest.mock("@/components/campus/helper_methods/campusMap.buildings", () => ({
 
 jest.mock("@/components/campus/helper_methods/campusMap.ui", () => ({
   computeFloatingBottom: () => 120,
+  getFloatingUiState: () => ({
+    hasBuildingPopup: false,
+    hasTravelPopup: false,
+    floatingBottom: 120,
+    shouldShowCompass: true,
+    shouldHideFloatingButtons: false,
+  }),
 }));
 
 jest.mock("@/components/campus/helper_methods/googleDirections", () => ({

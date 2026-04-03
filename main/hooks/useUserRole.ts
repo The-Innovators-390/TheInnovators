@@ -11,10 +11,10 @@ type State = {
   loading: boolean;
 };
 
-const ELIGIBLE_ROLES: UserRole[] = ["student", "staff"];
+const ELIGIBLE_ROLES = new Set<UserRole>(["student", "staff"]);
 
 export function isShuttleEligible(role: UserRole): boolean {
-  return ELIGIBLE_ROLES.includes(role);
+  return ELIGIBLE_ROLES.has(role);
 }
 
 /**
