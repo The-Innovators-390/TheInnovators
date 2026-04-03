@@ -97,7 +97,6 @@ import {
   useCampusSearchParams,
 } from "@/hooks/useCampusSearchParams";
 import { useCampusIndoorEffects } from "@/hooks/useCampusIndoorEffects";
-import type { POI } from "@/components/POI/types";
 import { usePOIFeature } from "@/hooks/usePOIFeature";
 import POICategoryBar from "@/components/POI/POICategoryBar";
 import POIMarkers from "@/components/POI/POIMarkers";

@@ -1,5 +1,4 @@
 import React from "react";
-import { View, FlatList } from "react-native";
 import { render, fireEvent } from "@testing-library/react-native";
 import POIBottomSheet from "../POIBottomSheet";
 import type { POI } from "../types";
@@ -15,6 +14,14 @@ jest.mock("react-native-safe-area-context", () => ({
 
 jest.mock("@expo/vector-icons", () => ({
   MaterialCommunityIcons: () => null,
+}));
+
+jest.mock("@/hooks/useCampusTheme", () => ({
+  useCampusTheme: () => ({
+    brand: "#7C3AED",
+    border: "#D1D5DB",
+    closeBg: "#F3F4F6",
+  }),
 }));
 
 jest.mock("@gorhom/bottom-sheet", () => {
@@ -53,12 +60,14 @@ jest.mock("@gorhom/bottom-sheet", () => {
 
   const BottomSheetFlatList = (props: any) => (
     <RN.FlatList
+      testID="mock-bottom-sheet-flatlist"
       data={props.data}
       renderItem={props.renderItem}
       keyExtractor={props.keyExtractor}
       contentContainerStyle={props.contentContainerStyle}
       showsVerticalScrollIndicator={props.showsVerticalScrollIndicator}
       ItemSeparatorComponent={props.ItemSeparatorComponent}
+      ListHeaderComponent={props.ListHeaderComponent}
     />
   );
 
@@ -75,6 +84,7 @@ describe("POIBottomSheet", () => {
   const mockOnGetDirections = jest.fn();
   const mockOnClose = jest.fn();
   const mockOnSheetChange = jest.fn();
+  const mockOnRadiusChange = jest.fn();
 
   const mockPOI: POI = {
     id: "1",
@@ -92,6 +102,8 @@ describe("POIBottomSheet", () => {
     activeCategory: "cafe" as const,
     selectedPOI: null,
     campusTheme: "SGW" as const,
+    radius: 300,
+    onRadiusChange: mockOnRadiusChange,
     onSelectPOI: mockOnSelectPOI,
     onGetDirections: mockOnGetDirections,
     onClose: mockOnClose,
@@ -165,5 +177,52 @@ describe("POIBottomSheet", () => {
 
     fireEvent.press(getByTestId("poi-sheet-close"));
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it("shows the selected radius in the header", () => {
+    const { getByText } = render(
+      <POIBottomSheet {...baseProps} status="success" pois={[mockPOI]} />,
+    );
+
+    expect(getByText("300 m")).toBeTruthy();
+  });
+
+  it("opens the radius menu when the filter button is pressed", () => {
+    const { getByText } = render(
+      <POIBottomSheet {...baseProps} status="success" pois={[mockPOI]} />,
+    );
+
+    fireEvent.press(getByText("300 m"));
+
+    expect(getByText("100 m")).toBeTruthy();
+    expect(getByText("200 m")).toBeTruthy();
+    expect(getByText("500 m")).toBeTruthy();
+    expect(getByText("800 m")).toBeTruthy();
+    expect(getByText("1.0 km")).toBeTruthy();
+  });
+
+  it("calls onRadiusChange when a radius option is selected", () => {
+    const { getByText } = render(
+      <POIBottomSheet {...baseProps} status="success" pois={[mockPOI]} />,
+    );
+
+    fireEvent.press(getByText("300 m"));
+    fireEvent.press(getByText("500 m"));
+
+    expect(mockOnRadiusChange).toHaveBeenCalledWith(500);
+  });
+
+  it("closes the radius menu when a POI row is pressed", () => {
+    const { getByText, getByTestId, queryByText } = render(
+      <POIBottomSheet {...baseProps} status="success" pois={[mockPOI]} />,
+    );
+
+    fireEvent.press(getByText("300 m"));
+    expect(getByText("500 m")).toBeTruthy();
+
+    fireEvent.press(getByTestId("poi-row-1"));
+
+    expect(mockOnSelectPOI).toHaveBeenCalledWith(mockPOI);
+    expect(queryByText("500 m")).toBeNull();
   });
 });

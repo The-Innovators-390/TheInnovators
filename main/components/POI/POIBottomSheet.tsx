@@ -15,7 +15,6 @@ import {
   useWindowDimensions,
 } from "react-native";
 import BottomSheet, {
-  BottomSheetView,
   BottomSheetFlatList,
   BottomSheetHandleProps,
 } from "@gorhom/bottom-sheet";
@@ -26,6 +25,7 @@ import type { POI, POICategory } from "@/components/POI/types";
 import { POI_CATEGORIES } from "@/components/POI/types";
 import type { POISearchStatus } from "@/hooks/usePOISearch";
 import type { Campus } from "@/components/Buildings/types";
+import { bottomSheetStyle } from "../Styles/bottomSheetStyle";
 
 const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -284,6 +284,93 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
         />
       );
     };
+    const headerContent = (
+      <View style={styles.sheetHeaderContainer}>
+        <View style={styles.sheetHeader}>
+          <View style={styles.sheetTitleRow}>
+            {categoryConfig && (
+              <MaterialCommunityIcons
+                name={categoryConfig.iconName}
+                size={20}
+                color="#111"
+              />
+            )}
+            <Text style={styles.sheetTitle}>
+              {categoryConfig ? categoryConfig.label : "Nearby Places"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.radiusSection}>
+          <Text style={styles.radiusHint}>
+            Filter radius based on selected campus
+          </Text>
+
+          <View style={styles.radiusRow}>
+            <Pressable
+              style={[
+                styles.filterButton,
+                {
+                  borderColor: theme.border,
+                  backgroundColor: theme.closeBg,
+                },
+              ]}
+              onPress={() => setShowRadiusMenu((prev) => !prev)}
+            >
+              <MaterialCommunityIcons
+                name="tune-variant"
+                size={16}
+                color={theme.brand}
+              />
+              <Text style={[styles.filterButtonText, { color: theme.brand }]}>
+                {formatRadiusLabel(radius)}
+              </Text>
+              <MaterialCommunityIcons
+                name={showRadiusMenu ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={theme.brand}
+              />
+            </Pressable>
+          </View>
+
+          {showRadiusMenu && (
+            <View
+              style={[
+                styles.radiusMenu,
+                { borderColor: theme.border, backgroundColor: "#FFF" },
+              ]}
+            >
+              {RADIUS_OPTIONS.map((option) => {
+                const selected = option === radius;
+
+                return (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.radiusOption,
+                      selected && { backgroundColor: theme.closeBg },
+                    ]}
+                    onPress={() => handleRadiusSelect(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.radiusOptionText,
+                        selected && {
+                          color: theme.brand,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {formatRadiusLabel(option)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      </View>
+    );
 
     return (
       <BottomSheet
@@ -308,189 +395,11 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
             ItemSeparatorComponent={Separator}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            ListHeaderComponent={
-              <View style={styles.sheetHeaderContainer}>
-                <View style={styles.sheetHeader}>
-                  <View style={styles.sheetTitleRow}>
-                    {categoryConfig && (
-                      <MaterialCommunityIcons
-                        name={categoryConfig.iconName}
-                        size={20}
-                        color="#111"
-                      />
-                    )}
-                    <Text style={styles.sheetTitle}>
-                      {categoryConfig ? categoryConfig.label : "Nearby Places"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.radiusSection}>
-                  <Text style={styles.radiusHint}>
-                    Filter radius based on selected campus
-                  </Text>
-
-                  <View style={styles.radiusRow}>
-                    <Pressable
-                      style={[
-                        styles.filterButton,
-                        {
-                          borderColor: theme.border,
-                          backgroundColor: theme.closeBg,
-                        },
-                      ]}
-                      onPress={() => setShowRadiusMenu((prev) => !prev)}
-                    >
-                      <MaterialCommunityIcons
-                        name="tune-variant"
-                        size={16}
-                        color={theme.brand}
-                      />
-                      <Text
-                        style={[
-                          styles.filterButtonText,
-                          { color: theme.brand },
-                        ]}
-                      >
-                        {formatRadiusLabel(radius)}
-                      </Text>
-                      <MaterialCommunityIcons
-                        name={showRadiusMenu ? "chevron-up" : "chevron-down"}
-                        size={16}
-                        color={theme.brand}
-                      />
-                    </Pressable>
-                  </View>
-
-                  {showRadiusMenu && (
-                    <View
-                      style={[
-                        styles.radiusMenu,
-                        { borderColor: theme.border, backgroundColor: "#FFF" },
-                      ]}
-                    >
-                      {RADIUS_OPTIONS.map((option) => {
-                        const selected = option === radius;
-
-                        return (
-                          <Pressable
-                            key={option}
-                            style={[
-                              styles.radiusOption,
-                              selected && { backgroundColor: theme.closeBg },
-                            ]}
-                            onPress={() => handleRadiusSelect(option)}
-                          >
-                            <Text
-                              style={[
-                                styles.radiusOptionText,
-                                selected && {
-                                  color: theme.brand,
-                                  fontWeight: "700",
-                                },
-                              ]}
-                            >
-                              {formatRadiusLabel(option)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-              </View>
-            }
+            ListHeaderComponent={headerContent}
           />
         ) : (
           <>
-            <View style={styles.sheetHeaderContainer}>
-              <View style={styles.sheetHeader}>
-                <View style={styles.sheetTitleRow}>
-                  {categoryConfig && (
-                    <MaterialCommunityIcons
-                      name={categoryConfig.iconName}
-                      size={20}
-                      color="#111"
-                    />
-                  )}
-                  <Text style={styles.sheetTitle}>
-                    {categoryConfig ? categoryConfig.label : "Nearby Places"}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.radiusSection}>
-                <Text style={styles.radiusHint}>
-                  Filter radius based on selected campus
-                </Text>
-
-                <View style={styles.radiusRow}>
-                  <Pressable
-                    style={[
-                      styles.filterButton,
-                      {
-                        borderColor: theme.border,
-                        backgroundColor: theme.closeBg,
-                      },
-                    ]}
-                    onPress={() => setShowRadiusMenu((prev) => !prev)}
-                  >
-                    <MaterialCommunityIcons
-                      name="tune-variant"
-                      size={16}
-                      color={theme.brand}
-                    />
-                    <Text
-                      style={[styles.filterButtonText, { color: theme.brand }]}
-                    >
-                      {formatRadiusLabel(radius)}
-                    </Text>
-                    <MaterialCommunityIcons
-                      name={showRadiusMenu ? "chevron-up" : "chevron-down"}
-                      size={16}
-                      color={theme.brand}
-                    />
-                  </Pressable>
-                </View>
-
-                {showRadiusMenu && (
-                  <View
-                    style={[
-                      styles.radiusMenu,
-                      { borderColor: theme.border, backgroundColor: "#FFF" },
-                    ]}
-                  >
-                    {RADIUS_OPTIONS.map((option) => {
-                      const selected = option === radius;
-
-                      return (
-                        <Pressable
-                          key={option}
-                          style={[
-                            styles.radiusOption,
-                            selected && { backgroundColor: theme.closeBg },
-                          ]}
-                          onPress={() => handleRadiusSelect(option)}
-                        >
-                          <Text
-                            style={[
-                              styles.radiusOptionText,
-                              selected && {
-                                color: theme.brand,
-                                fontWeight: "700",
-                              },
-                            ]}
-                          >
-                            {formatRadiusLabel(option)}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            </View>
-
+            {headerContent}
             {renderContent()}
           </>
         )}
@@ -511,39 +420,7 @@ const styles = StyleSheet.create({
   sheetInner: {
     flex: 1,
   },
-  // Handle — mirrors TravelOptionsPopup exactly
-  handleWrap: {
-    paddingTop: 6,
-    paddingBottom: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  handleTapArea: {
-    width: "100%",
-    alignItems: "center",
-    paddingVertical: 6,
-  },
-  handleIndicator: {
-    width: 44,
-    height: 4,
-    borderRadius: 3,
-    backgroundColor: "rgba(0,0,0,0.18)",
-  },
-  handleCloseBtn: {
-    position: "absolute",
-    right: 16,
-    top: 12,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  handleCloseText: {
-    fontSize: 24,
-    fontWeight: "900",
-    lineHeight: 24,
-  },
+  ...bottomSheetStyle,
   // Header
   sheetHeader: {
     paddingHorizontal: 16,
