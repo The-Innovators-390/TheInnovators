@@ -1561,6 +1561,8 @@ export default function CampusMap() {
         activeCategory={poi.activeCategory}
         selectedPOI={poi.selectedPOI}
         campusTheme={focusedCampus}
+        radius={poi.radius}
+        onRadiusChange={poi.handleRadiusChange}
         onSelectPOI={poi.handleSelectPOI}
         onGetDirections={handlePOIGetDirections}
         onClose={poi.handleSheetClose}
