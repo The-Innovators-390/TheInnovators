@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useRef,
+  useState,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -13,13 +14,20 @@ import {
   ActivityIndicator,
   Image,
   useWindowDimensions,
+  Modal,
 } from "react-native";
+import Slider from "@react-native-community/slider";
 import BottomSheet, {
   BottomSheetFlatList,
   BottomSheetHandleProps,
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import { useCampusTheme } from "@/hooks/useCampusTheme";
 import type { POI, POICategory } from "@/components/POI/types";
 import { POI_CATEGORIES } from "@/components/POI/types";
@@ -51,7 +59,7 @@ interface POIBottomSheetProps {
 function photoUrl(ref: string) {
   return (
     `https://maps.googleapis.com/maps/api/place/photo` +
-    `?maxwidth=120&photo_reference=${ref}&key=${PLACES_API_KEY}`
+    `?maxwidth=1200&photo_reference=${ref}&key=${PLACES_API_KEY}`
   );
 }
 
@@ -69,15 +77,18 @@ function POIRow({
   isSelected,
   onPress,
   onGetDirections,
+  onImagePress,
   brandColor,
 }: Readonly<{
   poi: POI;
   isSelected: boolean;
   onPress: () => void;
   onGetDirections: () => void;
+  onImagePress: (imageUrl: string) => void;
   brandColor: string;
 }>) {
   const config = POI_CATEGORIES.find((c) => c.key === poi.category);
+  const imageUri = poi.photoReference ? photoUrl(poi.photoReference) : null;
 
   return (
     <Pressable
@@ -97,15 +108,18 @@ function POIRow({
             color={brandColor}
           />
         </View>
+
         <View style={styles.rowInfo}>
           <Text style={styles.rowName} numberOfLines={1}>
             {poi.name}
           </Text>
+
           {poi.distance !== undefined && (
             <Text style={[styles.rowDistance, { color: brandColor }]}>
               {formatDistance(poi.distance)}
             </Text>
           )}
+
           {poi.address ? (
             <Text style={styles.rowAddress} numberOfLines={1}>
               {poi.address}
@@ -115,15 +129,23 @@ function POIRow({
       </View>
 
       <View style={styles.rowRight}>
-        {poi.photoReference ? (
-          <Image
-            source={{ uri: photoUrl(poi.photoReference) }}
-            style={styles.photo}
-            resizeMode="cover"
-          />
+        {imageUri ? (
+          <Pressable
+            onPress={() => onImagePress(imageUri)}
+            testID={`poi-image-${poi.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Open image of ${poi.name}`}
+          >
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.photo}
+              resizeMode="cover"
+            />
+          </Pressable>
         ) : (
           <View style={styles.photoPlaceholder} />
         )}
+
         <Pressable
           testID={`poi-directions-${poi.id}`}
           onPress={onGetDirections}
@@ -136,6 +158,10 @@ function POIRow({
       </View>
     </Pressable>
   );
+}
+
+function Separator() {
+  return <View style={styles.separator} />;
 }
 
 const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
@@ -156,13 +182,21 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
     ref,
   ) => {
     const sheetRef = useRef<BottomSheet>(null);
+    const currentSheetIndexRef = useRef(0);
+    const lastOpenSheetIndexRef = useRef(0);
+    const isSheetOpenRef = useRef(false);
+
     const insets = useSafeAreaInsets();
-    const { height: windowHeight } = useWindowDimensions();
+    const { height: windowHeight, width: windowWidth } = useWindowDimensions();
     const theme = useCampusTheme(campusTheme);
 
-    const [showRadiusMenu, setShowRadiusMenu] = React.useState(false);
+    const [imageViewerVisible, setImageViewerVisible] = useState(false);
+    const [selectedImageUri, setSelectedImageUri] = useState<string | null>(
+      null,
+    );
 
-    const RADIUS_OPTIONS = [100, 200, 300, 500, 800, 1000];
+    const pinchScale = useSharedValue(1);
+    const savedScale = useSharedValue(1);
 
     const snapPoints = React.useMemo(() => {
       const collapsed = Math.max(260, Math.round(windowHeight * 0.35));
@@ -172,33 +206,93 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
     }, [windowHeight, insets.top]);
 
     useImperativeHandle(ref, () => ({
-      expand: () => sheetRef.current?.snapToIndex(0),
-      close: () => sheetRef.current?.close(),
+      expand: () => {
+        currentSheetIndexRef.current = 0;
+        lastOpenSheetIndexRef.current = 0;
+        isSheetOpenRef.current = true;
+        sheetRef.current?.snapToIndex(0);
+      },
+      close: () => {
+        currentSheetIndexRef.current = 0;
+        isSheetOpenRef.current = false;
+        sheetRef.current?.close();
+      },
     }));
 
     useEffect(() => {
       if (status === "idle") {
-        setShowRadiusMenu(false);
         sheetRef.current?.close();
-      } else {
-        sheetRef.current?.snapToIndex(0);
+        currentSheetIndexRef.current = 0;
+        isSheetOpenRef.current = false;
+        return;
+      }
+
+      if (!isSheetOpenRef.current) {
+        const indexToOpen = lastOpenSheetIndexRef.current;
+        currentSheetIndexRef.current = indexToOpen;
+        isSheetOpenRef.current = true;
+        sheetRef.current?.snapToIndex(indexToOpen);
       }
     }, [status]);
 
     const categoryConfig = POI_CATEGORIES.find((c) => c.key === activeCategory);
 
+    const openImageViewer = useCallback(
+      (imageUrl: string) => {
+        setSelectedImageUri(imageUrl);
+        setImageViewerVisible(true);
+        pinchScale.value = 1;
+        savedScale.value = 1;
+      },
+      [pinchScale, savedScale],
+    );
+
+    const closeImageViewer = useCallback(() => {
+      setImageViewerVisible(false);
+      setSelectedImageUri(null);
+      pinchScale.value = 1;
+      savedScale.value = 1;
+    }, [pinchScale, savedScale]);
+
+    const pinchGesture = Gesture.Pinch()
+      .onUpdate((event) => {
+        pinchScale.value = Math.max(
+          1,
+          Math.min(savedScale.value * event.scale, 4),
+        );
+      })
+      .onEnd(() => {
+        savedScale.value = pinchScale.value;
+      });
+
+    const animatedImageStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{ scale: pinchScale.value }],
+      };
+    });
+
     const Handle = useCallback(
       (_props: BottomSheetHandleProps) => (
         <View style={styles.handleWrap}>
           <Pressable
-            onPress={() => sheetRef.current?.snapToIndex(1)}
+            onPress={() => {
+              currentSheetIndexRef.current = 1;
+              lastOpenSheetIndexRef.current = 1;
+              isSheetOpenRef.current = true;
+              sheetRef.current?.snapToIndex(1);
+            }}
             style={styles.handleTapArea}
             testID="poiSheet-handle"
           >
             <View style={styles.handleIndicator} />
           </Pressable>
+
           <Pressable
-            onPress={onClose}
+            onPress={() => {
+              currentSheetIndexRef.current = 0;
+              isSheetOpenRef.current = false;
+              onClose();
+            }}
             hitSlop={14}
             style={[styles.handleCloseBtn, { backgroundColor: theme.closeBg }]}
             testID="poi-sheet-close"
@@ -215,28 +309,25 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
     );
 
     const renderItem = useCallback(
-      ({ item }: { item: POI }) => {
+      (info: { item: POI }) => {
+        const poi = info.item;
+
         return (
           <POIRow
-            poi={item}
-            isSelected={selectedPOI?.id === item.id}
-            onPress={() => {
-              setShowRadiusMenu(false);
-              onSelectPOI(item);
-            }}
-            onGetDirections={() => onGetDirections(item)}
+            poi={poi}
+            isSelected={selectedPOI?.id === poi.id}
+            onPress={() => onSelectPOI(poi)}
+            onGetDirections={() => onGetDirections(poi)}
+            onImagePress={openImageViewer}
             brandColor={theme.brand}
           />
         );
       },
-      [selectedPOI, onSelectPOI, onGetDirections, theme.brand],
+      [selectedPOI, onSelectPOI, onGetDirections, openImageViewer, theme.brand],
     );
-
-    const Separator = () => <View style={styles.separator} />;
 
     const handleRadiusSelect = useCallback(
       (value: number) => {
-        setShowRadiusMenu(false);
         onRadiusChange(value);
       },
       [onRadiusChange],
@@ -251,6 +342,7 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           </View>
         );
       }
+
       if (status === "error") {
         return (
           <View style={styles.centred}>
@@ -262,6 +354,7 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           </View>
         );
       }
+
       if (status === "no_results") {
         return (
           <View style={styles.centred}>
@@ -273,6 +366,7 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
           </View>
         );
       }
+
       return (
         <BottomSheetFlatList<POI>
           data={pois}
@@ -284,6 +378,7 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
         />
       );
     };
+
     const headerContent = (
       <View style={styles.sheetHeaderContainer}>
         <View style={styles.sheetHeader}>
@@ -303,107 +398,131 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
 
         <View style={styles.radiusSection}>
           <Text style={styles.radiusHint}>
-            Filter radius based on selected campus
+            Filter places by distance from the selected campus
           </Text>
 
-          <View style={styles.radiusRow}>
-            <Pressable
-              style={[
-                styles.filterButton,
-                {
-                  borderColor: theme.border,
-                  backgroundColor: theme.closeBg,
-                },
-              ]}
-              onPress={() => setShowRadiusMenu((prev) => !prev)}
-            >
-              <MaterialCommunityIcons
-                name="tune-variant"
-                size={16}
-                color={theme.brand}
-              />
-              <Text style={[styles.filterButtonText, { color: theme.brand }]}>
-                {formatRadiusLabel(radius)}
-              </Text>
-              <MaterialCommunityIcons
-                name={showRadiusMenu ? "chevron-up" : "chevron-down"}
-                size={16}
-                color={theme.brand}
-              />
-            </Pressable>
+          <View
+            style={[
+              styles.radiusValuePill,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.closeBg,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="tune-variant"
+              size={16}
+              color={theme.brand}
+            />
+            <Text style={[styles.radiusValueText, { color: theme.brand }]}>
+              {formatRadiusLabel(radius)}
+            </Text>
           </View>
 
-          {showRadiusMenu && (
-            <View
-              style={[
-                styles.radiusMenu,
-                { borderColor: theme.border, backgroundColor: "#FFF" },
-              ]}
-            >
-              {RADIUS_OPTIONS.map((option) => {
-                const selected = option === radius;
+          <View style={styles.sliderWrap}>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={1000}
+              step={100}
+              value={radius}
+              onSlidingComplete={(value) => handleRadiusSelect(value)}
+              minimumTrackTintColor={theme.brand}
+              maximumTrackTintColor="#D8D8D8"
+              thumbTintColor={theme.brand}
+              accessibilityLabel="POI radius slider"
+            />
 
-                return (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.radiusOption,
-                      selected && { backgroundColor: theme.closeBg },
-                    ]}
-                    onPress={() => handleRadiusSelect(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.radiusOptionText,
-                        selected && {
-                          color: theme.brand,
-                          fontWeight: "700",
-                        },
-                      ]}
-                    >
-                      {formatRadiusLabel(option)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            <View style={styles.sliderLabels}>
+              {Array.from({ length: 11 }, (_, i) => i * 100).map((value) => (
+                <Text
+                  key={value}
+                  style={[
+                    styles.sliderLabel,
+                    value === radius && {
+                      color: theme.brand,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {value === 1000 ? "1k" : value}
+                </Text>
+              ))}
             </View>
-          )}
+          </View>
         </View>
       </View>
     );
 
     return (
-      <BottomSheet
-        ref={sheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        onClose={onClose}
-        onChange={(index) => onSheetChange?.(index)}
-        handleComponent={Handle}
-        topInset={Math.max(0, insets.top - 6)}
-        backgroundStyle={[
-          styles.sheetBackground,
-          { borderColor: theme.border },
-        ]}
-      >
-        {status === "success" ? (
-          <BottomSheetFlatList
-            data={pois}
-            keyExtractor={(item: POI) => item.id}
-            renderItem={renderItem}
-            ItemSeparatorComponent={Separator}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponent={headerContent}
-          />
-        ) : (
-          <>
+      <>
+        <BottomSheet
+          ref={sheetRef}
+          index={-1}
+          snapPoints={snapPoints}
+          enablePanDownToClose
+          onClose={() => {
+            currentSheetIndexRef.current = 0;
+            isSheetOpenRef.current = false;
+            onClose();
+          }}
+          onChange={(index) => {
+            if (index >= 0) {
+              currentSheetIndexRef.current = index;
+              lastOpenSheetIndexRef.current = index;
+              isSheetOpenRef.current = true;
+            } else {
+              isSheetOpenRef.current = false;
+            }
+            onSheetChange?.(index);
+          }}
+          handleComponent={Handle}
+          topInset={Math.max(0, insets.top - 6)}
+          backgroundStyle={[
+            styles.sheetBackground,
+            { borderColor: theme.border },
+          ]}
+        >
+          <View style={styles.sheetContent}>
             {headerContent}
-            {renderContent()}
-          </>
-        )}
-      </BottomSheet>
+            <View style={styles.sheetBody}>{renderContent()}</View>
+          </View>
+        </BottomSheet>
+
+        <Modal
+          visible={imageViewerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={closeImageViewer}
+        >
+          <View style={styles.modalOverlay}>
+            <GestureDetector gesture={pinchGesture}>
+              <Pressable
+                style={styles.fullscreenImageTapArea}
+                onPress={closeImageViewer}
+                accessibilityRole="button"
+                accessibilityLabel="Close image overlay"
+              >
+                {selectedImageUri ? (
+                  <Animated.Image
+                    source={{ uri: selectedImageUri }}
+                    resizeMode="contain"
+                    style={[
+                      styles.fullscreenImage,
+                      {
+                        width: windowWidth * 0.9,
+                        height: windowHeight * 0.7,
+                      },
+                      animatedImageStyle,
+                    ]}
+                  />
+                ) : null}
+              </Pressable>
+            </GestureDetector>
+          </View>
+        </Modal>
+      </>
     );
   },
 );
@@ -420,8 +539,14 @@ const styles = StyleSheet.create({
   sheetInner: {
     flex: 1,
   },
+  sheetContent: {
+    flex: 1,
+  },
+  sheetBody: {
+    flex: 1,
+  },
   ...bottomSheetStyle,
-  // Header
+
   sheetHeader: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -437,7 +562,54 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
   },
-  // List
+  sheetHeaderContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+
+  radiusSection: {
+    paddingBottom: 12,
+  },
+  radiusHint: {
+    fontSize: 12,
+    color: "#7A7A7A",
+    marginBottom: 8,
+  },
+  radiusValuePill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  radiusValueText: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  sliderWrap: {
+    width: "100%",
+    paddingHorizontal: 0,
+  },
+  slider: {
+    width: "100%",
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: -4,
+    paddingHorizontal: 12,
+  },
+  sliderLabel: {
+    fontSize: 10,
+    color: "rgba(17,17,17,0.55)",
+  },
+
   listContent: {
     paddingHorizontal: 14,
     paddingBottom: 32,
@@ -447,7 +619,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.07)",
     marginVertical: 2,
   },
-  // Row
+
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -520,7 +692,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
   },
-  // Status screens
+
   centred: {
     flex: 1,
     alignItems: "center",
@@ -547,54 +719,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 12,
   },
-  sheetHeaderContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  radiusSection: {
-    paddingBottom: 12,
-  },
 
-  radiusHint: {
-    fontSize: 12,
-    color: "#7A7A7A",
-    marginBottom: 8,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
   },
-
-  radiusRow: {
-    flexDirection: "row",
+  fullscreenImageTapArea: {
+    justifyContent: "center",
     alignItems: "center",
   },
-
-  filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  radiusMenu: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-
-  radiusOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-
-  radiusOptionText: {
-    fontSize: 14,
-    color: "#111",
+  fullscreenImage: {
+    borderRadius: 14,
   },
 });

@@ -43,7 +43,10 @@ export function usePOIFeature({
   const handleCategorySelect = useCallback(
     (category: POICategory | null) => {
       if (category === null) {
-        // Deselected — close sheet and clear
+        // Avoid cancelling the first search accidentally when the user taps
+        // the same category again while the loading state is being shown.
+        if (status === "loading") return;
+
         setActiveCategory(null);
         clearPOIs();
         return;
@@ -51,17 +54,23 @@ export function usePOIFeature({
 
       setActiveCategory(category);
 
-      // Prefer real user location; fall back to campus centre
-      const origin = CAMPUS_CENTRES[focusedCampus];
+      // Show the sheet immediately so the user gets instant feedback.
+      sheetRef.current?.expand();
 
-      if (!userLocation) {
-        // Still search from campus centre but note unavailability
-        // (we fall back gracefully rather than hard-blocking)
-      }
+      // Prefer the real user location when available; otherwise fall back
+      // to the selected campus centre.
+      const origin = userLocation ?? CAMPUS_CENTRES[focusedCampus];
 
       searchPOIs(category, origin.latitude, origin.longitude);
     },
-    [userLocation, focusedCampus, searchPOIs, clearPOIs, setActiveCategory],
+    [
+      userLocation,
+      focusedCampus,
+      searchPOIs,
+      clearPOIs,
+      setActiveCategory,
+      status,
+    ],
   );
 
   const handleSelectPOI = useCallback(
@@ -91,10 +100,10 @@ export function usePOIFeature({
 
       if (!activeCategory) return;
 
-      const origin = CAMPUS_CENTRES[focusedCampus];
+      const origin = userLocation ?? CAMPUS_CENTRES[focusedCampus];
       searchPOIs(activeCategory, origin.latitude, origin.longitude, newRadius);
     },
-    [activeCategory, focusedCampus, searchPOIs, setRadius],
+    [activeCategory, focusedCampus, searchPOIs, setRadius, userLocation],
   );
 
   return {
