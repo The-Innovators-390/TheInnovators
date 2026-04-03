@@ -41,17 +41,19 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 
-// Mock expo-router (hooks + imperative API; tests may override per-file)
+// Mock expo-router (hooks + imperative API; per-file jest.mock may replace this module)
 const mockExpoRouterApi = {
   replace: jest.fn(),
   push: jest.fn(),
   back: jest.fn(),
+  setParams: jest.fn(),
 };
 
 jest.mock("expo-router", () => ({
   __esModule: true,
   router: mockExpoRouterApi,
-  useRouter: jest.fn(() => mockExpoRouterApi),
+  /** Stable object identity so CampusMap URL-clear effects do not loop on every render. */
+  useRouter: () => mockExpoRouterApi,
   useLocalSearchParams: jest.fn(() => ({})),
 }));
 

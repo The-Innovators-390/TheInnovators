@@ -22,6 +22,7 @@ import {
   LocationError,
 } from "@/components/campus/helper_methods/locationUtils";
 import { StatusBar } from "expo-status-bar";
+import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { SGW_BUILDINGS } from "@/components/Buildings/SGW/SGWBuildings";
 import { LOYOLA_BUILDINGS } from "@/components/Buildings/Loyola/LoyolaBuildings";
@@ -91,7 +92,10 @@ import {
   flattenRouteSegmentCoordinates,
   type RouteRenderSegment,
 } from "@/components/campus/helper_methods/routeSegments";
-import { useCampusSearchParams } from "@/hooks/useCampusSearchParams";
+import {
+  clearCampusMapRouteParams,
+  useCampusSearchParams,
+} from "@/hooks/useCampusSearchParams";
 import { useCampusIndoorEffects } from "@/hooks/useCampusIndoorEffects";
 import { getFloatingUiState } from "./helper_methods/campusMap.ui";
 import {
@@ -190,6 +194,7 @@ const GOOGLE_MODES: TravelMode[] = [
 ];
 
 export default function CampusMap() {
+  const router = useRouter();
   const [focusedCampus, setFocusedCampus] = useState<Campus>("SGW");
 
   // One query drives suggestions (KEEP THIS for tests)
@@ -225,6 +230,7 @@ export default function CampusMap() {
     normalizedExternalDestRoomNodeId,
     normalizedExternalDestRoomLabel,
     normalizedExternalDestBuildingCode,
+    exitMapCampus,
   } = useCampusSearchParams();
 
   const isSameRegion = useCallback(
@@ -288,11 +294,23 @@ export default function CampusMap() {
         longitude: nav.routeDest.longitude,
       }
     : null;
+  const indoorOriginHandoff = useMemo(() => {
+    const start = nav.routeStart;
+    if (!start) return false;
+    if (indoorStartBuildingCode && start.code === indoorStartBuildingCode) {
+      return true;
+    }
+    if (indoorStartBuildingId && start.id === indoorStartBuildingId) {
+      return true;
+    }
+    return false;
+  }, [nav.routeStart, indoorStartBuildingCode, indoorStartBuildingId]);
 
   const routeNavigation = useRouteNavigation({
     origin: routeOrigin,
     destination: routeDestination,
     userLocation,
+    indoorOriginHandoff,
     onStarted: () => setTravelPopupVisible(false),
   });
 
@@ -479,6 +497,12 @@ export default function CampusMap() {
     setRenderedRouteSegments([]);
     setRoutePolylineMountKey((k) => k + 1);
   }, []);
+
+  /** Drop persisted URL params and reset deep-link signature so a new route is not mixed with prior handoff state. */
+  const clearCampusMapUrlParams = useCallback(() => {
+    clearCampusMapRouteParams(router);
+    appliedRouteParamsSignatureRef.current = null;
+  }, [router]);
 
   const showRoutesForMode = useCallback(
     (
@@ -863,6 +887,8 @@ export default function CampusMap() {
 
   const handleGetDirectionsFromPopup = useCallback(
     async (destination: Building) => {
+      clearCampusMapUrlParams();
+
       if (!nav.isRouteMode) nav.toggleRouteMode();
 
       nav.setRouteDest(destination);
@@ -874,7 +900,7 @@ export default function CampusMap() {
       setPopupIndex(-1);
       setQuery("");
     },
-    [nav, setStartToCurrentLocation],
+    [nav, setStartToCurrentLocation, clearCampusMapUrlParams],
   );
 
   const focusRouteField = useCallback(
@@ -891,6 +917,7 @@ export default function CampusMap() {
       Keyboard.dismiss();
 
       if (nav.isRouteMode) {
+        clearCampusMapUrlParams();
         nav.setFieldFromBuilding(b);
 
         const label = `${b.code} - ${b.name}`;
@@ -909,7 +936,7 @@ export default function CampusMap() {
       setSelected(b);
       focusBuilding(b);
     },
-    [nav, focusBuilding, focusRouteField],
+    [nav, focusBuilding, focusRouteField, clearCampusMapUrlParams],
   );
 
   const applySelection = useCallback(
@@ -1039,6 +1066,7 @@ export default function CampusMap() {
       return;
     }
 
+    clearCampusMapUrlParams();
     nav.setRouteStart(null);
     nav.setRouteDest(null);
     nav.setRouteError(null);
@@ -1055,8 +1083,50 @@ export default function CampusMap() {
     setStartToCurrentLocation,
     clearRouteData,
     clearDisplayedRoutes,
+    clearCampusMapUrlParams,
     indoorStartBuilding,
     indoorStartLabel,
+  ]);
+
+  useEffect(() => {
+    if (!exitMapCampus) return;
+    if (exitMapCampus !== "SGW" && exitMapCampus !== "LOY") {
+      clearCampusMapUrlParams();
+      return;
+    }
+
+    const campus = exitMapCampus as Campus;
+
+    resetIndoorDestinationState();
+    routeNavigation.exitNavigation();
+    clearRouteData();
+    clearDisplayedRoutes();
+    setStepsOpen(false);
+    nav.setIsRouteMode(false);
+    nav.setRouteStart(null);
+    nav.setRouteDest(null);
+    nav.setRouteError(null);
+    setStartText("");
+    setDestText("");
+    setQuery("");
+    setSelected(null);
+    setPopupIndex(-1);
+    setDirectionsError(null);
+
+    handleCampusChange(campus);
+    clearCampusMapUrlParams();
+  }, [
+    exitMapCampus,
+    resetIndoorDestinationState,
+    routeNavigation.exitNavigation,
+    clearRouteData,
+    clearDisplayedRoutes,
+    nav.setIsRouteMode,
+    nav.setRouteStart,
+    nav.setRouteDest,
+    nav.setRouteError,
+    handleCampusChange,
+    clearCampusMapUrlParams,
   ]);
 
   return (
@@ -1217,6 +1287,7 @@ export default function CampusMap() {
                 activeField={nav.activeField}
                 onFocusField={focusRouteField}
                 onSwap={() => {
+                  clearCampusMapUrlParams();
                   clearRouteData();
                   clearDisplayedRoutes();
 
@@ -1233,6 +1304,7 @@ export default function CampusMap() {
                 startText={startText}
                 destText={destText}
                 onChangeStartText={(t) => {
+                  clearCampusMapUrlParams();
                   nav.setActiveField("start");
                   setStartText(t);
                   setQuery(t);
@@ -1246,6 +1318,7 @@ export default function CampusMap() {
                   clearDisplayedRoutes();
                 }}
                 onChangeDestText={(t) => {
+                  clearCampusMapUrlParams();
                   nav.setActiveField("destination");
                   setDestText(t);
                   setQuery(t);
@@ -1259,6 +1332,7 @@ export default function CampusMap() {
                   clearDisplayedRoutes();
                 }}
                 onClearStart={() => {
+                  clearCampusMapUrlParams();
                   setStartText("");
                   nav.setRouteStart(null);
                   setQuery("");
@@ -1268,6 +1342,7 @@ export default function CampusMap() {
                   clearDisplayedRoutes();
                 }}
                 onClearDestination={() => {
+                  clearCampusMapUrlParams();
                   setDestText("");
                   nav.setRouteDest(null);
                   setQuery("");
@@ -1401,7 +1476,6 @@ export default function CampusMap() {
 
       <NavigationOverlay
         isNavigating={routeNavigation.isNavigating}
-        isNearStart={routeNavigation.isNearStart}
         isArrived={routeNavigation.isArrived}
         stepsOpen={stepsOpen}
         onToggleSteps={() => setStepsOpen((v) => !v)}
@@ -1420,6 +1494,7 @@ export default function CampusMap() {
         distanceKmText={distanceKmText}
         onExit={() => {
           resetIndoorDestinationState();
+          clearCampusMapUrlParams();
           routeNavigation.exitNavigation();
           clearRouteData();
           clearDisplayedRoutes();

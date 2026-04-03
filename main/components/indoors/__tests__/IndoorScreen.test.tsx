@@ -1,5 +1,6 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import IndoorScreen from "../IndoorScreen";
 
 const mockIndoorMapViewer = jest.fn();
@@ -265,5 +266,21 @@ describe("IndoorScreen", () => {
         y: 2,
       },
     ]);
+  });
+
+  it("toggles accessible routing when the floor selector a11y control is pressed", () => {
+    const { getByTestId } = render(<IndoorScreen buildingId="H" />);
+
+    fireEvent.press(getByTestId("indoor-floor-accessible-icon"));
+    expect(
+      StyleSheet.flatten(getByTestId("indoorRouteCard").props.style)
+        .backgroundColor,
+    ).toBe("#3D8AF7");
+
+    fireEvent.press(getByTestId("indoor-floor-accessible-icon"));
+    expect(
+      StyleSheet.flatten(getByTestId("indoorRouteCard").props.style)
+        .backgroundColor,
+    ).toBe("rgba(255,255,255,0.96)");
   });
 });
