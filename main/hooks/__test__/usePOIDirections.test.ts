@@ -12,36 +12,34 @@ describe("usePOIDirections", () => {
     address: "1455 De Maisonneuve Blvd W",
   };
 
-  it("toggles route mode and sets directions state when route mode is off", async () => {
-    const toggleRouteMode = jest.fn();
-    const setRouteDest = jest.fn();
-    const setDestText = jest.fn();
-    const setStartToCurrentLocation = jest.fn().mockResolvedValue(undefined);
-    const closePOISheet = jest.fn();
-    const setPoiSheetIndex = jest.fn();
-    const setQuery = jest.fn();
+  const createProps = (overrides = {}) => ({
+    focusedCampus: "SGW" as const,
+    isRouteMode: false,
+    toggleRouteMode: jest.fn(),
+    setRouteStart: jest.fn(),
+    setRouteDest: jest.fn(),
+    setStartText: jest.fn(),
+    setDestText: jest.fn(),
+    userLocation: null as { latitude: number; longitude: number } | null,
+    setStartToCurrentLocation: jest.fn().mockResolvedValue(undefined),
+    closePOISheet: jest.fn(),
+    setPoiSheetIndex: jest.fn(),
+    setQuery: jest.fn(),
+    ...overrides,
+  });
 
-    const { result } = renderHook(() =>
-      usePOIDirections({
-        focusedCampus: "SGW",
-        isRouteMode: false,
-        toggleRouteMode,
-        setRouteDest,
-        setDestText,
-        setStartToCurrentLocation,
-        closePOISheet,
-        setPoiSheetIndex,
-        setQuery,
-      }),
-    );
+  it("toggles route mode and sets POI destination when route mode is off", async () => {
+    const props = createProps();
+
+    const { result } = renderHook(() => usePOIDirections(props));
 
     await act(async () => {
       await result.current.handlePOIGetDirections(poi);
     });
 
-    expect(toggleRouteMode).toHaveBeenCalledTimes(1);
-    expect(setRouteDest).toHaveBeenCalledWith({
-      id: "poi-1",
+    expect(props.toggleRouteMode).toHaveBeenCalledTimes(1);
+    expect(props.setRouteDest).toHaveBeenCalledWith({
+      id: "POI-poi-1",
       name: "Tim Hortons",
       code: "",
       address: "1455 De Maisonneuve Blvd W",
@@ -52,43 +50,28 @@ describe("usePOIDirections", () => {
       polygon: [],
       zoomCategory: 2,
     });
-    expect(setDestText).toHaveBeenCalledWith("Tim Hortons");
-    expect(setStartToCurrentLocation).toHaveBeenCalledTimes(1);
-    expect(closePOISheet).toHaveBeenCalledTimes(1);
-    expect(setPoiSheetIndex).toHaveBeenCalledWith(-1);
-    expect(setQuery).toHaveBeenCalledWith("");
+    expect(props.setDestText).toHaveBeenCalledWith("Tim Hortons");
+    expect(props.setStartToCurrentLocation).toHaveBeenCalledTimes(1);
+    expect(props.closePOISheet).toHaveBeenCalledTimes(1);
+    expect(props.setPoiSheetIndex).toHaveBeenCalledWith(-1);
+    expect(props.setQuery).toHaveBeenCalledWith("");
   });
 
   it("does not toggle route mode when already in route mode", async () => {
-    const toggleRouteMode = jest.fn();
-    const setRouteDest = jest.fn();
-    const setDestText = jest.fn();
-    const setStartToCurrentLocation = jest.fn().mockResolvedValue(undefined);
-    const closePOISheet = jest.fn();
-    const setPoiSheetIndex = jest.fn();
-    const setQuery = jest.fn();
+    const props = createProps({
+      focusedCampus: "LOY",
+      isRouteMode: true,
+    });
 
-    const { result } = renderHook(() =>
-      usePOIDirections({
-        focusedCampus: "LOY",
-        isRouteMode: true,
-        toggleRouteMode,
-        setRouteDest,
-        setDestText,
-        setStartToCurrentLocation,
-        closePOISheet,
-        setPoiSheetIndex,
-        setQuery,
-      }),
-    );
+    const { result } = renderHook(() => usePOIDirections(props));
 
     await act(async () => {
       await result.current.handlePOIGetDirections(poi);
     });
 
-    expect(toggleRouteMode).not.toHaveBeenCalled();
-    expect(setRouteDest).toHaveBeenCalledWith({
-      id: "poi-1",
+    expect(props.toggleRouteMode).not.toHaveBeenCalled();
+    expect(props.setRouteDest).toHaveBeenCalledWith({
+      id: "POI-poi-1",
       name: "Tim Hortons",
       code: "",
       address: "1455 De Maisonneuve Blvd W",
@@ -99,50 +82,34 @@ describe("usePOIDirections", () => {
       polygon: [],
       zoomCategory: 2,
     });
-    expect(setDestText).toHaveBeenCalledWith("Tim Hortons");
-    expect(setStartToCurrentLocation).toHaveBeenCalledTimes(1);
-    expect(closePOISheet).toHaveBeenCalledTimes(1);
-    expect(setPoiSheetIndex).toHaveBeenCalledWith(-1);
-    expect(setQuery).toHaveBeenCalledWith("");
+    expect(props.setDestText).toHaveBeenCalledWith("Tim Hortons");
+    expect(props.setStartToCurrentLocation).toHaveBeenCalledTimes(1);
+    expect(props.closePOISheet).toHaveBeenCalledTimes(1);
+    expect(props.setPoiSheetIndex).toHaveBeenCalledWith(-1);
+    expect(props.setQuery).toHaveBeenCalledWith("");
   });
 
   it("uses an empty string when the POI address is missing", async () => {
-    const toggleRouteMode = jest.fn();
-    const setRouteDest = jest.fn();
-    const setDestText = jest.fn();
-    const setStartToCurrentLocation = jest.fn().mockResolvedValue(undefined);
-    const closePOISheet = jest.fn();
-    const setPoiSheetIndex = jest.fn();
-    const setQuery = jest.fn();
+    const props = createProps({
+      isRouteMode: true,
+    });
 
     const poiWithoutAddress: POI = {
       id: "poi-2",
       name: "Library",
-      category: "library",
+      category: "cafe",
       latitude: 45.495,
       longitude: -73.578,
     };
 
-    const { result } = renderHook(() =>
-      usePOIDirections({
-        focusedCampus: "SGW",
-        isRouteMode: true,
-        toggleRouteMode,
-        setRouteDest,
-        setDestText,
-        setStartToCurrentLocation,
-        closePOISheet,
-        setPoiSheetIndex,
-        setQuery,
-      }),
-    );
+    const { result } = renderHook(() => usePOIDirections(props));
 
     await act(async () => {
       await result.current.handlePOIGetDirections(poiWithoutAddress);
     });
 
-    expect(setRouteDest).toHaveBeenCalledWith({
-      id: "poi-2",
+    expect(props.setRouteDest).toHaveBeenCalledWith({
+      id: "POI-poi-2",
       name: "Library",
       code: "",
       address: "",
@@ -153,5 +120,32 @@ describe("usePOIDirections", () => {
       polygon: [],
       zoomCategory: 2,
     });
+  });
+
+  it("uses current user location as route start when available", async () => {
+    const props = createProps({
+      userLocation: { latitude: 45.5, longitude: -73.6 },
+    });
+
+    const { result } = renderHook(() => usePOIDirections(props));
+
+    await act(async () => {
+      await result.current.handlePOIGetDirections(poi);
+    });
+
+    expect(props.setRouteStart).toHaveBeenCalledWith({
+      id: "USER_LOCATION",
+      name: "Your location",
+      code: "",
+      address: "",
+      latitude: 45.5,
+      longitude: -73.6,
+      campus: "SGW",
+      aliases: [],
+      polygon: [],
+      zoomCategory: 2,
+    });
+    expect(props.setStartText).toHaveBeenCalledWith("Your location");
+    expect(props.setStartToCurrentLocation).not.toHaveBeenCalled();
   });
 });
