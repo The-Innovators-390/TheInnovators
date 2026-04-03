@@ -3,14 +3,14 @@ import { View, Text, Pressable, Alert, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { styles } from "@/components/Styles/welcomeStyle";
 
-import { configureGoogleSignIn, signInWithGoogle } from "@/hooks/useGoogleAuth";
+import { googleAuthFacade } from "@/services/google/facades/GoogleAuthFacade";
 
 export default function WelcomeScreen() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     try {
-      configureGoogleSignIn();
+      googleAuthFacade.configure();
     } catch (e: any) {
       console.log("Google config error:", e);
       Alert.alert("Config error", e?.message ?? "Google config missing");
@@ -20,9 +20,8 @@ export default function WelcomeScreen() {
   const onGoogleSignInPress = async () => {
     try {
       setLoading(true);
-      await signInWithGoogle();
+      await googleAuthFacade.signIn();
 
-      // Flow 2: after sign-in, go straight to map (calendar is handled when user clicks calendar icon)
       router.replace("/(tabs)/map");
     } catch (e: any) {
       console.log("Google sign-in failed:", e);
@@ -36,7 +35,6 @@ export default function WelcomeScreen() {
   };
 
   const onContinueGuestPress = () => {
-    // Flow 1: guest goes to map
     router.replace("/(tabs)/map");
   };
 
