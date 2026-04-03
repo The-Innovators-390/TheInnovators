@@ -116,7 +116,7 @@ describe("UpcomingEvents", () => {
       ),
     ).toBeTruthy();
 
-    fireEvent.press(getByText("↗"));
+    fireEvent.press(getByText("Get Directions"));
     expect(onPressDirections).toHaveBeenCalledTimes(1);
     expect(onPressDirections).toHaveBeenCalledWith(events[0]);
   });
@@ -152,7 +152,7 @@ describe("UpcomingEvents", () => {
 
     expect(getByText(/Untitled/)).toBeTruthy();
 
-    expect(queryByText("↗")).toBeNull();
+    expect(queryByText("Get Directions")).toBeNull();
     expect(onPressDirections).not.toHaveBeenCalled();
   });
 });
