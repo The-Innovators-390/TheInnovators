@@ -6,10 +6,9 @@ import {
   type POICategoryConfig,
 } from "@/components/POI/types";
 
-// Fixed radius around campus centre (metres)
-const SEARCH_RADIUS = 800;
+const DEFAULT_SEARCH_RADIUS = 800;
 // Max results returned per search
-const MAX_RESULTS = 10;
+const MAX_RESULTS = 20;
 
 const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -44,11 +43,16 @@ export function usePOISearch() {
   const [activeCategory, setActiveCategory] = useState<POICategory | null>(
     null,
   );
+  const [radius, setRadius] = useState<number>(DEFAULT_SEARCH_RADIUS);
   const abortRef = useRef<AbortController | null>(null);
 
   const searchPOIs = useCallback(
-    async (category: POICategory, originLat: number, originLng: number) => {
-      // Abort any in-flight request
+    async (
+      category: POICategory,
+      originLat: number,
+      originLng: number,
+      searchRadius: number = radius,
+    ) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -66,7 +70,7 @@ export function usePOISearch() {
         const url =
           `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
           `?location=${originLat},${originLng}` +
-          `&radius=${SEARCH_RADIUS}` +
+          `&radius=${searchRadius}` +
           `&type=${config.placeType}` +
           `&key=${PLACES_API_KEY}`;
 
@@ -85,7 +89,6 @@ export function usePOISearch() {
         }
 
         const results: POI[] = (data.results as any[])
-          .slice(0, MAX_RESULTS)
           .map((place: any) => ({
             id: place.place_id,
             name: place.name,
@@ -105,7 +108,13 @@ export function usePOISearch() {
             openNow: place.opening_hours?.open_now,
             rating: place.rating,
           }))
-          .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
+          .filter((place) => (place.distance ?? 0) <= searchRadius)
+          .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
+          .slice(0, MAX_RESULTS);
+        if (results.length === 0) {
+          setStatus("no_results");
+          return;
+        }
 
         setPois(results);
         setStatus("success");
@@ -115,7 +124,7 @@ export function usePOISearch() {
         setStatus("error");
       }
     },
-    [],
+    [radius],
   );
 
   const clearPOIs = useCallback(() => {
@@ -133,6 +142,8 @@ export function usePOISearch() {
     setSelectedPOI,
     activeCategory,
     setActiveCategory,
+    radius,
+    setRadius,
     searchPOIs,
     clearPOIs,
   };

@@ -27,6 +27,8 @@ export function usePOIFeature({
     setSelectedPOI,
     activeCategory,
     setActiveCategory,
+    radius,
+    setRadius,
     searchPOIs,
     clearPOIs,
   } = usePOISearch();
@@ -83,6 +85,18 @@ export function usePOIFeature({
     clearPOIs();
   }, [clearPOIs]);
 
+  const handleRadiusChange = useCallback(
+    (newRadius: number) => {
+      setRadius(newRadius);
+
+      if (!activeCategory) return;
+
+      const origin = CAMPUS_CENTRES[focusedCampus];
+      searchPOIs(activeCategory, origin.latitude, origin.longitude, newRadius);
+    },
+    [activeCategory, focusedCampus, searchPOIs, setRadius],
+  );
+
   return {
     // Refs
     poiSheetRef: sheetRef,
@@ -92,11 +106,13 @@ export function usePOIFeature({
     status,
     selectedPOI,
     activeCategory,
+    radius,
 
     // Handlers
     handleCategorySelect,
     handleSelectPOI,
     handleGetDirections,
     handleSheetClose,
+    handleRadiusChange,
   };
 }
