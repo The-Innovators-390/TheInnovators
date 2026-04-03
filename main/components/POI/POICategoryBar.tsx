@@ -2,6 +2,7 @@ import React from "react";
 import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
 import { POI_CATEGORIES, type POICategory } from "@/components/POI/types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useCampusTheme } from "@/hooks/useCampusTheme";
 import type { Campus } from "@/components/Buildings/types";
 
 interface POICategoryBarProps {
@@ -17,11 +18,11 @@ export default function POICategoryBar({
   disabled = false,
   focusedCampus,
 }: Readonly<POICategoryBarProps>) {
+  const theme = useCampusTheme(focusedCampus);
+
   const handlePress = (key: POICategory) => {
-    // Toggle: tap same pill to deselect
     onSelect(activeCategory === key ? null : key);
   };
-  const activeColor = focusedCampus === "SGW" ? "#912338" : "#e3ac20";
 
   return (
     <View style={styles.wrapper}>
@@ -42,8 +43,8 @@ export default function POICategoryBar({
               style={[
                 styles.pill,
                 isActive && {
-                  backgroundColor: activeColor,
-                  borderColor: activeColor,
+                  backgroundColor: theme.activeColor,
+                  borderColor: theme.activeColor,
                 },
                 disabled && styles.pillDisabled,
               ]}
