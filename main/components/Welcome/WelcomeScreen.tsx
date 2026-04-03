@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Pressable, Alert, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { styles } from "@/components/Styles/welcomeStyle";
-
+//The facade is used to abstract away the Google Sign-In logic, making the component cleaner and more focused on UI.
 import { googleAuthFacade } from "@/services/google/facades/GoogleAuthFacade";
 
 export default function WelcomeScreen() {
@@ -10,6 +10,7 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     try {
+      //Configuration is handled in the facade, which sets up the Google Sign-In with necessary details
       googleAuthFacade.configure();
     } catch (e: any) {
       console.log("Google config error:", e);
@@ -20,6 +21,7 @@ export default function WelcomeScreen() {
   const onGoogleSignInPress = async () => {
     try {
       setLoading(true);
+      // The sign-in process is initiated through the facade, which manages the entire flow and returns the authentication status.
       await googleAuthFacade.signIn();
 
       router.replace("/(tabs)/map");
