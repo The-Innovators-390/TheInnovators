@@ -95,8 +95,14 @@ jest.mock("@/components/campus/helper_methods/campusMap.buildings", () => ({
 }));
 
 jest.mock("@/components/campus/helper_methods/campusMap.ui", () => ({
-  __esModule: true,
-  computeFloatingBottom: jest.fn(() => 0),
+  computeFloatingBottom: () => 120,
+  getFloatingUiState: () => ({
+    hasBuildingPopup: false,
+    hasTravelPopup: false,
+    floatingBottom: 120,
+    shouldShowCompass: true,
+    shouldHideFloatingButtons: false,
+  }),
 }));
 
 // -------------------- Mock heavy UI components to keep render minimal --------------------
