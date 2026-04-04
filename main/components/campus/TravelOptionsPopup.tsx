@@ -13,6 +13,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
+import type { RouteChip } from "./helper_methods/routeStrategy";
 
 import type {
   DirectionRoute,
@@ -22,7 +23,7 @@ import type {
   ShuttleInfo,
   ShuttleStatus,
 } from "@/components/campus/helper_methods/shuttleSchedule";
-import { getRouteStrategy, RouteChip } from "./helper_methods/routeStrategy";
+import { RouteStrategyFactory } from "./helper_methods/RouteStrategyFactory";
 import { bottomSheetStyle } from "../Styles/bottomSheetStyle";
 
 const ICON_SUBWAY = require("../../assets/icons/icon-subway.png");
@@ -334,7 +335,10 @@ function RouteList({
     <>
       {routes.map((route, index) => {
         const isActive = index === selectedRouteIndex;
-        const strategy = getRouteStrategy(selectedMode);
+        const strategy =
+          selectedMode === "shuttle"
+            ? null
+            : RouteStrategyFactory.create(selectedMode);
         const chipLines = strategy?.getChips(route) ?? [];
 
         const buses = getBusDetails(chipLines);
@@ -425,15 +429,15 @@ export default function TravelOptionsPopup({
   const theme =
     campusTheme === "SGW"
       ? {
-          brand: "#912338",
-          border: "rgba(145,35,56,0.25)",
-          closeBg: "rgba(145,35,56,0.14)",
-        }
+        brand: "#912338",
+        border: "rgba(145,35,56,0.25)",
+        closeBg: "rgba(145,35,56,0.14)",
+      }
       : {
-          brand: "#E0B100",
-          border: "rgba(224,177,0,0.25)",
-          closeBg: "rgba(224,177,0,0.18)",
-        };
+        brand: "#E0B100",
+        border: "rgba(224,177,0,0.25)",
+        closeBg: "rgba(224,177,0,0.18)",
+      };
 
   const snapPoints = useMemo(() => {
     const collapsed = Math.max(260, Math.round(windowHeight * 0.28));
