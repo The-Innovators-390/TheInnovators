@@ -1,0 +1,74 @@
+
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Welcome → Guest (same entry path as other campus Maestro flows)
+- assertVisible:
+    id: "guest-sign-in-button"
+- tapOn:
+    id: "guest-sign-in-button"
+
+- assertVisible:
+    id: "campusMap-root"
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+# Location permission (POI directions default start = current location)
+- runFlow:
+    when:
+      visible:
+        text: "Allow While Using App"
+    commands:
+      - tapOn:
+          text: "Allow While Using App"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        text: "While using this app"
+    commands:
+      - tapOn:
+          text: "While using this app"
+      - waitForAnimationToEnd
+
+# AC: POI category → sheet opens with outdoor POIs
+- tapOn:
+    id: "poi-category-restaurant"
+- waitForAnimationToEnd
+
+# Open the Restaurants bottom sheet (handle expands snap; no swipe on the list body)
+- extendedWaitUntil:
+    visible:
+      id: "poiSheet-handle"
+    timeout: 15000
+- tapOn:
+    id: "poiSheet-handle"
+- waitForAnimationToEnd
+
+# Places API finished (loading copy is removed from the sheet body)
+- extendedWaitUntil:
+    notVisible:
+      text: "Searching nearby places…"
+    timeout: 45000
+
+# FlatList mounted with ≥1 POI (header marker in POIBottomSheet; visible text "Get Directions" is often absent from iOS a11y tree)
+- extendedWaitUntil:
+    visible:
+      id: "poi-sheet-has-results"
+    timeout: 45000
+
+# Tap first row Get Directions: testID path when iOS exposes it (row Pressable uses accessible={false})
+- runFlow:
+    when:
+      visible:
+        id: "poi-getDirections-index-0"
+    commands:
+      - tapOn:
+          id: "poi-getDirections-index-0"
+      - waitForAnimationToEnd
+
