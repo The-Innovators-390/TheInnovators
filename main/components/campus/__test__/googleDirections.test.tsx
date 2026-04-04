@@ -7,13 +7,15 @@ import {
   fetchDirections,
   pickFastestRoute,
 } from "../helper_methods/googleDirections";
-import { getRouteStrategy } from "../helper_methods/routeStrategy";
+import { RouteStrategyFactory } from "../helper_methods/RouteStrategyFactory";
 
-jest.mock("../helper_methods/routeStrategy", () => ({
-  getRouteStrategy: jest.fn(),
+jest.mock("../helper_methods/RouteStrategyFactory", () => ({
+  RouteStrategyFactory: {
+    create: jest.fn(),
+  },
 }));
 
-describe("googleDirection.ts", () => {
+describe("googleDirections.ts", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -49,14 +51,11 @@ describe("googleDirection.ts", () => {
 
   describe("decodePolyline", () => {
     it("decodes a known Google encoded polyline example", () => {
-      // Standard Google sample polyline:
-      // (38.5, -120.2), (40.7, -120.95), (43.252, -126.453)
       const encoded = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
       const coords = decodePolyline(encoded);
 
       expect(coords).toHaveLength(3);
 
-      // Use toBeCloseTo to avoid floating precision issues.
       expect(coords[0].latitude).toBeCloseTo(38.5, 5);
       expect(coords[0].longitude).toBeCloseTo(-120.2, 5);
 
@@ -73,7 +72,7 @@ describe("googleDirection.ts", () => {
   });
 
   describe("fetchDirections", () => {
-    it("delegates to the selected strategy fetchRoutes()", async () => {
+    it("delegates to RouteStrategyFactory.create() then fetchRoutes()", async () => {
       const origin: LatLng = { latitude: 1, longitude: 2 };
       const destination: LatLng = { latitude: 3, longitude: 4 };
 
@@ -89,7 +88,7 @@ describe("googleDirection.ts", () => {
       ];
 
       const fetchRoutes = jest.fn().mockResolvedValue(mockedRoutes);
-      (getRouteStrategy as jest.Mock).mockReturnValue({ fetchRoutes });
+      (RouteStrategyFactory.create as jest.Mock).mockReturnValue({ fetchRoutes });
 
       const res = await fetchDirections({
         origin,
@@ -97,17 +96,17 @@ describe("googleDirection.ts", () => {
         mode: "walking",
       });
 
-      expect(getRouteStrategy).toHaveBeenCalledWith("walking");
+      expect(RouteStrategyFactory.create).toHaveBeenCalledWith("walking");
       expect(fetchRoutes).toHaveBeenCalledWith(origin, destination);
       expect(res).toEqual(mockedRoutes);
     });
 
-    it("propagates strategy errors", async () => {
+    it("propagates factory-selected strategy errors", async () => {
       const origin: LatLng = { latitude: 1, longitude: 2 };
       const destination: LatLng = { latitude: 3, longitude: 4 };
 
       const fetchRoutes = jest.fn().mockRejectedValue(new Error("boom"));
-      (getRouteStrategy as jest.Mock).mockReturnValue({ fetchRoutes });
+      (RouteStrategyFactory.create as jest.Mock).mockReturnValue({ fetchRoutes });
 
       await expect(
         fetchDirections({ origin, destination, mode: "driving" }),
