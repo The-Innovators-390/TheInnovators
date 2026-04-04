@@ -229,9 +229,9 @@ describe("routeStrategy.ts", () => {
       expect(names).toEqual(["211", "Line 1"]);
 
       const chips = strat.getChips(route);
-      expect(
-        chips.some((c) => c.kind === "bus" && c.label === "211"),
-      ).toBe(true);
+      expect(chips.some((c) => c.kind === "bus" && c.label === "211")).toBe(
+        true,
+      );
       expect(
         chips.some((c) => c.kind === "metro" && c.label === "Line 1"),
       ).toBe(true);
@@ -256,7 +256,9 @@ describe("routeStrategy.ts", () => {
     let WalkingStrategyLocal: any;
 
     jest.isolateModules(() => {
-      ({ WalkingStrategy: WalkingStrategyLocal } = require("../helper_methods/routeStrategy"));
+      ({
+        WalkingStrategy: WalkingStrategyLocal,
+      } = require("../helper_methods/routeStrategy"));
     });
 
     global.fetch = jest.fn() as any;

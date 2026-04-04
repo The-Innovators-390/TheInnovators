@@ -1,36 +1,36 @@
 import {
-    configureGoogleSignIn,
-    signInWithGoogle,
-    signOutGoogle,
-    isGoogleSignedIn,
+  configureGoogleSignIn,
+  signInWithGoogle,
+  signOutGoogle,
+  isGoogleSignedIn,
 } from "@/hooks/useGoogleAuth";
 
 export type GoogleAuthStatus = {
-    signedIn: boolean;
+  signedIn: boolean;
 };
 
 export class GoogleAuthFacade {
-    configure(): void {
-        configureGoogleSignIn();
-    }
+  configure(): void {
+    configureGoogleSignIn();
+  }
 
-    async signIn(): Promise<GoogleAuthStatus> {
-        await signInWithGoogle();
-        return this.getStatus();
-    }
+  async signIn(): Promise<GoogleAuthStatus> {
+    await signInWithGoogle();
+    return this.getStatus();
+  }
 
-    async signOut(): Promise<void> {
-        await signOutGoogle();
-    }
+  async signOut(): Promise<void> {
+    await signOutGoogle();
+  }
 
-    async getStatus(): Promise<GoogleAuthStatus> {
-        const signedIn = await isGoogleSignedIn();
-        return { signedIn };
-    }
+  async getStatus(): Promise<GoogleAuthStatus> {
+    const signedIn = await isGoogleSignedIn();
+    return { signedIn };
+  }
 
-    async isSignedIn(): Promise<boolean> {
-        return isGoogleSignedIn();
-    }
+  async isSignedIn(): Promise<boolean> {
+    return isGoogleSignedIn();
+  }
 }
 
 export const googleAuthFacade = new GoogleAuthFacade();

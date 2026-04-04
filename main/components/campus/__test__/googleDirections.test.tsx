@@ -88,7 +88,9 @@ describe("googleDirections.ts", () => {
       ];
 
       const fetchRoutes = jest.fn().mockResolvedValue(mockedRoutes);
-      (RouteStrategyFactory.create as jest.Mock).mockReturnValue({ fetchRoutes });
+      (RouteStrategyFactory.create as jest.Mock).mockReturnValue({
+        fetchRoutes,
+      });
 
       const res = await fetchDirections({
         origin,
@@ -106,7 +108,9 @@ describe("googleDirections.ts", () => {
       const destination: LatLng = { latitude: 3, longitude: 4 };
 
       const fetchRoutes = jest.fn().mockRejectedValue(new Error("boom"));
-      (RouteStrategyFactory.create as jest.Mock).mockReturnValue({ fetchRoutes });
+      (RouteStrategyFactory.create as jest.Mock).mockReturnValue({
+        fetchRoutes,
+      });
 
       await expect(
         fetchDirections({ origin, destination, mode: "driving" }),
