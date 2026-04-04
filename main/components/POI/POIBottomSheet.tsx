@@ -436,11 +436,13 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
 
           <View style={styles.sliderWrap}>
             <Slider
+              testID="poi-radius-slider"
               style={styles.slider}
               minimumValue={0}
               maximumValue={1000}
               step={100}
               value={radius}
+              tapToSeek
               onSlidingComplete={(value) => handleRadiusSelect(value)}
               minimumTrackTintColor={theme.brand}
               maximumTrackTintColor="#D8D8D8"
