@@ -15,6 +15,7 @@ import {
   Image,
   useWindowDimensions,
   Modal,
+  type ListRenderItemInfo,
 } from "react-native";
 import Slider from "@react-native-community/slider";
 import BottomSheet, {
@@ -74,6 +75,7 @@ function formatRadiusLabel(value: number): string {
 
 function POIRow({
   poi,
+  listIndex,
   isSelected,
   onPress,
   onGetDirections,
@@ -81,6 +83,8 @@ function POIRow({
   brandColor,
 }: Readonly<{
   poi: POI;
+  /** FlatList index — stable for E2E when API result order varies */
+  listIndex: number;
   isSelected: boolean;
   onPress: () => void;
   onGetDirections: () => void;
@@ -93,6 +97,7 @@ function POIRow({
   return (
     <Pressable
       testID={`poi-row-${poi.id}`}
+      accessible={false}
       onPress={onPress}
       style={[styles.row, isSelected && styles.rowSelected]}
       accessibilityRole="button"
@@ -147,13 +152,20 @@ function POIRow({
         )}
 
         <Pressable
-          testID={`poi-directions-${poi.id}`}
+          testID={`poi-getDirections-index-${listIndex}`}
           onPress={onGetDirections}
           style={styles.directionsBtn}
           accessibilityRole="button"
-          accessibilityLabel={`Get directions to ${poi.name}`}
+          accessibilityLabel="Get Directions"
+          accessibilityHint={`Opens directions to ${poi.name}`}
         >
-          <Text style={styles.directionsBtnText}>Get Directions</Text>
+          <Text
+            accessible={false}
+            testID={`poi-getDirections-text-index-${listIndex}`}
+            style={styles.directionsBtnText}
+          >
+            Get Directions
+          </Text>
         </Pressable>
       </View>
     </Pressable>
@@ -309,12 +321,13 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
     );
 
     const renderItem = useCallback(
-      (info: { item: POI }) => {
+      (info: ListRenderItemInfo<POI>) => {
         const poi = info.item;
 
         return (
           <POIRow
             poi={poi}
+            listIndex={info.index}
             isSelected={selectedPOI?.id === poi.id}
             onPress={() => onSelectPOI(poi)}
             onGetDirections={() => onGetDirections(poi)}
@@ -369,6 +382,7 @@ const POIBottomSheet = forwardRef<POIBottomSheetRef, POIBottomSheetProps>(
 
       return (
         <BottomSheetFlatList<POI>
+          testID={pois.length > 0 ? "poi-sheet-has-results" : undefined}
           data={pois}
           keyExtractor={(item: POI) => item.id}
           renderItem={renderItem}

@@ -311,7 +311,7 @@ describe("POIBottomSheet", () => {
       <POIBottomSheet {...baseProps} status="success" pois={[mockPOI]} />,
     );
 
-    fireEvent.press(getByTestId("poi-directions-1"));
+    fireEvent.press(getByTestId("poi-getDirections-index-0"));
     expect(mockOnGetDirections).toHaveBeenCalledWith(mockPOI);
   });
 
