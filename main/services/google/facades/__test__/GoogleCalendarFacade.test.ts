@@ -1,253 +1,249 @@
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { googleCalendarFacade } from "@/services/google/facades/GoogleCalendarFacade";
 import {
-    googleCalendarFacade,
-} from "@/services/google/facades/GoogleCalendarFacade";
-import {
-    isGoogleCalendarConnected,
-    requestGoogleCalendarAccess,
+  isGoogleCalendarConnected,
+  requestGoogleCalendarAccess,
 } from "@/hooks/useGoogleAuth";
 import {
-    fetchUpcomingCalendarEvents,
-    fetchUserCalendars,
+  fetchUpcomingCalendarEvents,
+  fetchUserCalendars,
 } from "@/services/googleCalendar";
 
 jest.mock("@react-native-google-signin/google-signin", () => ({
-    GoogleSignin: {
-        getCurrentUser: jest.fn(),
-    },
+  GoogleSignin: {
+    getCurrentUser: jest.fn(),
+  },
 }));
 
 jest.mock("@/hooks/useGoogleAuth", () => ({
-    isGoogleCalendarConnected: jest.fn(),
-    requestGoogleCalendarAccess: jest.fn(),
+  isGoogleCalendarConnected: jest.fn(),
+  requestGoogleCalendarAccess: jest.fn(),
 }));
 
 jest.mock("@/services/googleCalendar", () => ({
-    fetchUpcomingCalendarEvents: jest.fn(),
-    fetchUserCalendars: jest.fn(),
+  fetchUpcomingCalendarEvents: jest.fn(),
+  fetchUserCalendars: jest.fn(),
 }));
 
 describe("GoogleCalendarFacade", () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("getConnectionState", () => {
+    it("returns signedIn true and calendarConnected true", async () => {
+      (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
+      (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
+
+      const result = await googleCalendarFacade.getConnectionState();
+
+      expect(result).toEqual({
+        signedIn: true,
+        calendarConnected: true,
+      });
     });
 
-    describe("getConnectionState", () => {
-        it("returns signedIn true and calendarConnected true", async () => {
-            (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
-            (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
+    it("returns signedIn false and calendarConnected false", async () => {
+      (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue(null);
+      (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(false);
 
-            const result = await googleCalendarFacade.getConnectionState();
+      const result = await googleCalendarFacade.getConnectionState();
 
-            expect(result).toEqual({
-                signedIn: true,
-                calendarConnected: true,
-            });
-        });
+      expect(result).toEqual({
+        signedIn: false,
+        calendarConnected: false,
+      });
+    });
+  });
 
-        it("returns signedIn false and calendarConnected false", async () => {
-            (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue(null);
-            (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(false);
+  describe("connectCalendar", () => {
+    it("requests calendar access and returns refreshed state", async () => {
+      (requestGoogleCalendarAccess as jest.Mock).mockResolvedValue(undefined);
+      (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
+      (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
 
-            const result = await googleCalendarFacade.getConnectionState();
+      const result = await googleCalendarFacade.connectCalendar();
 
-            expect(result).toEqual({
-                signedIn: false,
-                calendarConnected: false,
-            });
-        });
+      expect(requestGoogleCalendarAccess).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({
+        signedIn: true,
+        calendarConnected: true,
+      });
+    });
+  });
+
+  describe("getCalendars", () => {
+    it("delegates to fetchUserCalendars", async () => {
+      const calendars = [{ id: "primary", summary: "Primary", primary: true }];
+      (fetchUserCalendars as jest.Mock).mockResolvedValue(calendars);
+
+      const result = await googleCalendarFacade.getCalendars();
+
+      expect(fetchUserCalendars).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(calendars);
+    });
+  });
+
+  describe("getEvents", () => {
+    it("delegates to fetchUpcomingCalendarEvents", async () => {
+      const events = [
+        {
+          summary: "Class 1",
+          start: { dateTime: "2026-04-04T10:00:00Z" },
+        },
+      ];
+      (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
+
+      const result = await googleCalendarFacade.getEvents("primary");
+
+      expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("primary");
+      expect(result).toEqual(events);
+    });
+  });
+
+  describe("resolveDefaultCalendarId", () => {
+    it("returns currentCalendarId when it is not primary", () => {
+      const calendars = [
+        { id: "primary", summary: "Primary", primary: true },
+        { id: "class-cal", summary: "Classes" },
+      ];
+
+      const result = googleCalendarFacade.resolveDefaultCalendarId(
+        calendars as any,
+        "class-cal",
+      );
+
+      expect(result).toBe("class-cal");
     });
 
-    describe("connectCalendar", () => {
-        it("requests calendar access and returns refreshed state", async () => {
-            (requestGoogleCalendarAccess as jest.Mock).mockResolvedValue(undefined);
-            (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
-            (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
+    it("returns primary calendar id when currentCalendarId is primary", () => {
+      const calendars = [
+        { id: "school123", summary: "Primary", primary: true },
+      ];
 
-            const result = await googleCalendarFacade.connectCalendar();
+      const result = googleCalendarFacade.resolveDefaultCalendarId(
+        calendars as any,
+        "primary",
+      );
 
-            expect(requestGoogleCalendarAccess).toHaveBeenCalledTimes(1);
-            expect(result).toEqual({
-                signedIn: true,
-                calendarConnected: true,
-            });
-        });
+      expect(result).toBe("school123");
     });
 
-    describe("getCalendars", () => {
-        it("delegates to fetchUserCalendars", async () => {
-            const calendars = [
-                { id: "primary", summary: "Primary", primary: true },
-            ];
-            (fetchUserCalendars as jest.Mock).mockResolvedValue(calendars);
+    it("falls back to primary string when no primary calendar exists", () => {
+      const calendars = [{ id: "other", summary: "Other" }];
 
-            const result = await googleCalendarFacade.getCalendars();
+      const result = googleCalendarFacade.resolveDefaultCalendarId(
+        calendars as any,
+        "primary",
+      );
 
-            expect(fetchUserCalendars).toHaveBeenCalledTimes(1);
-            expect(result).toEqual(calendars);
-        });
+      expect(result).toBe("primary");
+    });
+  });
+
+  describe("loadScreenData", () => {
+    it("returns empty data when user is not signed in", async () => {
+      (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue(null);
+      (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(false);
+
+      const result = await googleCalendarFacade.loadScreenData("primary");
+
+      expect(result).toEqual({
+        auth: {
+          signedIn: false,
+          calendarConnected: false,
+        },
+        calendars: [],
+        events: [],
+        activeCalendarId: "primary",
+      });
+
+      expect(fetchUserCalendars).not.toHaveBeenCalled();
+      expect(fetchUpcomingCalendarEvents).not.toHaveBeenCalled();
     });
 
-    describe("getEvents", () => {
-        it("delegates to fetchUpcomingCalendarEvents", async () => {
-            const events = [
-                {
-                    summary: "Class 1",
-                    start: { dateTime: "2026-04-04T10:00:00Z" },
-                },
-            ];
-            (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
+    it("returns empty data when signed in but calendar not connected", async () => {
+      (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
+      (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(false);
 
-            const result = await googleCalendarFacade.getEvents("primary");
+      const result = await googleCalendarFacade.loadScreenData("primary");
 
-            expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("primary");
-            expect(result).toEqual(events);
-        });
+      expect(result).toEqual({
+        auth: {
+          signedIn: true,
+          calendarConnected: false,
+        },
+        calendars: [],
+        events: [],
+        activeCalendarId: "primary",
+      });
+
+      expect(fetchUserCalendars).not.toHaveBeenCalled();
+      expect(fetchUpcomingCalendarEvents).not.toHaveBeenCalled();
     });
 
-    describe("resolveDefaultCalendarId", () => {
-        it("returns currentCalendarId when it is not primary", () => {
-            const calendars = [
-                { id: "primary", summary: "Primary", primary: true },
-                { id: "class-cal", summary: "Classes" },
-            ];
+    it("loads calendars and events when signed in and connected", async () => {
+      const calendars = [
+        { id: "school123", summary: "Primary", primary: true },
+        { id: "other", summary: "Other" },
+      ];
+      const events = [
+        {
+          summary: "Class 1",
+          start: { dateTime: "2026-04-04T10:00:00Z" },
+        },
+      ];
 
-            const result = googleCalendarFacade.resolveDefaultCalendarId(
-                calendars as any,
-                "class-cal",
-            );
+      (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
+      (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
+      (fetchUserCalendars as jest.Mock).mockResolvedValue(calendars);
+      (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
 
-            expect(result).toBe("class-cal");
-        });
+      const result = await googleCalendarFacade.loadScreenData("primary");
 
-        it("returns primary calendar id when currentCalendarId is primary", () => {
-            const calendars = [
-                { id: "school123", summary: "Primary", primary: true },
-            ];
+      expect(fetchUserCalendars).toHaveBeenCalledTimes(1);
+      expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("school123");
 
-            const result = googleCalendarFacade.resolveDefaultCalendarId(
-                calendars as any,
-                "primary",
-            );
-
-            expect(result).toBe("school123");
-        });
-
-        it("falls back to primary string when no primary calendar exists", () => {
-            const calendars = [{ id: "other", summary: "Other" }];
-
-            const result = googleCalendarFacade.resolveDefaultCalendarId(
-                calendars as any,
-                "primary",
-            );
-
-            expect(result).toBe("primary");
-        });
+      expect(result).toEqual({
+        auth: {
+          signedIn: true,
+          calendarConnected: true,
+        },
+        calendars,
+        events,
+        activeCalendarId: "school123",
+      });
     });
 
-    describe("loadScreenData", () => {
-        it("returns empty data when user is not signed in", async () => {
-            (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue(null);
-            (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(false);
+    it("uses preferred non-primary calendar id directly", async () => {
+      const calendars = [
+        { id: "primary-id", summary: "Primary", primary: true },
+        { id: "class-cal", summary: "Classes" },
+      ];
+      const events = [{ summary: "Class A" }];
 
-            const result = await googleCalendarFacade.loadScreenData("primary");
+      (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
+      (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
+      (fetchUserCalendars as jest.Mock).mockResolvedValue(calendars);
+      (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
 
-            expect(result).toEqual({
-                auth: {
-                    signedIn: false,
-                    calendarConnected: false,
-                },
-                calendars: [],
-                events: [],
-                activeCalendarId: "primary",
-            });
+      const result = await googleCalendarFacade.loadScreenData("class-cal");
 
-            expect(fetchUserCalendars).not.toHaveBeenCalled();
-            expect(fetchUpcomingCalendarEvents).not.toHaveBeenCalled();
-        });
-
-        it("returns empty data when signed in but calendar not connected", async () => {
-            (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
-            (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(false);
-
-            const result = await googleCalendarFacade.loadScreenData("primary");
-
-            expect(result).toEqual({
-                auth: {
-                    signedIn: true,
-                    calendarConnected: false,
-                },
-                calendars: [],
-                events: [],
-                activeCalendarId: "primary",
-            });
-
-            expect(fetchUserCalendars).not.toHaveBeenCalled();
-            expect(fetchUpcomingCalendarEvents).not.toHaveBeenCalled();
-        });
-
-        it("loads calendars and events when signed in and connected", async () => {
-            const calendars = [
-                { id: "school123", summary: "Primary", primary: true },
-                { id: "other", summary: "Other" },
-            ];
-            const events = [
-                {
-                    summary: "Class 1",
-                    start: { dateTime: "2026-04-04T10:00:00Z" },
-                },
-            ];
-
-            (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
-            (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
-            (fetchUserCalendars as jest.Mock).mockResolvedValue(calendars);
-            (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
-
-            const result = await googleCalendarFacade.loadScreenData("primary");
-
-            expect(fetchUserCalendars).toHaveBeenCalledTimes(1);
-            expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("school123");
-
-            expect(result).toEqual({
-                auth: {
-                    signedIn: true,
-                    calendarConnected: true,
-                },
-                calendars,
-                events,
-                activeCalendarId: "school123",
-            });
-        });
-
-        it("uses preferred non-primary calendar id directly", async () => {
-            const calendars = [
-                { id: "primary-id", summary: "Primary", primary: true },
-                { id: "class-cal", summary: "Classes" },
-            ];
-            const events = [{ summary: "Class A" }];
-
-            (GoogleSignin.getCurrentUser as jest.Mock).mockReturnValue({ id: "u1" });
-            (isGoogleCalendarConnected as jest.Mock).mockResolvedValue(true);
-            (fetchUserCalendars as jest.Mock).mockResolvedValue(calendars);
-            (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
-
-            const result = await googleCalendarFacade.loadScreenData("class-cal");
-
-            expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("class-cal");
-            expect(result.activeCalendarId).toBe("class-cal");
-        });
+      expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("class-cal");
+      expect(result.activeCalendarId).toBe("class-cal");
     });
+  });
 
-    describe("reloadEventsForCalendar", () => {
-        it("delegates to getEvents", async () => {
-            const events = [{ summary: "Exam" }];
-            (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
+  describe("reloadEventsForCalendar", () => {
+    it("delegates to getEvents", async () => {
+      const events = [{ summary: "Exam" }];
+      (fetchUpcomingCalendarEvents as jest.Mock).mockResolvedValue(events);
 
-            const result =
-                await googleCalendarFacade.reloadEventsForCalendar("class-cal");
+      const result =
+        await googleCalendarFacade.reloadEventsForCalendar("class-cal");
 
-            expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("class-cal");
-            expect(result).toEqual(events);
-        });
+      expect(fetchUpcomingCalendarEvents).toHaveBeenCalledWith("class-cal");
+      expect(result).toEqual(events);
     });
+  });
 });

@@ -429,15 +429,15 @@ export default function TravelOptionsPopup({
   const theme =
     campusTheme === "SGW"
       ? {
-        brand: "#912338",
-        border: "rgba(145,35,56,0.25)",
-        closeBg: "rgba(145,35,56,0.14)",
-      }
+          brand: "#912338",
+          border: "rgba(145,35,56,0.25)",
+          closeBg: "rgba(145,35,56,0.14)",
+        }
       : {
-        brand: "#E0B100",
-        border: "rgba(224,177,0,0.25)",
-        closeBg: "rgba(224,177,0,0.18)",
-      };
+          brand: "#E0B100",
+          border: "rgba(224,177,0,0.25)",
+          closeBg: "rgba(224,177,0,0.18)",
+        };
 
   const snapPoints = useMemo(() => {
     const collapsed = Math.max(260, Math.round(windowHeight * 0.28));
