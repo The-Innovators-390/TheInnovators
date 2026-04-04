@@ -2,6 +2,34 @@
 import React from "react";
 import { render, waitFor } from "@testing-library/react-native";
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+jest.mock("@/components/POI/POICategoryBar", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIBottomSheet", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIMarkers", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/hooks/usePOIFeature", () => ({
+  usePOIFeature: () => ({
+    poiSheetRef: { current: null },
+    pois: [],
+    status: "idle",
+    selectedPOI: null,
+    activeCategory: null,
+    handleCategorySelect: jest.fn(),
+    handleSelectPOI: jest.fn(),
+    handleGetDirections: jest.fn(),
+    handleSheetClose: jest.fn(),
+  }),
+}));
 
 type CameraArg = {
   center?: {
@@ -153,6 +181,13 @@ jest.mock("@/components/campus/helper_methods/campusMap.buildings", () => ({
 
 jest.mock("@/components/campus/helper_methods/campusMap.ui", () => ({
   computeFloatingBottom: () => 120,
+  getFloatingUiState: () => ({
+    hasBuildingPopup: false,
+    hasTravelPopup: false,
+    floatingBottom: 120,
+    shouldShowCompass: true,
+    shouldHideFloatingButtons: false,
+  }),
 }));
 
 jest.mock("@/components/campus/helper_methods/googleDirections", () => ({

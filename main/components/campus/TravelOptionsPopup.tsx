@@ -23,6 +23,7 @@ import type {
   ShuttleStatus,
 } from "@/components/campus/helper_methods/shuttleSchedule";
 import { getRouteStrategy, RouteChip } from "./helper_methods/routeStrategy";
+import { bottomSheetStyle } from "../Styles/bottomSheetStyle";
 
 const ICON_SUBWAY = require("../../assets/icons/icon-subway.png");
 const ICON_BUS = require("../../assets/icons/icon-bus.png");
@@ -651,43 +652,7 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
   },
-
-  handleWrap: {
-    paddingTop: 6,
-    paddingBottom: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  handleTapArea: {
-    width: "100%",
-    alignItems: "center",
-    paddingVertical: 6,
-  },
-
-  handleIndicator: {
-    width: 44,
-    height: 4,
-    borderRadius: 3,
-    backgroundColor: "rgba(0,0,0,0.18)",
-  },
-
-  handleCloseBtn: {
-    position: "absolute",
-    right: 16,
-    top: 12,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  handleCloseText: {
-    fontSize: 24,
-    fontWeight: "900",
-    lineHeight: 24,
-  },
-
+  ...bottomSheetStyle,
   modeBar: {
     marginHorizontal: 16,
     marginBottom: 6,

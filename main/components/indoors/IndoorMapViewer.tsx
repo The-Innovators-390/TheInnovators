@@ -46,7 +46,7 @@ export default function IndoorMapViewer({
   useEffect(() => {
     if (imageSource) {
       const asset = Image.resolveAssetSource(imageSource);
-      if (asset && asset.uri) {
+      if (asset?.uri) {
         Image.getSize(
           asset.uri,
           (w, h) => {
