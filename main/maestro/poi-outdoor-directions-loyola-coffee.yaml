@@ -1,0 +1,89 @@
+appId: com.theinnovators.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "guest-sign-in-button"
+- tapOn:
+    id: "guest-sign-in-button"
+
+- assertVisible:
+    id: "campusMap-root"
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-SGW"
+      selected: true
+    timeout: 10000
+
+- runFlow:
+    when:
+      visible:
+        text: "Allow While Using App"
+    commands:
+      - tapOn:
+          text: "Allow While Using App"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        text: "While using this app"
+    commands:
+      - tapOn:
+          text: "While using this app"
+      - waitForAnimationToEnd
+
+- tapOn:
+    id: "campusToggle-Loyola"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-Loyola"
+      selected: true
+    timeout: 10000
+
+- tapOn:
+    id: "poi-category-cafe"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "poiSheet-handle"
+    timeout: 15000
+- tapOn:
+    id: "poiSheet-handle"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      text: "Searching nearby places…"
+    timeout: 45000
+
+- extendedWaitUntil:
+    visible:
+      id: "poi-sheet-has-results"
+    timeout: 45000
+
+- tapOn:
+    id: "poi-radius-slider"
+    point: "100%, 50%"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      text: "Searching nearby places…"
+    timeout: 45000
+
+- extendedWaitUntil:
+    visible:
+      id: "poi-sheet-has-results"
+    timeout: 45000
+
+- runFlow:
+    when:
+      visible:
+        id: "poi-getDirections-index-0"
+    commands:
+      - tapOn:
+          id: "poi-getDirections-index-0"
+      - waitForAnimationToEnd

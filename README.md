@@ -27,7 +27,7 @@ This repository will evolve as we rapidly iterate, ship new features, and contin
 | Akshey Visuvalingam | 40270505   |
 | Malak Sefrioui      | 40252907   |
 | Uroosa Lakhani      | 40227274   |
-| Yash Nathani        | 4024853    |
+| Yash Nathani        | 40248536   |
 
 ---
 
