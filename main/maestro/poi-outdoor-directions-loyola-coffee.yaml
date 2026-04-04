@@ -34,7 +34,16 @@ appId: com.theinnovators.campusguide
       - waitForAnimationToEnd
 
 - tapOn:
-    id: "poi-category-restaurant"
+    id: "campusToggle-Loyola"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "campusToggle-Loyola"
+      selected: true
+    timeout: 10000
+
+- tapOn:
+    id: "poi-category-cafe"
 - waitForAnimationToEnd
 
 - extendedWaitUntil:
@@ -57,7 +66,7 @@ appId: com.theinnovators.campusguide
 
 - tapOn:
     id: "poi-radius-slider"
-    point: "50%, 50%"
+    point: "100%, 50%"
 - waitForAnimationToEnd
 
 - extendedWaitUntil:
