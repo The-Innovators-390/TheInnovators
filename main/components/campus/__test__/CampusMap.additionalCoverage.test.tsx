@@ -2,6 +2,34 @@
 import React from "react";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+jest.mock("@/components/POI/POICategoryBar", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIBottomSheet", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/components/POI/POIMarkers", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock("@/hooks/usePOIFeature", () => ({
+  usePOIFeature: () => ({
+    poiSheetRef: { current: null },
+    pois: [],
+    status: "idle",
+    selectedPOI: null,
+    activeCategory: null,
+    handleCategorySelect: jest.fn(),
+    handleSelectPOI: jest.fn(),
+    handleGetDirections: jest.fn(),
+    handleSheetClose: jest.fn(),
+  }),
+}));
 import { Platform } from "react-native";
 
 const mockAnimateToRegion = jest.fn();

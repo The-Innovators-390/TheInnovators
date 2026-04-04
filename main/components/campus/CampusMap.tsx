@@ -97,6 +97,11 @@ import {
   useCampusSearchParams,
 } from "@/hooks/useCampusSearchParams";
 import { useCampusIndoorEffects } from "@/hooks/useCampusIndoorEffects";
+import { usePOIFeature } from "@/hooks/usePOIFeature";
+import POICategoryBar from "@/components/POI/POICategoryBar";
+import POIMarkers from "@/components/POI/POIMarkers";
+import POIBottomSheet from "@/components/POI/POIBottomSheet";
+import { usePOIDirections } from "@/hooks/usePOIDirections";
 import { getFloatingUiState } from "./helper_methods/campusMap.ui";
 import {
   applySelectedRouteRendering,
@@ -114,6 +119,71 @@ export type PendingTransitRender = {
   coords: LatLng[];
   fitToRoute: boolean;
 };
+
+type FloatingUiConfig = {
+  navIsRouteMode: boolean;
+  selected: Building | null;
+  isNavigating: boolean;
+  travelPopupVisible: boolean;
+  popupIndex: number;
+  windowHeight: number;
+  poiSheetIndex: number;
+};
+
+function buildCampusMapFloatingUi({
+  navIsRouteMode,
+  selected,
+  isNavigating,
+  travelPopupVisible,
+  popupIndex,
+  windowHeight,
+  poiSheetIndex,
+}: FloatingUiConfig) {
+  const hasBuildingPopup = !navIsRouteMode && !!selected;
+  const hasTravelPopup = navIsRouteMode && !isNavigating && travelPopupVisible;
+
+  // POI bottom sheet:
+  // -1 = closed
+  // 0 = partial / collapsed
+  // 1 = full screen
+  const hasPOISheet = poiSheetIndex >= 0;
+  const isPOISheetFullScreen = poiSheetIndex > 0;
+
+  const baseFloatingUi = getFloatingUiState({
+    isRouteMode: navIsRouteMode,
+    selected,
+    isNavigating,
+    travelPopupVisible,
+    popupIndex,
+    windowHeight,
+  });
+
+  const shouldShowCompass =
+    baseFloatingUi.shouldShowCompass && !isPOISheetFullScreen;
+
+  const shouldHideFloatingButtons =
+    baseFloatingUi.shouldHideFloatingButtons || isPOISheetFullScreen;
+
+  const collapsedBuildingPopupHeight = Math.round(windowHeight * 0.19);
+  const collapsedTravelPopupHeight = Math.max(
+    260,
+    Math.round(windowHeight * 0.28),
+  );
+
+  let floatingBottom = baseFloatingUi.floatingBottom;
+
+  if (hasBuildingPopup) {
+    floatingBottom = collapsedBuildingPopupHeight;
+  } else if (hasTravelPopup || hasPOISheet) {
+    floatingBottom = collapsedTravelPopupHeight;
+  }
+
+  return {
+    shouldShowCompass,
+    shouldHideFloatingButtons,
+    floatingBottom,
+  };
+}
 
 function SuggestionsList({
   suggestions,
@@ -294,6 +364,7 @@ export default function CampusMap() {
         longitude: nav.routeDest.longitude,
       }
     : null;
+
   const indoorOriginHandoff = useMemo(() => {
     const start = nav.routeStart;
     if (!start) return false;
@@ -350,6 +421,8 @@ export default function CampusMap() {
   }, [nav.routeDest?.id]);
 
   const lastCameraUpdateRef = useRef(0);
+
+  const [poiSheetIndex, setPoiSheetIndex] = useState(-1);
 
   // Auto fetch user location on mount
   useEffect(() => {
@@ -654,6 +727,7 @@ export default function CampusMap() {
 
   useEffect(() => {
     if (!destBuildingId) return;
+
     const routeParamsSignature = [
       destBuildingId,
       indoorStartBuildingCode ?? "",
@@ -663,10 +737,12 @@ export default function CampusMap() {
       normalizedExternalDestRoomLabel ?? "",
       normalizedExternalDestBuildingCode ?? "",
     ].join("|");
+
     if (appliedRouteParamsSignatureRef.current === routeParamsSignature) return;
 
     const targetBuilding = ALL_BUILDINGS.find((b) => b.id === destBuildingId);
     if (!targetBuilding || (indoorStartBuilding && !nav.routeStart)) return;
+
     appliedRouteParamsSignatureRef.current = routeParamsSignature;
 
     if (!nav.isRouteMode) nav.setIsRouteMode(true);
@@ -711,6 +787,23 @@ export default function CampusMap() {
       setPopupIndex,
       setShowIndoorArrivalConfirm,
     });
+
+  const poi = usePOIFeature({ focusedCampus, userLocation });
+
+  const { handlePOIGetDirections } = usePOIDirections({
+    focusedCampus,
+    isRouteMode: nav.isRouteMode,
+    toggleRouteMode: nav.toggleRouteMode,
+    setRouteStart: nav.setRouteStart,
+    setRouteDest: nav.setRouteDest,
+    setStartText,
+    setDestText,
+    userLocation,
+    setStartToCurrentLocation,
+    closePOISheet: () => poi.poiSheetRef.current?.close(),
+    setPoiSheetIndex,
+    setQuery,
+  });
 
   useEffect(() => {
     const start = nav.routeStart;
@@ -815,7 +908,6 @@ export default function CampusMap() {
           setPendingTransitRender,
           mapRef,
         });
-        return;
       } catch (e) {
         if (!cancelled) {
           setTravelPopupVisible(false);
@@ -946,14 +1038,15 @@ export default function CampusMap() {
     [showRoutesForMode],
   );
 
-  const { floatingBottom, shouldShowCompass, shouldHideFloatingButtons } =
-    getFloatingUiState({
-      isRouteMode: nav.isRouteMode,
+  const { shouldShowCompass, shouldHideFloatingButtons, floatingBottom } =
+    buildCampusMapFloatingUi({
+      navIsRouteMode: nav.isRouteMode,
       selected,
       isNavigating: routeNavigation.isNavigating,
       travelPopupVisible,
       popupIndex,
       windowHeight,
+      poiSheetIndex,
     });
 
   const travelModes = buildTravelModes(
@@ -1216,6 +1309,12 @@ export default function CampusMap() {
             />
           </Marker>
         )}
+
+        <POIMarkers
+          pois={poi.pois}
+          selectedPOI={poi.selectedPOI}
+          onPress={poi.handleSelectPOI}
+        />
       </MapView>
 
       <View style={styles.topOverlay} testID="topOverlay">
@@ -1274,6 +1373,13 @@ export default function CampusMap() {
               onPick={handlePickBuilding}
               testIdPrefix="suggestion"
               containerTestID="suggestions"
+            />
+
+            <POICategoryBar
+              activeCategory={poi.activeCategory}
+              onSelect={poi.handleCategorySelect}
+              disabled={suggestions.length > 0}
+              focusedCampus={focusedCampus}
             />
           </>
         )}
@@ -1499,6 +1605,21 @@ export default function CampusMap() {
           clearRouteData();
           clearDisplayedRoutes();
         }}
+      />
+
+      <POIBottomSheet
+        ref={poi.poiSheetRef}
+        pois={poi.pois}
+        status={poi.status}
+        activeCategory={poi.activeCategory}
+        selectedPOI={poi.selectedPOI}
+        campusTheme={focusedCampus}
+        radius={poi.radius}
+        onRadiusChange={poi.handleRadiusChange}
+        onSelectPOI={poi.handleSelectPOI}
+        onGetDirections={handlePOIGetDirections}
+        onClose={poi.handleSheetClose}
+        onSheetChange={(index) => setPoiSheetIndex(index)}
       />
 
       <BrandBar
