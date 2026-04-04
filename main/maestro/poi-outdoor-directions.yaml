@@ -1,4 +1,3 @@
-
 appId: com.theinnovators.campusguide
 ---
 - launchApp
@@ -64,4 +63,3 @@ appId: com.theinnovators.campusguide
       - tapOn:
           id: "poi-getDirections-index-0"
       - waitForAnimationToEnd
-
