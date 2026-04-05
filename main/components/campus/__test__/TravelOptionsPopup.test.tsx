@@ -4,6 +4,7 @@ import type {
   DirectionRoute,
   TravelMode,
 } from "@/components/campus/helper_methods/googleDirections";
+import { RouteStrategyFactory } from "@/components/campus/helper_methods/RouteStrategyFactory";
 
 // Mock PNG requires used inside TravelOptionsPopup
 jest.mock("../../../assets/icons/icon-subway.png", () => 1);
@@ -18,13 +19,11 @@ jest.mock("@expo/vector-icons", () => {
   };
 });
 
-jest.mock("@/components/campus/helper_methods/RouteStrategyFactory", () => {
-  const actual = jest.requireActual(
-    "@/components/campus/helper_methods/RouteStrategyFactory",
-  );
-
-  return actual;
-});
+jest.mock("@/components/campus/helper_methods/RouteStrategyFactory", () => ({
+  RouteStrategyFactory: {
+    create: jest.fn(),
+  },
+}));
 
 const TravelOptionsPopup =
   require("@/components/campus/TravelOptionsPopup").default;
@@ -113,6 +112,27 @@ function buildModes(): ModeData[] {
 }
 
 describe("TravelOptionsPopup", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    (RouteStrategyFactory.create as jest.Mock).mockImplementation((mode) => ({
+      getChips: (route: DirectionRoute) => {
+        if (mode !== "transit") return [];
+
+        const chips = [];
+        for (const line of route.transitLines ?? []) {
+          const vehicleType = line.vehicleType?.toLowerCase();
+          if (vehicleType === "bus") {
+            chips.push({ kind: "bus", label: line.name });
+          } else if (vehicleType === "subway" || vehicleType === "metro") {
+            chips.push({ kind: "metro", label: line.name, lineColor: "#000" });
+          }
+        }
+        return chips;
+      },
+    }));
+  });
+
   it("renders bus + metro chips when selectedMode is transit", () => {
     const { getByText } = render(
       <TravelOptionsPopup
