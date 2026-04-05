@@ -8,7 +8,6 @@ let mockIsFocused = true;
 
 jest.mock("@/components/calendar/FindNextClass", () => {
   return function FindNextClass() {
-    const React = require("react");
     const { Text } = require("react-native");
     return <Text>TEST_FIND_NEXT_CLASS_STUB</Text>;
   };
@@ -293,9 +292,10 @@ describe("CalendarScreen", () => {
 
     mockLoadScreenData.mockRejectedValueOnce(new Error("cal fail"));
 
-    const { findByText } = render(<CalendarScreen />);
+    const { findAllByText } = render(<CalendarScreen />);
 
-    expect(await findByText("cal fail")).toBeTruthy();
+    const matches = await findAllByText("cal fail");
+    expect(matches.length).toBeGreaterThanOrEqual(2);
     expect(mockLoadScreenData).toHaveBeenCalled();
   });
 
@@ -307,9 +307,10 @@ describe("CalendarScreen", () => {
 
     mockLoadScreenData.mockRejectedValueOnce(new Error("events fail"));
 
-    const { findByText } = render(<CalendarScreen />);
+    const { findAllByText } = render(<CalendarScreen />);
 
-    expect(await findByText("events fail")).toBeTruthy();
+    const matches = await findAllByText("events fail");
+    expect(matches.length).toBeGreaterThanOrEqual(2);
     expect(mockLoadScreenData).toHaveBeenCalledTimes(1);
   });
 
