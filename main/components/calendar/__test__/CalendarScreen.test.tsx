@@ -6,6 +6,14 @@ import { googleCalendarFacade } from "@/services/google/facades/GoogleCalendarFa
 
 let mockIsFocused = true;
 
+jest.mock("@/components/calendar/FindNextClass", () => {
+  return function FindNextClass() {
+    const React = require("react");
+    const { Text } = require("react-native");
+    return <Text>TEST_FIND_NEXT_CLASS_STUB</Text>;
+  };
+});
+
 jest.mock("@react-navigation/native", () => ({
   useIsFocused: () => mockIsFocused,
 }));
