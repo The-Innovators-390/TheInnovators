@@ -2,6 +2,7 @@ import React from "react";
 import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import CalendarScreen from "@/app/(tabs)/calendar";
+import { googleCalendarFacade } from "@/services/google/facades/GoogleCalendarFacade";
 
 let mockIsFocused = true;
 
@@ -13,31 +14,21 @@ jest.mock("expo-router", () => ({
   router: { replace: jest.fn() },
 }));
 
-const mockGetCurrentUser = jest.fn();
-jest.mock("@react-native-google-signin/google-signin", () => ({
-  GoogleSignin: {
-    getCurrentUser: (...args: any[]) => mockGetCurrentUser(...args),
-  },
-}));
-
 const mockConfigure = jest.fn();
 const mockSignIn = jest.fn();
-const mockRequestAccess = jest.fn();
-const mockIsConnected = jest.fn();
 
 jest.mock("@/hooks/useGoogleAuth", () => ({
   configureGoogleSignIn: (...args: any[]) => mockConfigure(...args),
   signInWithGoogle: (...args: any[]) => mockSignIn(...args),
-  requestGoogleCalendarAccess: (...args: any[]) => mockRequestAccess(...args),
-  isGoogleCalendarConnected: (...args: any[]) => mockIsConnected(...args),
 }));
 
-const mockFetchUpcoming = jest.fn();
-const mockFetchUserCalendars = jest.fn();
-
-jest.mock("@/services/googleCalendar", () => ({
-  fetchUpcomingCalendarEvents: (...args: any[]) => mockFetchUpcoming(...args),
-  fetchUserCalendars: (...args: any[]) => mockFetchUserCalendars(...args),
+jest.mock("@/services/google/facades/GoogleCalendarFacade", () => ({
+  googleCalendarFacade: {
+    getConnectionState: jest.fn(),
+    connectCalendar: jest.fn(),
+    loadScreenData: jest.fn(),
+    reloadEventsForCalendar: jest.fn(),
+  },
 }));
 
 // Keep derived calculations simple/deterministic for CalendarScreen tests
@@ -53,23 +44,26 @@ jest.mock("@/hooks/useCalendarDerived", () => ({
 // Child components are tested elsewhere -> stub them here
 jest.mock("@/components/calendar/MonthCalendarCard", () => {
   return function MonthCalendarCard() {
-    const React = require("react");
     const { Text } = require("react-native");
     return <Text>TEST_MONTH_CALENDAR_CARD_STUB</Text>;
   };
 });
 
 jest.mock("@/components/calendar/UpcomingEvents", () => {
-  return function UpcomingEvents() {
-    const React = require("react");
-    const { Text } = require("react-native");
-    return <Text>TEST_UPCOMING_EVENTS_STUB</Text>;
+  return function UpcomingEvents(props: any) {
+    const { Text, View } = require("react-native");
+
+    return (
+      <View>
+        <Text>TEST_UPCOMING_EVENTS_STUB</Text>
+        {!!props.eventsError && <Text>{props.eventsError}</Text>}
+      </View>
+    );
   };
 });
 
 jest.mock("@/components/calendar/OtherCalendars", () => {
   return function OtherCalendars(props: any) {
-    const React = require("react");
     const { Text, View } = require("react-native");
 
     return (
@@ -89,15 +83,22 @@ async function flush() {
 
 describe("CalendarScreen", () => {
   const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  const mockGetConnectionState = googleCalendarFacade.getConnectionState as jest.Mock;
+  const mockConnectCalendar = googleCalendarFacade.connectCalendar as jest.Mock;
+  const mockLoadScreenData = googleCalendarFacade.loadScreenData as jest.Mock;
+  const mockReloadEventsForCalendar =
+    googleCalendarFacade.reloadEventsForCalendar as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockIsFocused = true;
   });
 
-  test("renders Not logged in UI when user is null", async () => {
-    mockGetCurrentUser.mockReturnValueOnce(null);
-    mockIsConnected.mockReturnValueOnce(false);
+  test("renders Not logged in UI when user is not signed in", async () => {
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: false,
+      calendarConnected: false,
+    });
 
     const { findByText } = render(<CalendarScreen />);
 
@@ -107,28 +108,37 @@ describe("CalendarScreen", () => {
   });
 
   test("Sign in button calls signInWithGoogle then refreshes state", async () => {
-    mockGetCurrentUser.mockReturnValueOnce(null);
-    mockIsConnected.mockReturnValueOnce(false);
+    mockGetConnectionState
+      .mockResolvedValueOnce({
+        signedIn: false,
+        calendarConnected: false,
+      })
+      .mockResolvedValueOnce({
+        signedIn: true,
+        calendarConnected: false,
+      });
 
     const { findByText } = render(<CalendarScreen />);
     const btn = await findByText("Sign in with Google");
 
-    mockSignIn.mockReturnValueOnce(undefined);
-
-    // refreshState after sign-in
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(false);
+    mockSignIn.mockResolvedValueOnce(undefined);
 
     fireEvent.press(btn);
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledTimes(1);
     });
+
+    await waitFor(() => {
+      expect(mockGetConnectionState).toHaveBeenCalled();
+    });
   });
 
   test("Sign in error shows alert", async () => {
-    mockGetCurrentUser.mockReturnValueOnce(null);
-    mockIsConnected.mockReturnValueOnce(false);
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: false,
+      calendarConnected: false,
+    });
 
     const { findByText } = render(<CalendarScreen />);
     const btn = await findByText("Sign in with Google");
@@ -143,12 +153,10 @@ describe("CalendarScreen", () => {
   });
 
   test("signed in but not connected shows fallback Connect UI", async () => {
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(false);
-
-    // focus refresh (safe)
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(false);
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: true,
+      calendarConnected: false,
+    });
 
     const { findAllByText, findByText } = render(<CalendarScreen />);
 
@@ -158,50 +166,57 @@ describe("CalendarScreen", () => {
     expect(await findByText("Return to map")).toBeTruthy();
   });
 
-  test("Connect success calls request access + loads calendars + loads events", async () => {
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(false);
+  test("Connect success calls facade connect + loads screen data", async () => {
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: true,
+      calendarConnected: false,
+    });
 
-    // focus refresh
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(false);
+    mockConnectCalendar.mockResolvedValueOnce({
+      signedIn: true,
+      calendarConnected: true,
+    });
+
+    mockLoadScreenData.mockResolvedValueOnce({
+      auth: {
+        signedIn: true,
+        calendarConnected: true,
+      },
+      calendars: [
+        { id: "primary", summary: "Primary", primary: true },
+        { id: "work", summary: "Work", primary: false },
+      ],
+      events: [
+        {
+          id: "1",
+          summary: "COMP 352",
+          location: "Hall Building",
+          startISO: "2026-02-27T14:00:00.000Z",
+          endISO: "2026-02-27T15:00:00.000Z",
+        },
+      ],
+      activeCalendarId: "primary",
+    });
 
     const { findAllByText } = render(<CalendarScreen />);
 
     const nodes = await findAllByText("Connect Google Calendar");
     fireEvent.press(nodes[1]);
 
-    mockRequestAccess.mockReturnValueOnce(undefined);
-
-    // After access: refreshState -> now connected
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(true);
-
-    mockFetchUserCalendars.mockReturnValueOnce([
-      { id: "primary", summary: "Primary", primary: true },
-      { id: "work", summary: "Work", primary: false },
-    ]);
-
-    mockFetchUpcoming.mockReturnValueOnce([
-      {
-        id: "1",
-        summary: "COMP 352",
-        location: "Hall Building",
-        startISO: "2026-02-27T14:00:00.000Z",
-        endISO: "2026-02-27T15:00:00.000Z",
-      },
-    ]);
-
-    await waitFor(() => expect(mockRequestAccess).toHaveBeenCalledTimes(1));
     await waitFor(() => {
-      expect(mockFetchUserCalendars).toHaveBeenCalledTimes(1);
-      expect(mockFetchUpcoming).toHaveBeenCalledTimes(1);
+      expect(mockConnectCalendar).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(mockLoadScreenData).toHaveBeenCalledTimes(1);
     });
   });
 
   test("Connect prompt Alert appears only once per focus session", async () => {
-    mockGetCurrentUser.mockResolvedValue({ user: { email: "a@b.com" } });
-    mockIsConnected.mockResolvedValue(false);
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: true,
+      calendarConnected: false,
+    });
 
     const { rerender } = render(<CalendarScreen />);
     await flush();
@@ -216,7 +231,6 @@ describe("CalendarScreen", () => {
       (c) => c[0] === "Connect Google Calendar?",
     ).length;
 
-    // rerender while focused -> no repeat
     rerender(<CalendarScreen />);
     await flush();
 
@@ -225,7 +239,6 @@ describe("CalendarScreen", () => {
     ).length;
     expect(count2).toBe(count1);
 
-    // lose focus then refocus -> can show again
     mockIsFocused = false;
     rerender(<CalendarScreen />);
     await flush();
@@ -240,63 +253,90 @@ describe("CalendarScreen", () => {
     expect(count3).toBe(count1 + 1);
   });
 
-  test("when signed in + connected, loads calendars and events", async () => {
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(true);
+  test("when signed in + connected, loads screen data", async () => {
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: true,
+      calendarConnected: true,
+    });
 
-    // focus refresh
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(true);
-
-    mockFetchUserCalendars.mockReturnValueOnce([
-      { id: "primary", summary: "Primary", primary: true },
-    ]);
-
-    mockFetchUpcoming.mockReturnValueOnce([]);
+    mockLoadScreenData.mockResolvedValueOnce({
+      auth: {
+        signedIn: true,
+        calendarConnected: true,
+      },
+      calendars: [{ id: "primary", summary: "Primary", primary: true }],
+      events: [],
+      activeCalendarId: "primary",
+    });
 
     render(<CalendarScreen />);
 
     await waitFor(() => {
-      expect(mockFetchUserCalendars).toHaveBeenCalledTimes(1);
-      expect(mockFetchUpcoming).toHaveBeenCalledTimes(1);
+      expect(mockLoadScreenData).toHaveBeenCalledTimes(1);
     });
   });
 
-  test("handles calendars load failure (loadCalendars catch)", async () => {
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(true);
+  test("handles calendars load failure (loadScreenData catch)", async () => {
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: true,
+      calendarConnected: true,
+    });
 
-    // focus refresh
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(true);
-
-    mockFetchUserCalendars.mockRejectedValueOnce(new Error("cal fail"));
-    mockFetchUpcoming.mockReturnValueOnce([]);
+    mockLoadScreenData.mockRejectedValueOnce(new Error("cal fail"));
 
     const { findByText } = render(<CalendarScreen />);
 
     expect(await findByText("cal fail")).toBeTruthy();
-    expect(mockFetchUserCalendars).toHaveBeenCalled();
+    expect(mockLoadScreenData).toHaveBeenCalled();
   });
 
-  test("handles events load failure (loadEvents catch)", async () => {
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(true);
+  test("handles events load failure (loadScreenData catch)", async () => {
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: true,
+      calendarConnected: true,
+    });
 
-    // focus refresh
-    mockGetCurrentUser.mockReturnValueOnce({ user: { email: "a@b.com" } });
-    mockIsConnected.mockReturnValueOnce(true);
+    mockLoadScreenData.mockRejectedValueOnce(new Error("events fail"));
 
-    mockFetchUserCalendars.mockReturnValueOnce([
-      { id: "primary", summary: "Primary", primary: true },
+    const { findByText } = render(<CalendarScreen />);
+
+    expect(await findByText("events fail")).toBeTruthy();
+    expect(mockLoadScreenData).toHaveBeenCalledTimes(1);
+  });
+
+  test("selecting another calendar reloads events through facade", async () => {
+    mockGetConnectionState.mockResolvedValue({
+      signedIn: true,
+      calendarConnected: true,
+    });
+
+    mockLoadScreenData.mockResolvedValueOnce({
+      auth: {
+        signedIn: true,
+        calendarConnected: true,
+      },
+      calendars: [
+        { id: "primary", summary: "Primary", primary: true },
+        { id: "work", summary: "Work", primary: false },
+      ],
+      events: [],
+      activeCalendarId: "primary",
+    });
+
+    mockReloadEventsForCalendar.mockResolvedValueOnce([
+      {
+        id: "2",
+        summary: "SOEN 390",
+        location: "EV Building",
+        startISO: "2026-02-27T16:00:00.000Z",
+        endISO: "2026-02-27T17:00:00.000Z",
+      },
     ]);
-
-    mockFetchUpcoming.mockRejectedValueOnce(new Error("events fail"));
 
     render(<CalendarScreen />);
 
     await waitFor(() => {
-      expect(mockFetchUpcoming).toHaveBeenCalledTimes(1);
+      expect(mockLoadScreenData).toHaveBeenCalledTimes(1);
     });
   });
 });
