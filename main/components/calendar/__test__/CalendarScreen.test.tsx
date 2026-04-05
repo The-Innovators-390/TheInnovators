@@ -83,7 +83,8 @@ async function flush() {
 
 describe("CalendarScreen", () => {
   const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-  const mockGetConnectionState = googleCalendarFacade.getConnectionState as jest.Mock;
+  const mockGetConnectionState =
+    googleCalendarFacade.getConnectionState as jest.Mock;
   const mockConnectCalendar = googleCalendarFacade.connectCalendar as jest.Mock;
   const mockLoadScreenData = googleCalendarFacade.loadScreenData as jest.Mock;
   const mockReloadEventsForCalendar =
