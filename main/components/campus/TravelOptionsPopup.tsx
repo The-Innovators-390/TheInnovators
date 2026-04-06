@@ -13,6 +13,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
+import type { RouteChip } from "./helper_methods/routeStrategy";
 
 import type {
   DirectionRoute,
@@ -22,7 +23,7 @@ import type {
   ShuttleInfo,
   ShuttleStatus,
 } from "@/components/campus/helper_methods/shuttleSchedule";
-import { getRouteStrategy, RouteChip } from "./helper_methods/routeStrategy";
+import { RouteStrategyFactory } from "./helper_methods/RouteStrategyFactory";
 import { bottomSheetStyle } from "../Styles/bottomSheetStyle";
 
 const ICON_SUBWAY = require("../../assets/icons/icon-subway.png");
@@ -334,7 +335,10 @@ function RouteList({
     <>
       {routes.map((route, index) => {
         const isActive = index === selectedRouteIndex;
-        const strategy = getRouteStrategy(selectedMode);
+        const strategy =
+          selectedMode === "shuttle"
+            ? null
+            : RouteStrategyFactory.create(selectedMode);
         const chipLines = strategy?.getChips(route) ?? [];
 
         const buses = getBusDetails(chipLines);

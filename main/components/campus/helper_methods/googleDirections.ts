@@ -1,4 +1,4 @@
-import { getRouteStrategy } from "./routeStrategy";
+import { RouteStrategyFactory } from "../helper_methods/RouteStrategyFactory";
 
 export type DirectionsParams = {
   origin: LatLng;
@@ -116,6 +116,6 @@ export async function fetchDirections(params: {
   destination: LatLng;
   mode: TravelMode;
 }): Promise<DirectionRoute[]> {
-  const strat = getRouteStrategy(params.mode);
+  const strat = RouteStrategyFactory.create(params.mode);
   return strat.fetchRoutes(params.origin, params.destination);
 }

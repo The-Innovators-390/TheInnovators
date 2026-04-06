@@ -9,20 +9,13 @@ import {
   RefreshControl,
 } from "react-native";
 import { router } from "expo-router";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
-import {
-  configureGoogleSignIn,
-  signInWithGoogle,
-  requestGoogleCalendarAccess,
-  isGoogleCalendarConnected,
-} from "@/hooks/useGoogleAuth";
+import { configureGoogleSignIn, signInWithGoogle } from "@/hooks/useGoogleAuth";
+import { googleCalendarFacade } from "@/services/google/facades/GoogleCalendarFacade";
 
-import {
-  fetchUpcomingCalendarEvents,
-  fetchUserCalendars,
-  type GoogleCalendarListItem,
-  type CalendarEvent,
+import type {
+  GoogleCalendarListItem,
+  CalendarEvent,
 } from "@/services/googleCalendar";
 
 import { parseLocationDetails } from "@/services/calendarUtils";
@@ -39,9 +32,7 @@ import { styles } from "@/components/calendar/calendarStyles";
 import { useCalendarDerived } from "@/hooks/useCalendarDerived";
 
 import MonthCalendarCard from "@/components/calendar/MonthCalendarCard";
-
 import FindNextClass from "@/components/calendar/FindNextClass";
-
 import UpcomingEvents from "@/components/calendar/UpcomingEvents";
 import OtherCalendars from "@/components/calendar/OtherCalendars";
 
@@ -63,19 +54,15 @@ export default function CalendarScreen() {
   const [calendars, setCalendars] = useState<GoogleCalendarListItem[]>([]);
 
   const [activeCalendarId, setActiveCalendarId] = useState<string>("primary");
-
-  // dropdown selection (user picks here before applying)
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pendingCalendarId, setPendingCalendarId] = useState<string>("primary");
-
-  // calendar month state (starts at “now”)
   const [monthCursor, setMonthCursor] = useState(() => new Date());
 
   const pendingCalendarName =
     calendars.find((c) => c.id === pendingCalendarId)?.summary ?? "Primary";
 
-  // prevents the alert from popping multiple times on re-render
   const promptedRef = useRef(false);
+  const fetchBusyRef = useRef(false);
 
   const goToMap = useCallback(() => {
     router.replace("/(tabs)/map");
@@ -138,51 +125,42 @@ export default function CalendarScreen() {
   }, []);
 
   const refreshState = useCallback(async () => {
-    const user = GoogleSignin.getCurrentUser();
-    const connected = await isGoogleCalendarConnected();
+    const state = await googleCalendarFacade.getConnectionState();
 
-    const signedInNow = !!user;
+    setSignedIn(state.signedIn);
+    setCalendarConnected(state.calendarConnected);
 
-    setSignedIn(signedInNow);
-    setCalendarConnected(connected);
-
-    return { signedInNow, connected };
+    return {
+      signedInNow: state.signedIn,
+      connected: state.calendarConnected,
+    };
   }, []);
 
-  const loadCalendars = useCallback(async () => {
-    try {
-      setCalendarsError(null);
-      setCalendarsLoading(true);
-
-      const list = await fetchUserCalendars();
-      setCalendars(list);
-
-      // pick default: primary if available, else first
-      const primaryId = list.find((c) => c.primary)?.id ?? "primary";
-
-      // only initialize if still on default values
-      setActiveCalendarId((prev) => (prev === "primary" ? primaryId : prev));
-      setPendingCalendarId((prev) => (prev === "primary" ? primaryId : prev));
-    } catch (e: any) {
-      setCalendars([]);
-      setCalendarsError(e?.message ?? "Could not load calendars.");
-    } finally {
-      setCalendarsLoading(false);
-    }
-  }, []);
-
-  const loadEvents = useCallback(
-    async (calendarId?: string) => {
-      const id = calendarId ?? activeCalendarId;
+  const loadCalendarScreenData = useCallback(
+    async (preferredCalendarId?: string) => {
       try {
+        setCalendarsError(null);
         setEventsError(null);
+        setCalendarsLoading(true);
         setEventsLoading(true);
-        const list = await fetchUpcomingCalendarEvents(id);
-        setEvents(list);
+
+        const data = await googleCalendarFacade.loadScreenData(
+          preferredCalendarId ?? activeCalendarId,
+        );
+
+        setSignedIn(data.auth.signedIn);
+        setCalendarConnected(data.auth.calendarConnected);
+        setCalendars(data.calendars);
+        setEvents(data.events);
+        setActiveCalendarId(data.activeCalendarId);
+        setPendingCalendarId(data.activeCalendarId);
       } catch (e: any) {
+        setCalendars([]);
         setEvents([]);
+        setCalendarsError(e?.message ?? "Could not load calendars.");
         setEventsError(e?.message ?? "Could not load calendar events.");
       } finally {
+        setCalendarsLoading(false);
         setEventsLoading(false);
       }
     },
@@ -201,38 +179,54 @@ export default function CalendarScreen() {
     })();
   }, [refreshState]);
 
-  // Reset prompt flag when leaving calendar screen
   useEffect(() => {
     if (!isFocused) promptedRef.current = false;
   }, [isFocused]);
 
-  // Prevents overlapping Google token requests (getTokens)
-  const fetchBusyRef = useRef(false);
-
-  // To ensure loadCalendars + loadEvents don't run concurrently
   const runFetchCycle = useCallback(async () => {
     if (fetchBusyRef.current) return;
     fetchBusyRef.current = true;
 
     try {
       const { signedInNow, connected } = await refreshState();
+
       if (signedInNow && connected) {
-        await loadCalendars();
-        await loadEvents();
+        await loadCalendarScreenData();
+      } else {
+        setCalendars([]);
+        setEvents([]);
       }
     } finally {
       fetchBusyRef.current = false;
     }
-  }, [refreshState, loadCalendars, loadEvents]);
+  }, [refreshState, loadCalendarScreenData]);
 
-  // Only run fetches when calendar screen is focused
   useEffect(() => {
     if (!isFocused) return;
     if (loading) return;
     runFetchCycle();
   }, [isFocused, loading, runFetchCycle]);
 
-  // If user is signed in but calendar is NOT connected -> prompt to connect
+  const handleConnectCalendar = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const state = await googleCalendarFacade.connectCalendar();
+      setSignedIn(state.signedIn);
+      setCalendarConnected(state.calendarConnected);
+
+      await loadCalendarScreenData();
+    } catch (e: any) {
+      Alert.alert(
+        "Calendar not connected",
+        e?.message ?? "You can connect it later.",
+      );
+      goToMap();
+    } finally {
+      setLoading(false);
+    }
+  }, [goToMap, loadCalendarScreenData]);
+
   useEffect(() => {
     if (!isFocused) return;
     if (loading) return;
@@ -250,26 +244,19 @@ export default function CalendarScreen() {
         {
           text: "Connect",
           onPress: () => {
-            void (async () => {
-              try {
-                setLoading(true);
-                await requestGoogleCalendarAccess();
-                await runFetchCycle();
-              } catch (e: any) {
-                Alert.alert(
-                  "Calendar not connected",
-                  e?.message ?? "You can connect it later.",
-                );
-                goToMap();
-              } finally {
-                setLoading(false);
-              }
-            })();
+            void handleConnectCalendar();
           },
         },
       ],
     );
-  }, [isFocused, loading, signedIn, calendarConnected, goToMap, runFetchCycle]);
+  }, [
+    isFocused,
+    loading,
+    signedIn,
+    calendarConnected,
+    goToMap,
+    handleConnectCalendar,
+  ]);
 
   const onSignInPress = async () => {
     try {
@@ -295,12 +282,29 @@ export default function CalendarScreen() {
     }
   }, [runFetchCycle]);
 
+  const handleSelectCalendar = useCallback(async () => {
+    try {
+      setEventsError(null);
+      setEventsLoading(true);
+
+      const nextEvents =
+        await googleCalendarFacade.reloadEventsForCalendar(pendingCalendarId);
+
+      setActiveCalendarId(pendingCalendarId);
+      setEvents(nextEvents);
+    } catch (e: any) {
+      setEvents([]);
+      setEventsError(e?.message ?? "Could not load calendar events.");
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [pendingCalendarId]);
+
   const { eventDaySet, monthGrid, todayKey, grouped } = useCalendarDerived(
     events,
     monthCursor,
   );
 
-  // NOT signed in
   if (!signedIn) {
     return (
       <View style={styles.center} testID="calendar-notSignedIn">
@@ -331,7 +335,6 @@ export default function CalendarScreen() {
     );
   }
 
-  // Signed in but not connected (fallback UI; alert also appears)
   if (!calendarConnected) {
     return (
       <View style={styles.center} testID="calendar-notConnected">
@@ -346,21 +349,7 @@ export default function CalendarScreen() {
         <Pressable
           testID="calendar-connectCalendarButton"
           style={styles.googleBtn}
-          onPress={async () => {
-            try {
-              setLoading(true);
-              await requestGoogleCalendarAccess();
-              await runFetchCycle();
-            } catch (e: any) {
-              Alert.alert(
-                "Calendar not connected",
-                e?.message ?? "You can connect it later.",
-              );
-              goToMap();
-            } finally {
-              setLoading(false);
-            }
-          }}
+          onPress={handleConnectCalendar}
         >
           <Text style={styles.googleBtnText}>Connect Google Calendar</Text>
         </Pressable>
@@ -376,7 +365,6 @@ export default function CalendarScreen() {
     );
   }
 
-  // Connected: real calendar + upcoming events
   return (
     <ScrollView
       testID="calendar-connected"
@@ -419,10 +407,7 @@ export default function CalendarScreen() {
         setPendingCalendarId={setPendingCalendarId}
         pendingCalendarName={pendingCalendarName}
         activeCalendarId={activeCalendarId}
-        onSelectCalendar={async () => {
-          setActiveCalendarId(pendingCalendarId);
-          await loadEvents(pendingCalendarId);
-        }}
+        onSelectCalendar={handleSelectCalendar}
         styles={styles}
       />
     </ScrollView>

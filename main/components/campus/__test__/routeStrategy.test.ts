@@ -1,13 +1,9 @@
-import type {
-  DirectionRoute,
-  LatLng,
-} from "../helper_methods/googleDirections";
+import type { LatLng } from "../helper_methods/googleDirections";
 import {
   BicyclingStrategy,
   DrivingStrategy,
   TransitStrategy,
   WalkingStrategy,
-  getRouteStrategy,
 } from "../helper_methods/routeStrategy";
 
 jest.mock("expo-constants", () => ({
@@ -32,25 +28,6 @@ describe("routeStrategy.ts", () => {
     } as any);
   }
 
-  describe("getRouteStrategy", () => {
-    it("returns correct strategy instances", () => {
-      expect(getRouteStrategy("driving")).toBeInstanceOf(DrivingStrategy);
-      expect(getRouteStrategy("walking")).toBeInstanceOf(WalkingStrategy);
-      expect(getRouteStrategy("bicycling")).toBeInstanceOf(BicyclingStrategy);
-      expect(getRouteStrategy("transit")).toBeInstanceOf(TransitStrategy);
-    });
-
-    it("returns null for shuttle (as implemented)", () => {
-      expect(getRouteStrategy("shuttle")).toBeNull();
-    });
-
-    it("throws for unsupported travel mode", () => {
-      expect(() => getRouteStrategy("teleport" as any)).toThrow(
-        "Unsupported travel mode: teleport",
-      );
-    });
-  });
-
   describe("RouteStrategy.fetchRoutes (integration via concrete strategies)", () => {
     it("throws if HTTP response is not ok", async () => {
       mockFetchOnce({
@@ -59,7 +36,8 @@ describe("routeStrategy.ts", () => {
         json: { status: "OK", routes: [] },
       });
 
-      const strat = getRouteStrategy("walking")!;
+      const strat = new WalkingStrategy();
+
       await expect(strat.fetchRoutes(origin, destination)).rejects.toThrow(
         "Directions HTTP 500",
       );
@@ -72,7 +50,8 @@ describe("routeStrategy.ts", () => {
         json: { status: "ZERO_RESULTS", routes: [] },
       });
 
-      const strat = getRouteStrategy("walking")!;
+      const strat = new WalkingStrategy();
+
       await expect(strat.fetchRoutes(origin, destination)).rejects.toThrow(
         /Directions API status: ZERO_RESULTS/,
       );
@@ -109,8 +88,9 @@ describe("routeStrategy.ts", () => {
         },
       });
 
-      const strat = getRouteStrategy("walking")!;
+      const strat = new WalkingStrategy();
       const routes = await strat.fetchRoutes(origin, destination);
+
       expect(routes).toHaveLength(1);
       expect(routes[0].summary).toBe("has poly");
       expect(routes[0].polyline).toBe("ENCODED");
@@ -147,7 +127,7 @@ describe("routeStrategy.ts", () => {
         },
       });
 
-      const strat = getRouteStrategy("driving")!;
+      const strat = new DrivingStrategy();
       const routes = await strat.fetchRoutes(origin, destination);
 
       expect(routes).toHaveLength(1);
@@ -172,7 +152,6 @@ describe("routeStrategy.ts", () => {
                   duration: { value: 600, text: "10 mins" },
                   distance: { value: 3000, text: "3 km" },
                   steps: [
-                    // Bus line 211 (duplicate twice -> should be stored once)
                     {
                       travel_mode: "TRANSIT",
                       html_instructions: "Take bus",
@@ -205,8 +184,6 @@ describe("routeStrategy.ts", () => {
                         },
                       },
                     },
-
-                    // Metro line 1
                     {
                       travel_mode: "TRANSIT",
                       html_instructions: "Take metro",
@@ -223,7 +200,6 @@ describe("routeStrategy.ts", () => {
                         },
                       },
                     },
-                    // Non-transit step should not create a transit line
                     {
                       travel_mode: "WALKING",
                       html_instructions: "Walk",
@@ -240,31 +216,33 @@ describe("routeStrategy.ts", () => {
         },
       });
 
-      const strat = getRouteStrategy("transit") as TransitStrategy;
+      const strat = new TransitStrategy();
       const routes = await strat.fetchRoutes(origin, destination);
 
       expect(routes).toHaveLength(1);
       const route = routes[0];
 
-      // transitLines deduped
       expect(route.transitLines).toBeDefined();
       expect(route.transitLines!.length).toBe(2);
 
       const names = route.transitLines!.map((l) => l.name).sort();
       expect(names).toEqual(["211", "Line 1"]);
 
-      // Chips: bus 211 + metro Line 1
       const chips = strat.getChips(route);
+      expect(chips.some((c) => c.kind === "bus" && c.label === "211")).toBe(
+        true,
+      );
       expect(
-        chips.some((c: any) => c.kind === "bus" && c.label === "211"),
-      ).toBe(true);
-      expect(
-        chips.some((c: any) => c.kind === "metro" && c.label === "Line 1"),
+        chips.some((c) => c.kind === "metro" && c.label === "Line 1"),
       ).toBe(true);
 
-      // Your implementation adds lineColor at runtime (even if TS type doesn’t include it)
-      const metroChip = chips.find((c: any) => c.kind === "metro");
-      expect((metroChip as any).lineColor).toBeDefined();
+      const metroChip = chips.find((c) => c.kind === "metro");
+      expect(metroChip && "lineColor" in metroChip).toBe(true);
+    });
+
+    it("BicyclingStrategy can be instantiated and uses bicycling mode", () => {
+      const strat = new BicyclingStrategy();
+      expect(strat.mode).toBe("bicycling");
     });
   });
 
@@ -275,16 +253,17 @@ describe("routeStrategy.ts", () => {
       expoConfig: { extra: {} },
     }));
 
-    let getRouteStrategy: any;
+    let WalkingStrategyLocal: any;
 
     jest.isolateModules(() => {
-      // IMPORTANT: require AFTER doMock, inside isolateModules
-      ({ getRouteStrategy } = require("../helper_methods/routeStrategy"));
+      ({
+        WalkingStrategy: WalkingStrategyLocal,
+      } = require("../helper_methods/routeStrategy"));
     });
 
     global.fetch = jest.fn() as any;
 
-    const strat = getRouteStrategy("walking");
+    const strat = new WalkingStrategyLocal();
 
     await expect(strat.fetchRoutes(origin, destination)).rejects.toThrow(
       "Missing Google Maps API key in expoConfig.extra.googleMapsApiKey",

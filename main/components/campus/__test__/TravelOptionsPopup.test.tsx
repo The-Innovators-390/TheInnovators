@@ -1,10 +1,10 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
-import { View, Text } from "react-native";
 import type {
   DirectionRoute,
   TravelMode,
 } from "@/components/campus/helper_methods/googleDirections";
+import { RouteStrategyFactory } from "@/components/campus/helper_methods/RouteStrategyFactory";
 
 // Mock PNG requires used inside TravelOptionsPopup
 jest.mock("../../../assets/icons/icon-subway.png", () => 1);
@@ -12,13 +12,18 @@ jest.mock("../../../assets/icons/icon-bus.png", () => 1);
 
 // Optional: reduces noisy act warnings from icon internals in tests
 jest.mock("@expo/vector-icons", () => {
-  const React = require("react");
   const { Text } = require("react-native");
 
   return {
     MaterialIcons: ({ name }: { name: string }) => <Text>{name}</Text>,
   };
 });
+
+jest.mock("@/components/campus/helper_methods/RouteStrategyFactory", () => ({
+  RouteStrategyFactory: {
+    create: jest.fn(),
+  },
+}));
 
 const TravelOptionsPopup =
   require("@/components/campus/TravelOptionsPopup").default;
@@ -107,6 +112,27 @@ function buildModes(): ModeData[] {
 }
 
 describe("TravelOptionsPopup", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    (RouteStrategyFactory.create as jest.Mock).mockImplementation((mode) => ({
+      getChips: (route: DirectionRoute) => {
+        if (mode !== "transit") return [];
+
+        const chips = [];
+        for (const line of route.transitLines ?? []) {
+          const vehicleType = line.vehicleType?.toLowerCase();
+          if (vehicleType === "bus") {
+            chips.push({ kind: "bus", label: line.name });
+          } else if (vehicleType === "subway" || vehicleType === "metro") {
+            chips.push({ kind: "metro", label: line.name, lineColor: "#000" });
+          }
+        }
+        return chips;
+      },
+    }));
+  });
+
   it("renders bus + metro chips when selectedMode is transit", () => {
     const { getByText } = render(
       <TravelOptionsPopup
