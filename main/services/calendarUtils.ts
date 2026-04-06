@@ -52,7 +52,7 @@ export function formatDayHeader(d: Date) {
   const day = d.getDate();
   let suffix = "th";
 
-  if (day % 10 == 1 && day !== 11) {
+  if (day % 10 === 1 && day !== 11) {
     suffix = "st";
   } else if (day % 10 === 2 && day !== 12) {
     suffix = "nd";
@@ -182,7 +182,7 @@ export function parseLocationDetails(location?: string): LocationDetails {
   }
 
   // 2) Extract Room
-  const roomMatch = new RegExp(/\bRm\s*([A-Za-z0-9.-]+)\b/i).exec(raw);
+  const roomMatch = /\bRm\s*([a-z0-9.-]+)\b/i.exec(raw);
   const room = roomMatch?.[1];
 
   // 3) Extract building candidate text
