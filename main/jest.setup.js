@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jest */
+/* eslint-disable react/prop-types */
 import "@testing-library/jest-native/extend-expect";
 
 // Mock useUserRole globally so any component that imports it (e.g. CampusMap)
